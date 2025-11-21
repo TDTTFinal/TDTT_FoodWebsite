@@ -1,0 +1,6 @@
+/* index.css sạch - không gây xung đột */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}

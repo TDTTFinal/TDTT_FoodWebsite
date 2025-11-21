@@ -1,24 +1,37 @@
-// src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import SignIn from './pages/SignIn';
-import SignUp from './pages/SignUp';
-import LandingPage from './pages/LandingPage';
-import About from './pages/About';     // <--- Thêm dòng này
-import History from './pages/History'; // <--- Thêm dòng này
-import './App.css';
+import { Routes, Route, Navigate } from "react-router-dom";
+import "./App.css";
+import "./index.css";
+import LandingPage from "./pages/LandingPage.jsx";
+import About from "./pages/About.jsx";
+import History from "./pages/History.jsx";
+
+import SignInPage from "./pages/auth/SignInPage.jsx";
+import SignUpPage from "./pages/auth/SignUpPage.jsx";
+import HomePage from "./pages/auth/HomePage.jsx";
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        {/* Các trang mới */}
-        <Route path="/about" element={<About />} />     {/* <--- Thêm dòng này */}
-        <Route path="/history" element={<History />} /> {/* <--- Thêm dòng này */}
-      </Routes>
-    </Router>
+    <Routes>
+      {/* Trang chủ landing */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/* Các trang tĩnh */}
+      <Route path="/about" element={<About />} />
+      <Route path="/history" element={<History />} />
+
+      {/* Auth: tạo alias để dễ nhớ */}
+      <Route path="/login" element={<SignInPage />} />
+      <Route path="/signin" element={<SignInPage />} />
+
+      <Route path="/register" element={<SignUpPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
+
+      {/* Home sau khi login thành công */}
+      <Route path="/home" element={<HomePage />} />
+
+      {/* Route không tồn tại */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
