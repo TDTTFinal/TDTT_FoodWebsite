@@ -13,6 +13,7 @@ function SignUpPage() {
     password: "",
     confirmPassword: "",
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ function SignUpPage() {
     setError("");
 
     if (!form.name || !form.email || !form.password) {
-      setError("Vui lòng nhập đầy đủ họ tên, email và mật khẩu");
+      setError("Vui lòng nhập đầy đủ Họ tên, Email và Mật khẩu");
       return;
     }
 
@@ -43,19 +44,17 @@ function SignUpPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
           email: form.email,
           password: form.password,
-          // phone, address tạm chưa lưu DB, sau này bổ sung schema User cũng được
+          phone: form.phone,
+          address: form.address,
         }),
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.message || "Đăng ký thất bại");
       }
@@ -63,120 +62,162 @@ function SignUpPage() {
       alert("Đăng ký thành công! Hãy đăng nhập.");
       navigate("/login");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Có lỗi xảy ra");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card auth-card--signup">
-        <div className="auth-card__left">
-          <div className="auth-logo-box">
-            <div className="auth-logo-circle"></div>
-            <p>Logo</p>
+    <div className="auth-body">
+      <div className="auth-page-label">Sign up</div>
+
+      <div className="auth-wrapper signup-mode">
+        <div className="auth-signup-layout">
+          {/* LOGO BÊN TRÁI */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <div className="auth-logo-box signup-logo-square">
+              <div className="auth-logo-circle signup-logo-circle">
+                TRAVEL &amp; TOURISM
+                <br />
+                LOGO
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="auth-card__right">
-          <h1 className="auth-title">Đăng ký tài khoản</h1>
+          {/* FORM BÊN PHẢI */}
+          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <div className="auth-form-shell">
+              <h1 className="auth-title">ĐĂNG KÝ</h1>
 
-          {error && (
-            <p style={{ color: "red", marginBottom: 8, fontSize: 14 }}>
-              {error}
-            </p>
-          )}
+              {error && (
+                <p style={{ color: "red", marginBottom: 8, fontSize: 14 }}>
+                  {error}
+                </p>
+              )}
 
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label>Họ và tên</label>
-              <input
-                className="auth-input"
-                name="name"
-                type="text"
-                placeholder="Nguyễn Văn A"
-                value={form.name}
-                onChange={handleChange}
-                required
-              />
+              <form onSubmit={handleSubmit}>
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="name">
+                    Họ và tên
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="name"
+                    name="name"
+                    type="text"
+                    placeholder="Nguyễn Văn A"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="phone">
+                    Số điện thoại (tuỳ chọn)
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="phone"
+                    name="phone"
+                    type="text"
+                    placeholder="0123 456 789"
+                    value={form.phone}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="address">
+                    Địa chỉ (tuỳ chọn)
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="address"
+                    name="address"
+                    type="text"
+                    placeholder="Quận 1, TP.HCM"
+                    value={form.address}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="email">
+                    Email
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="password">
+                    Mật khẩu
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="confirmPassword">
+                    Nhập lại mật khẩu
+                  </label>
+                  <input
+                    className="auth-input"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Nhập lại mật khẩu"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="auth-btn auth-btn-signup"
+                  disabled={loading}
+                >
+                  {loading ? "Đang xử lý..." : "ĐĂNG KÝ"}
+                </button>
+
+                <div
+                  style={{
+                    marginTop: "15px",
+                    fontSize: "12px",
+                    textAlign: "center",
+                  }}
+                >
+                  Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
+                </div>
+              </form>
             </div>
-
-            <div className="auth-field">
-              <label>Số điện thoại (tuỳ chọn)</label>
-              <input
-                className="auth-input"
-                name="phone"
-                type="text"
-                placeholder="0123 456 789"
-                value={form.phone}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Địa chỉ (tuỳ chọn)</label>
-              <input
-                className="auth-input"
-                name="address"
-                type="text"
-                placeholder="Quận 1, TP.HCM"
-                value={form.address}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Email</label>
-              <input
-                className="auth-input"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Mật khẩu</label>
-              <input
-                className="auth-input"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Nhập lại mật khẩu</label>
-              <input
-                className="auth-input"
-                name="confirmPassword"
-                type="password"
-                placeholder="Nhập lại mật khẩu"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="auth-button auth-button--primary"
-              disabled={loading}
-            >
-              {loading ? "Đang xử lý..." : "ĐĂNG KÝ"}
-            </button>
-          </form>
-
-          <p className="auth-bottom-text">
-            Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>

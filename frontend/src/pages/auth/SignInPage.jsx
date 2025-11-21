@@ -1,14 +1,8 @@
-import { useState } from "react"; // dùng để quản lý state form
-import { Link, useNavigate } from "react-router-dom"; // dùng để chuyển sang trang đăng ký mà không cần reload "Link"
-// useNavigate: useNavigate cho phép chuyển trang bằng code (vd: sau khi login xong → navigate("/")).
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "../../styles/auth.css";
 
-// useNavigate: giúp cho việc sau khi đăng nhập thành công thì điều hướng sang trang khác
-
-
 const API_BASE_URL = "http://localhost:5000/api";
-// Mục đích: gom base URL của backend vào 1 chỗ:
-// Sau này nếu đổi port/host (VD deploy lên server) → sửa 1 dòng này là xong.
 
 function SignInPage() {
   const [form, setForm] = useState({
@@ -17,12 +11,12 @@ function SignInPage() {
     remember: false,
   });
 
-  const [loading, setLoading] = useState(false); // dùng để biết đang gửi request : hiển thị "đang xử lý..."
-  const [error, setError] = useState(""); // dùng để lưu thông báo lỗi để hiển thị ra UI
-  const navigate = useNavigate(); // dùng cho phần import ở trên để chuyển trang
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, type, checked, value } = e.target;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -52,45 +46,54 @@ function SignInPage() {
         throw new Error(data.message || "Đăng nhập thất bại");
       }
 
-      // lưu token + user tạm thời vào localStorage
+      // Lưu tạm token + user
       localStorage.setItem(
         "auth",
         JSON.stringify({ token: data.token, user: data.user })
       );
 
-      alert("Đăng nhập thành công!");
-      navigate("/"); // sau này sẽ là trang Home thật sự
+      
+      
+      navigate("/");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Có lỗi xảy ra");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card auth-card--signin">
-        <div className="auth-card__left">
-          <div className="auth-logo-box">
-            <div className="auth-logo-circle"></div>
-            <p>Logo</p>
+    <div className="auth-body">
+      <div className="auth-page-label">Sign in</div>
+
+      <div className="auth-wrapper signin-mode">
+        <div className="auth-inner">
+          {/* LOGO */}
+          <div className="auth-logo-area">
+            <div className="auth-logo-box signin-logo-outer">
+              <div className="auth-logo-circle signin-logo-inner">
+                TRAVEL &amp; TOURISM
+                <br />
+                LOGO
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="auth-card__right">
-          <h1 className="auth-title">Đăng nhập</h1>
+          {/* FORM */}
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <p style={{ color: "red", marginBottom: 8, fontSize: 14 }}>
+                {error}
+              </p>
+            )}
 
-          {error && (
-            <p style={{ color: "red", marginBottom: 8, fontSize: 14 }}>
-              {error}
-            </p>
-          )}
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label>Email</label>
+            <div className="auth-group">
+              <label className="auth-label" htmlFor="email">
+                Email:
+              </label>
               <input
                 className="auth-input"
+                id="email"
                 name="email"
                 type="email"
                 placeholder="you@example.com"
@@ -100,10 +103,13 @@ function SignInPage() {
               />
             </div>
 
-            <div className="auth-field">
-              <label>Mật khẩu</label>
+            <div className="auth-group">
+              <label className="auth-label" htmlFor="password">
+                Mật khẩu:
+              </label>
               <input
                 className="auth-input"
+                id="password"
                 name="password"
                 type="password"
                 placeholder="••••••••"
@@ -113,31 +119,44 @@ function SignInPage() {
               />
             </div>
 
-            <div className="auth-row-between">
-              <label style={{ fontSize: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "12px",
+                marginTop: "5px",
+              }}
+            >
+              <label>
                 <input
                   type="checkbox"
                   name="remember"
                   checked={form.remember}
                   onChange={handleChange}
-                  style={{ marginRight: 6 }}
-                />
-                Ghi nhớ đăng nhập
+                />{" "}
+                Nhớ mật khẩu
               </label>
+              <span>Quên mật khẩu?</span>
             </div>
 
             <button
               type="submit"
-              className="auth-button auth-button--primary"
+              className="auth-btn auth-btn-login"
               disabled={loading}
             >
-              {loading ? "Đang xử lý..." : "ĐĂNG NHẬP"}
+              {loading ? "Đang đăng nhập..." : "ĐĂNG NHẬP"}
             </button>
-          </form>
 
-          <p className="auth-bottom-text">
-            Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
-          </p>
+            <div
+              style={{
+                marginTop: "15px",
+                fontSize: "12px",
+                textAlign: "center",
+              }}
+            >
+              Chưa có tài khoản? <Link to="/signup">Đăng ký ngay</Link>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -145,5 +164,3 @@ function SignInPage() {
 }
 
 export default SignInPage;
-
-
