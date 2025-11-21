@@ -43,26 +43,7 @@
     background-color: #f9fbff;
 }
 
-/* ô logo vuông */
-.auth-logo-box {
-    width: 260px;
-    height: 260px;
-    border: 2px solid #111827;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
-.auth-logo-circle {
-    width: 140px;
-    height: 140px;
-    border-radius: 999px;
-    border: 2px solid #111827;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-}
 
 /* bên phải sign up: form */
 .auth-card__right {
@@ -71,13 +52,7 @@
     padding: 36px 56px 40px;
 }
 
-.auth-title {
-    font-size: 24px;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 24px;
-    letter-spacing: 1px;
-}
+
 
 .auth-form {
     display: flex;
@@ -93,17 +68,6 @@
     font-size: 13px;
 }
 
-/* input bo tròn */
-.auth-input {
-    width: 100%;
-    border-radius: 999px;
-    border: 1px solid #d1d5db;
-    padding: 10px 16px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    background-color: #fefefe;
-}
 
 .auth-input:focus {
     border-color: #3b82f6;
@@ -111,18 +75,6 @@
 }
 
 /* nút */
-.auth-button {
-    margin-top: 10px;
-    width: 100%;
-    border-radius: 999px;
-    border: none;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    background: linear-gradient(90deg, #ff9ad5, #ffd3e8);
-    color: #111827;
-}
 
 /* nút login */
 .auth-button--primary {
@@ -173,5 +125,199 @@
 
     .auth-card--signin {
         padding: 24px 20px 32px;
+    }
+}
+
+
+
+/* src/Auth.css - GIỮ NGUYÊN BẢN GỐC */
+
+/* Class bao ngoài cùng để tái tạo lại thẻ body của file gốc */
+.auth-body {
+    min-height: 100vh;
+    background: linear-gradient(145deg, #dff3ff, #c3e4ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    /* Full màn hình */
+    position: absolute;
+    /* Đè lên mọi thứ khác */
+    top: 0;
+    left: 0;
+    z-index: 999;
+    /* Luôn nằm trên cùng */
+}
+
+.auth-page-label {
+    position: fixed;
+    top: 14px;
+    left: 18px;
+    font-size: 14px;
+    color: #7b8a9b;
+    z-index: 1000;
+}
+
+.auth-wrapper {
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+    display: flex;
+    justify-content: center;
+}
+
+/* Riêng cho SignIn */
+.auth-wrapper.signin-mode {
+    width: 720px;
+    max-width: 95%;
+    padding: 40px 40px 34px;
+}
+
+/* Riêng cho SignUp */
+.auth-wrapper.signup-mode {
+    width: 960px;
+    max-width: 95%;
+    padding: 32px 40px;
+}
+
+.auth-inner {
+    width: 340px;
+    text-align: center;
+}
+
+.auth-signup-layout {
+    display: flex;
+    gap: 48px;
+    width: 100%;
+}
+
+/* Logo Styles */
+.auth-logo-area {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 26px;
+}
+
+.auth-logo-box {
+    border: 2px solid #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fdfdfd;
+}
+
+.auth-logo-circle {
+    border-radius: 50%;
+    border: 2px solid #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Kích thước logo cho Login */
+.signin-logo-outer {
+    width: 190px;
+    height: 190px;
+}
+
+.signin-logo-inner {
+    width: 150px;
+    height: 150px;
+    font-size: 15px;
+}
+
+/* Kích thước logo cho Signup */
+.signup-logo-square {
+    width: 270px;
+    height: 270px;
+}
+
+.signup-logo-circle {
+    width: 180px;
+    height: 180px;
+    font-size: 16px;
+}
+
+
+/* Form Styles */
+.auth-form-shell {
+    width: 340px;
+    border-radius: 26px;
+    border: 3px solid #111827;
+    padding: 22px 26px 28px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+}
+
+.auth-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 18px;
+}
+
+.auth-group {
+    text-align: left;
+    margin-bottom: 12px;
+}
+
+.auth-label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 4px;
+    font-weight: normal;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    font-size: 12px;
+    outline: none;
+    background-color: #f9fafb;
+}
+
+.auth-input:focus {
+    background: #ffffff;
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.25);
+}
+
+/* Buttons */
+.auth-btn {
+    width: 160px;
+    padding: 8px 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.auth-btn-login {
+    border: 1px solid #111827;
+    background: #ffffff;
+    margin-top: 18px;
+}
+
+.auth-btn-signup {
+    width: 150px;
+    border: 1px solid #f3a1c4;
+    background: #ffffff;
+    display: block;
+    margin: 16px auto 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .auth-wrapper.signup-mode {
+        flex-direction: column;
+        padding: 24px;
+    }
+
+    .auth-signup-layout {
+        flex-direction: column;
+        align-items: center;
     }
 }
