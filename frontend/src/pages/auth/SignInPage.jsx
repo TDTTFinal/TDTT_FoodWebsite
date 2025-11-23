@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../../styles/auth.css";
 
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../../firebaseConfig";
+
 const API_BASE_URL = "http://localhost:5000/api";
 
 function SignInPage() {
@@ -46,17 +49,51 @@ function SignInPage() {
         throw new Error(data.message || "Đăng nhập thất bại");
       }
 
-      // Lưu tạm token + user
       localStorage.setItem(
         "auth",
         JSON.stringify({ token: data.token, user: data.user })
       );
 
-      
-      
       navigate("/");
     } catch (err) {
       setError(err.message || "Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+
+      const idToken = await result.user.getIdToken();
+
+      const res = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Đăng nhập Google thất bại");
+      }
+
+      localStorage.setItem(
+        "auth",
+        JSON.stringify({ token: data.token, user: data.user })
+      );
+
+      navigate("/");
+    } catch (err) {
+      console.error("Google login error:", err);
+      setError(err.message || "Đăng nhập Google thất bại");
     } finally {
       setLoading(false);
     }
@@ -139,12 +176,44 @@ function SignInPage() {
               <span>Quên mật khẩu?</span>
             </div>
 
+            {/* Nút đăng nhập thường */}
             <button
               type="submit"
               className="auth-btn auth-btn-login"
               disabled={loading}
             >
               {loading ? "Đang đăng nhập..." : "ĐĂNG NHẬP"}
+            </button>
+
+            {/* Divider nhỏ */}
+            <div
+              style={{
+                margin: "12px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <hr style={{ flex: 1, borderTop: "1px solid #ddd" }} />
+              <span>Hoặc</span>
+              <hr style={{ flex: 1, borderTop: "1px solid #ddd" }} />
+            </div>
+
+            {/* Nút đăng nhập bằng Google */}
+            <button
+              type="button"
+              className="auth-btn auth-btn-google"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#444",
+                border: "1px solid #ddd",
+              }}
+            >
+              Đăng nhập bằng Google
             </button>
 
             <div
