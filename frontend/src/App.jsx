@@ -7,7 +7,6 @@ import History from "./pages/History.jsx";
 
 import SignInPage from "./pages/auth/SignInPage.jsx";
 import SignUpPage from "./pages/auth/SignupPage.jsx";
-import HomePage from "./pages/auth/HomePage.jsx";
 import Search from "./pages/test/Search.jsx";
 
 function App() {
@@ -26,9 +25,6 @@ function App() {
 
       <Route path="/register" element={<SignUpPage />} />
       <Route path="/signup" element={<SignUpPage />} />
-
-      {/* Home sau khi login thành công */}
-      <Route path="/home" element={<HomePage />} />
 
       {/*Để quochoc test api */}
       <Route path="/search" element={<Search />} /> 

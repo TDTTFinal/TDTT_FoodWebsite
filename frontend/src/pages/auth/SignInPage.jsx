@@ -5,6 +5,8 @@ import "../../styles/auth.css";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../../firebaseConfig";
 
+import logoImg from '../../assets/logo.svg';
+
 const API_BASE_URL = "http://localhost:5000/api";
 
 function SignInPage() {
@@ -105,18 +107,20 @@ function SignInPage() {
 
       <div className="auth-wrapper signin-mode">
         <div className="auth-inner">
-          {/* LOGO */}
           <div className="auth-logo-area">
-            <div className="auth-logo-box signin-logo-outer">
-              <div className="auth-logo-circle signin-logo-inner">
-                TRAVEL &amp; TOURISM
-                <br />
-                LOGO
-              </div>
-            </div>
+          <Link to="/">
+            <img 
+                src={logoImg} 
+                alt="Chewz App" 
+                style={{ 
+                    width: '180px',    
+                    height: 'auto', 
+                    marginBottom: '10px' 
+                }} 
+            />
+            </Link>
           </div>
 
-          {/* FORM */}
           <form onSubmit={handleSubmit}>
             {error && (
               <p style={{ color: "red", marginBottom: 8, fontSize: 14 }}>
