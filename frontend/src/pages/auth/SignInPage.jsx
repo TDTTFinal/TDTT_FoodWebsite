@@ -139,6 +139,7 @@ function SignInPage() {
               <span>Quên mật khẩu?</span>
             </div>
 
+            {/* Nút đăng nhập thường */}
             <button
               type="submit"
               className="auth-btn auth-btn-login"
