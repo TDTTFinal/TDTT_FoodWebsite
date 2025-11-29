@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext'; // <--- Import Auth
 
+
 import './App.css'; 
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage'; // <--- Import trang User mới tạo
@@ -11,6 +12,9 @@ import SignInPage from './pages/auth/SignInPage';
 import SignupPage from './pages/auth/SignupPage';
 import RestaurantDetailPage from './pages/RestaurantDetailPage';
 import CategoryPage from './pages/CategoryPage';
+
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 function App() {
   const { user } = useAuth(); // Lấy thông tin user
@@ -36,6 +40,10 @@ function App() {
       <Route path="/about" element={<About />} />
       <Route path="/history" element={<History />} />
       <Route path="/category/:slug" element={<CategoryPage />} />
+
+
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
     </Routes>
   );
 }

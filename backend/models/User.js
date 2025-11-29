@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema(
     budget: { type: Number, default: 2 },
     maxDistanceKm: { type: Number, default: 5 },
     topTags: { type: [String], default: [] },
+    
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );
