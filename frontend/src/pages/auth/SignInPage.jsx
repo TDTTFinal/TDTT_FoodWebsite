@@ -5,7 +5,7 @@ import "../../styles/auth.css";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../../firebaseConfig";
 
-import logoImg from '../../assets/logo.svg';
+import logoImg from "../../assets/logo.svg";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -108,16 +108,16 @@ function SignInPage() {
       <div className="auth-wrapper signin-mode">
         <div className="auth-inner">
           <div className="auth-logo-area">
-          <Link to="/">
-            <img 
-                src={logoImg} 
-                alt="Chewz App" 
-                style={{ 
-                    width: '180px',    
-                    height: 'auto', 
-                    marginBottom: '10px' 
-                }} 
-            />
+            <Link to="/">
+              <img
+                src={logoImg}
+                alt="Chewz App"
+                style={{
+                  width: "180px",
+                  height: "auto",
+                  marginBottom: "10px",
+                }}
+              />
             </Link>
           </div>
 
@@ -177,7 +177,12 @@ function SignInPage() {
                 />{" "}
                 Nhớ mật khẩu
               </label>
-              <span>Quên mật khẩu?</span>
+              <Link
+                to="/forgot-password"
+                style={{ textDecoration: "underline", cursor: "pointer" }}
+              >
+                Quên mật khẩu?
+              </Link>
             </div>
 
             {/* Nút đăng nhập thường */}

@@ -1,14 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
-const { registerUser, loginUser } = require("../controllers/authController");
+const { registerUser, loginUser, forgotPassword, resetPassword } = require("../controllers/authController");
 
 const admin = require("../config/firebaseAdmin"); 
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
+
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 router.post("/google", async (req, res) => {
   const { idToken } = req.body;
