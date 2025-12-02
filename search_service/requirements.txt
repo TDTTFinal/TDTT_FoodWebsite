@@ -1,0 +1,21 @@
+# --- Core ML (AI & Xử lý số liệu) ---
+sentence-transformers==2.6.0
+torch>=2.0.0
+numpy>=1.26.0
+scikit-learn>=1.3.0
+
+# --- API / Backend ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.6.4
+
+# --- Data processing (Đọc file CSV) ---
+pandas>=2.1.0
+
+# --- Search engine / Spatial (Tính khoảng cách địa lý) ---
+geopy>=2.4.1
+
+# --- Utilities (Công cụ phụ trợ) ---
+python-multipart>=0.0.5
+requests>=2.31.0
+python-dotenv>=1.0.0

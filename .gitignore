@@ -1,0 +1,26 @@
+# --- HỆ THỐNG (Rác của Mac/Windows) ---
+.DS_Store
+Thumbs.db
+
+# --- FRONTEND (React) ---
+node_modules/
+dist/
+build/
+frontend/.env
+frontend/.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- BACKEND (Python) ---
+# Môi trường ảo (Cực quan trọng)
+venv/
+env/
+.env
+.venv/
+
+# File biên dịch rác (Cực quan trọng)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

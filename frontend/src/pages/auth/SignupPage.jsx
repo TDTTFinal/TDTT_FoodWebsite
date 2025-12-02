@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../../styles/auth.css";
+import logoImg from '../../assets/logo.svg';
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -75,22 +76,18 @@ function SignUpPage() {
       <div className="auth-wrapper signup-mode">
         <div className="auth-signup-layout">
           {/* LOGO BÊN TRÁI */}
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <div className="auth-logo-box signup-logo-square">
-              <div className="auth-logo-circle signup-logo-circle">
-                TRAVEL &amp; TOURISM
-                <br />
-                LOGO
-              </div>
-            </div>
-          </div>
+          <div style={{flex:1, display:'flex', justifyContent:'center', alignItems:'center'}}>
+        <Link to="/">
+            <img 
+                src={logoImg} 
+                alt="Chewz App" 
+                style={{ 
+                width: '250px', /* Bên đăng ký khoảng trống rộng hơn nên để logo to hơn xíu */
+                height: 'auto'
+                }} 
+            />
+        </Link>
+    </div>
 
           {/* FORM BÊN PHẢI */}
           <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
