@@ -1,0 +1,330 @@
+[
+  {
+    "name": "Út Phương - Cơm Gà Cháy Tỏi 35k - Quận 1",
+    "address": "577/46 Trần Hưng Đạo, P. Cầu Kho, Quận 1, TP. HCM",
+    "opening_hours": "08:30 - 17:00",
+    "price_range": "35,000 - 55,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6832351, 10.7567099]
+    },
+    "menu": [
+      {
+        "name": "Cơm gà nước mắm cháy tỏi (má hoặc đùi)",
+        "price": 40000
+      },
+      {
+        "name": "Mì cay Hàn Quốc",
+        "price": 55000
+      },
+      {
+        "name": "Cơm gà sốt Hàn Quốc (má hoặc đùi)",
+        "price": 40000
+      },
+      {
+        "name": "Mì tương đen Hàn Quốc",
+        "price": 55000
+      }
+    ],
+    "reviews": [],
+    "source_url": "https://www.foody.vn/ho-chi-minh/ut-phuong-com-ga-chay-toi-35k-quan-1",
+    "image_url": "https://down-vn.img.susercontent.com/vn-11134513-7ras8-m449utqu1ozz30",
+    "avg_rating": 5,
+    "scores": {
+      "space": 5,
+      "position": 5,
+      "quality": 5,
+      "service": 5,
+      "price": 5
+    },
+    "category": "Cơm"
+  },
+  {
+    "name": "Lẩu Thái Tom Yum - Nguyễn Trãi",
+    "address": "123 Nguyễn Trãi, Quận 1, TP. HCM",
+    "opening_hours": "10:00 - 22:00",
+    "price_range": "150,000 - 300,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6832, 10.7567]
+    },
+    "menu": [
+      {
+        "name": "Lẩu Thái hải sản",
+        "price": 280000
+      },
+      {
+        "name": "Lẩu Thái bò",
+        "price": 250000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Lau+Thai",
+    "avg_rating": 4.8,
+    "scores": {
+      "space": 4.5,
+      "position": 5,
+      "quality": 4.8,
+      "service": 4.7,
+      "price": 4.5
+    },
+    "category": "Lẩu"
+  },
+  {
+    "name": "BBQ King - Nướng Hàn Quốc",
+    "address": "456 Lê Lai, Quận 1, TP. HCM",
+    "opening_hours": "11:00 - 23:00",
+    "price_range": "200,000 - 500,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6900, 10.7700]
+    },
+    "menu": [
+      {
+        "name": "Combo BBQ 2 người",
+        "price": 450000
+      },
+      {
+        "name": "Thịt bò Wagyu",
+        "price": 380000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=BBQ+King",
+    "avg_rating": 4.9,
+    "scores": {
+      "space": 5,
+      "position": 4.8,
+      "quality": 5,
+      "service": 4.9,
+      "price": 4.5
+    },
+    "category": "BBQ"
+  },
+  {
+    "name": "Phở Lệ - Quận 5",
+    "address": "789 Nguyễn Trãi, Quận 5, TP. HCM",
+    "opening_hours": "06:00 - 23:00",
+    "price_range": "40,000 - 70,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6750, 10.7600]
+    },
+    "menu": [
+      {
+        "name": "Phở bò tái",
+        "price": 55000
+      },
+      {
+        "name": "Phở đặc biệt",
+        "price": 70000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Pho+Le",
+    "avg_rating": 4.7,
+    "scores": {
+      "space": 4.5,
+      "position": 4.8,
+      "quality": 4.9,
+      "service": 4.6,
+      "price": 4.8
+    },
+    "category": "Phở"
+  },
+  {
+    "name": "Trà Sữa Gong Cha - Nguyễn Huệ",
+    "address": "100 Nguyễn Huệ, Quận 1, TP. HCM",
+    "opening_hours": "08:00 - 22:00",
+    "price_range": "25,000 - 60,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.7000, 10.7750]
+    },
+    "menu": [
+      {
+        "name": "Trà sữa truyền thống",
+        "price": 45000
+      },
+      {
+        "name": "Trà sữa matcha",
+        "price": 55000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Gong+Cha",
+    "avg_rating": 4.6,
+    "scores": {
+      "space": 4.3,
+      "position": 5,
+      "quality": 4.7,
+      "service": 4.6,
+      "price": 4.5
+    },
+    "category": "Trà sữa"
+  },
+  {
+    "name": "Hải Sản Biển Đông - Vũng Tàu",
+    "address": "Đường Thùy Vân, Vũng Tàu",
+    "opening_hours": "10:00 - 22:00",
+    "price_range": "300,000 - 800,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [107.0843, 10.3460]
+    },
+    "menu": [
+      {
+        "name": "Tôm hùm nướng phô mai",
+        "price": 650000
+      },
+      {
+        "name": "Cua hoàng đế hấp",
+        "price": 780000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Hai+San",
+    "avg_rating": 4.8,
+    "scores": {
+      "space": 4.7,
+      "position": 4.9,
+      "quality": 4.9,
+      "service": 4.8,
+      "price": 4.3
+    },
+    "category": "Hải sản"
+  },
+  {
+    "name": "Buffet Hương Sen",
+    "address": "200 Võ Văn Tần, Quận 3, TP. HCM",
+    "opening_hours": "10:30 - 22:00",
+    "price_range": "299,000 - 499,000 VNĐ/người",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6950, 10.7850]
+    },
+    "menu": [
+      {
+        "name": "Buffet trưa",
+        "price": 299000
+      },
+      {
+        "name": "Buffet tối",
+        "price": 399000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Buffet",
+    "avg_rating": 4.5,
+    "scores": {
+      "space": 4.6,
+      "position": 4.5,
+      "quality": 4.5,
+      "service": 4.4,
+      "price": 4.6
+    },
+    "category": "Buffet"
+  },
+  {
+    "name": "Bún Bò Huế Đông Ba",
+    "address": "50 Pasteur, Quận 1, TP. HCM",
+    "opening_hours": "06:00 - 21:00",
+    "price_range": "30,000 - 50,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6970, 10.7820]
+    },
+    "menu": [
+      {
+        "name": "Bún bò Huế đặc biệt",
+        "price": 50000
+      },
+      {
+        "name": "Bún bò thường",
+        "price": 35000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Bun+Bo",
+    "avg_rating": 4.7,
+    "scores": {
+      "space": 4.4,
+      "position": 4.7,
+      "quality": 4.8,
+      "service": 4.6,
+      "price": 4.9
+    },
+    "category": "Bún"
+  },
+  {
+    "name": "The Coffee House - Hai Bà Trưng",
+    "address": "300 Hai Bà Trưng, Quận 3, TP. HCM",
+    "opening_hours": "07:00 - 23:00",
+    "price_range": "25,000 - 65,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6930, 10.7890]
+    },
+    "menu": [
+      {
+        "name": "Cà phê sữa đá",
+        "price": 35000
+      },
+      {
+        "name": "Bạc xỉu đá",
+        "price": 32000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Coffee",
+    "avg_rating": 4.4,
+    "scores": {
+      "space": 4.6,
+      "position": 4.5,
+      "quality": 4.3,
+      "service": 4.4,
+      "price": 4.3
+    },
+    "category": "Cafe"
+  },
+  {
+    "name": "Cơm Tấm Sà Bì Chưởng",
+    "address": "88 Nguyễn Văn Cừ, Quận 1, TP. HCM",
+    "opening_hours": "17:00 - 02:00",
+    "price_range": "30,000 - 60,000 VNĐ",
+    "location": {
+      "type": "Point",
+      "coordinates": [106.6880, 10.7680]
+    },
+    "menu": [
+      {
+        "name": "Cơm tấm sườn bì chả",
+        "price": 45000
+      },
+      {
+        "name": "Cơm tấm sườn nướng",
+        "price": 40000
+      }
+    ],
+    "reviews": [],
+    "source_url": "",
+    "image_url": "https://placehold.co/400x300/FFF3E0/E65100?text=Com+Tam",
+    "avg_rating": 4.9,
+    "scores": {
+      "space": 4.8,
+      "position": 4.9,
+      "quality": 5,
+      "service": 4.8,
+      "price": 4.9
+    },
+    "category": "Cơm"
+  }
+]
