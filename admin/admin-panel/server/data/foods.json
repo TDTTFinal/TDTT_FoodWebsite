@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "name": "Lẩu mắm cua",
+    "price": "150000",
+    "description": "Lẩu mắm cua ngon"
+  },
+  {
+    "id": 2,
+    "name": "Lẩu cua",
+    "price": "120000",
+    "description": "Lẩu cua tươi"
+  },
+  {
+    "id": 3,
+    "name": "Lẩu hải sản",
+    "price": "180000",
+    "description": "Lẩu hải sản tươi sống"
+  },
+  {
+    "id": 4,
+    "name": "Lẩu thái",
+    "price": "160000",
+    "description": "Lẩu thái cay nồn"
+  },
+  { "id": 5, "name": "Lẩu bò", "price": "140000", "description": "Lẩu bò Úc" },
+  { "id": 6, "name": "Lẩu gà", "price": "110000", "description": "Lẩu gà ta" },
+  {
+    "id": 7,
+    "name": "Lẩu nấm",
+    "price": "130000",
+    "description": "Lẩu nấm rừng"
+  },
+  {
+    "id": 8,
+    "name": "Lẩu tôm",
+    "price": "145000",
+    "description": "Lẩu tôm sạch"
+  },
+  {
+    "id": 9,
+    "name": "Lẩu mực",
+    "price": "155000",
+    "description": "Lẩu mực tươi"
+  },
+  {
+    "id": 10,
+    "name": "Lẩu cá",
+    "price": "125000",
+    "description": "Lẩu cá quả"
+  },
+  {
+    "id": 11,
+    "name": "Lẩu tổng hợp",
+    "price": "200000",
+    "description": "Lẩu tổng hợp hải sản"
+  },
+  {
+    "id": 12,
+    "name": "Lẩu cay",
+    "price": "135000",
+    "description": "Lẩu cay nồn"
+  },
+  {
+    "id": 13,
+    "name": "Mỳ lẩu",
+    "price": "50000",
+    "description": "Mỳ để luộc trong lẩu"
+  },
+  {
+    "id": 14,
+    "name": "Thịt bò tái",
+    "price": "90000",
+    "description": "Thịt bò tái chín ngoài"
+  },
+  {
+    "id": 15,
+    "name": "Thịt gà",
+    "price": "60000",
+    "description": "Thịt gà loại 1"
+  },
+  {
+    "id": 16,
+    "name": "Rau cải",
+    "price": "20000",
+    "description": "Rau cải tươi"
+  },
+  {
+    "id": 17,
+    "name": "Nước lẩu cà chua",
+    "price": "40000",
+    "description": "Nước lẩu cà chua chua cay"
+  },
+  {
+    "id": 18,
+    "name": "Nước lẩu miso",
+    "price": "45000",
+    "description": "Nước lẩu miso Nhật"
+  },
+  {
+    "id": 19,
+    "name": "Chả cá",
+    "price": "70000",
+    "description": "Chả cá tươi"
+  },
+  {
+    "id": 20,
+    "name": "Cua hoàng đế",
+    "price": "250000",
+    "description": "Cua hoàng đế tươi sống"
+  }
+]
