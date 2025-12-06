@@ -7,11 +7,15 @@ import RestaurantCard from "../components/RestaurantCard";
 const RestaurantsPage = () => {
   // ===== STATE MANAGEMENT =====
   const [restaurants, setRestaurants] = useState([]);
-  const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
 
   // ===== DANH SÁCH CATEGORY =====
   const categories = [
@@ -28,192 +32,92 @@ const RestaurantsPage = () => {
     { id: "chay", name: "Chay", icon: "🥗", color: "#6BCB77" },
   ];
 
-  // ===== FETCH DATA TỪ API =====
+  // ===== FETCH DATA TỪ API (backend phân trang + filter) =====
   useEffect(() => {
     fetchRestaurants();
-  }, []);
+  }, [currentPage, activeCategory, searchTerm]);
 
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const params = new URLSearchParams();
+      params.append("page", currentPage);
+      params.append("limit", 50);
+
+      if (activeCategory !== "Tất cả")
+        params.append("category", activeCategory);
+      if (searchTerm.trim()) params.append("search", searchTerm.trim());
+
       const response = await fetch(
-        "http://localhost:5000/api/restaurants?page=1&limit=all"
+        `http://localhost:5000/api/restaurants?${params.toString()}`
       );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
       const result = await response.json();
 
       let data = [];
       if (result.success && result.data) {
         data = result.data;
-      } else if (Array.isArray(result)) {
-        data = result;
+        setTotalPages(result.totalPages || 1);
+        setTotalResults(result.total || data.length);
       }
 
-      const processedData = data.map((restaurant) => ({
-        ...restaurant,
-        category:
-          restaurant.category ||
-          detectCategory(restaurant.name, restaurant.menu),
-      }));
-
-      setRestaurants(processedData);
-      setFilteredRestaurants(processedData);
+      setRestaurants(data);
     } catch (err) {
       console.error("Error fetching restaurants:", err);
       setError(err.message);
-      loadMockData();
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== HÀM TỰ ĐỘNG PHÁT HIỆN CATEGORY =====
-  const detectCategory = (name, menu) => {
-    const nameUpper = (name || "").toUpperCase();
-    const menuText = menu
-      ? menu
-          .map((item) => item.name)
-          .join(" ")
-          .toUpperCase()
-      : "";
-    const fullText = nameUpper + " " + menuText;
-
-    // Danh sách từ khóa cho mỗi category
-    const categoryKeywords = {
-      Lẩu: ["LẨU", "HOTPOT", "NƯỚNG LẨU"],
-      BBQ: ["BBQ", "NƯỚNG", "THỊT NƯỚNG", "XIÊN", "GÀ NƯỚNG", "BÒ NƯỚNG"],
-      Cơm: ["CƠM", "RICE", "CƠM GÀ", "CƠM TẤM", "CƠM SƯỜN"],
-      Phở: ["PHỞ", "PHO"],
-      Bún: ["BÚN", "BUN", "HỦ TIẾU", "HỦ TÍU"],
-      "Bánh mì": ["BÁNH MÌ", "BANH MI"],
-      "Trà sữa": ["TRÀ SỮA", "MILK TEA", "CHEESE TEA", "TRÀ", "CAFE", "COFFEE"],
-      "Hải sản": ["HẢI SẢN", "SEAFOOD", "TÔM", "CUA", "GHẸ", "ỐC", "NGHÊU"],
-      Pizza: ["PIZZA"],
-      Chay: ["CHAY", "VEGETARIAN"],
-    };
-
-    // Tìm category match
-    for (const [category, keywords] of Object.entries(categoryKeywords)) {
-      if (keywords.some((keyword) => fullText.includes(keyword))) {
-        return category;
-      }
-    }
-
-    return "Khác"; // Default category
-  };
-
-  // ===== MOCK DATA ĐỂ TEST (khi chưa có API) =====
-  const loadMockData = () => {
-    const mockRestaurants = [
-      {
-        _id: "1",
-        name: "Út Phương - Cơm Gà Cháy Tỏi 35k",
-        address: "577/46 Trần Hưng Đạo, P. Cầu Kho, Quận 1, TP. HCM",
-        opening_hours: "08:30 - 17:00",
-        price_range: "35k - 55k",
-        image_url:
-          "https://down-vn.img.susercontent.com/vn-11134513-7ras8-m449utqu1ozz30",
-        avg_rating: 5,
-        category: "Cơm",
-        menu: [
-          { name: "Cơm gà nước mắm cháy tỏi", price: 40000 },
-          { name: "Mì cay Hàn quốc", price: 55000 },
-        ],
-      },
-      {
-        _id: "2",
-        name: "Lẩu Thái Hương Xưa - Quận 3",
-        address: "123 Võ Văn Tần, Quận 3, TP. HCM",
-        opening_hours: "10:00 - 22:00",
-        price_range: "150k - 300k",
-        image_url: "https://placehold.co/400x300/FF6B6B/white?text=Lau+Thai",
-        avg_rating: 4.8,
-        category: "Lẩu",
-        menu: [],
-      },
-      {
-        _id: "3",
-        name: "BBQ Garden - Nướng Hàn Quốc",
-        address: "456 Nguyễn Đình Chiểu, Quận 1, TP. HCM",
-        opening_hours: "11:00 - 23:00",
-        price_range: "250k - 500k",
-        image_url: "https://placehold.co/400x300/4ECDC4/white?text=BBQ+Garden",
-        avg_rating: 4.9,
-        category: "BBQ",
-        menu: [],
-      },
-      {
-        _id: "4",
-        name: "Phở Lệ - Phở Bò Truyền Thống",
-        address: "789 Lý Thường Kiệt, Quận 5, TP. HCM",
-        opening_hours: "06:00 - 14:00",
-        price_range: "50k - 80k",
-        image_url: "https://placehold.co/400x300/FFE66D/white?text=Pho+Le",
-        avg_rating: 4.7,
-        category: "Phở",
-        menu: [],
-      },
-      {
-        _id: "5",
-        name: "Gongcha - Trà Sữa Đài Loan",
-        address: "234 Nguyễn Trãi, Quận 1, TP. HCM",
-        opening_hours: "08:00 - 22:00",
-        price_range: "30k - 60k",
-        image_url: "https://placehold.co/400x300/A8D8EA/white?text=Gongcha",
-        avg_rating: 4.5,
-        category: "Trà sữa",
-        menu: [],
-      },
-      {
-        _id: "6",
-        name: "Nhà Hàng Hải Sản Biển Đông",
-        address: "567 Điện Biên Phủ, Quận 3, TP. HCM",
-        opening_hours: "10:00 - 22:00",
-        price_range: "200k - 600k",
-        image_url: "https://placehold.co/400x300/FFA07A/white?text=Hai+San",
-        avg_rating: 4.6,
-        category: "Hải sản",
-        menu: [],
-      },
-    ];
-
-    setRestaurants(mockRestaurants);
-    setFilteredRestaurants(mockRestaurants);
-  };
-
-  // ===== FILTER THEO CATEGORY =====
-  useEffect(() => {
-    let filtered = restaurants;
-
-    // Filter theo category
-    if (activeCategory !== "Tất cả") {
-      filtered = filtered.filter(
-        (restaurant) => restaurant.category === activeCategory
-      );
-    }
-
-    // Filter theo search term
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (restaurant) =>
-          restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          restaurant.address.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredRestaurants(filtered);
-  }, [activeCategory, searchTerm, restaurants]);
-
   // ===== HANDLE CATEGORY CLICK =====
   const handleCategoryClick = (categoryName) => {
     setActiveCategory(categoryName);
+    setCurrentPage(1);
     window.scrollTo({ top: 300, behavior: "smooth" });
+  };
+
+  // ===== TÍNH RANGE PHÂN TRANG (1 ... 5 6 7 ... 24) =====
+  const getPaginationRange = () => {
+    const range = [];
+    const total = totalPages;
+    const current = currentPage;
+
+    if (total <= 7) {
+      // Ít trang thì show hết
+      for (let i = 1; i <= total; i++) range.push(i);
+      return range;
+    }
+
+    // luôn có trang 1
+    range.push(1);
+
+    const left = Math.max(2, current - 1);
+    const right = Math.min(total - 1, current + 1);
+
+    // Ellipsis bên trái
+    if (left > 2) {
+      range.push("left-ellipsis");
+    }
+
+    // Các trang ở giữa (gần current)
+    for (let i = left; i <= right; i++) {
+      range.push(i);
+    }
+
+    // Ellipsis bên phải
+    if (right < total - 1) {
+      range.push("right-ellipsis");
+    }
+
+    // luôn có trang cuối
+    range.push(total);
+
+    return range;
   };
 
   // ===== RENDER =====
@@ -255,7 +159,10 @@ const RestaurantsPage = () => {
               type="text"
               placeholder="Tìm kiếm nhà hàng, món ăn..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{
                 width: "100%",
                 padding: "18px 25px",
@@ -301,9 +208,7 @@ const RestaurantsPage = () => {
               gap: "15px",
               overflowX: "auto",
               padding: "10px 0",
-              WebkitOverflowScrolling: "touch",
               scrollbarWidth: "none",
-              msOverflowStyle: "none",
             }}
           >
             {categories.map((cat) => (
@@ -324,27 +229,6 @@ const RestaurantsPage = () => {
                   fontWeight: "600",
                   whiteSpace: "nowrap",
                   transition: "all 0.3s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow:
-                    activeCategory === cat.name
-                      ? "0 4px 12px rgba(0,0,0,0.15)"
-                      : "none",
-                  transform:
-                    activeCategory === cat.name ? "scale(1.05)" : "scale(1)",
-                }}
-                onMouseOver={(e) => {
-                  if (activeCategory !== cat.name) {
-                    e.currentTarget.style.background = "#f8f9fa";
-                    e.currentTarget.style.transform = "scale(1.03)";
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (activeCategory !== cat.name) {
-                    e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.transform = "scale(1)";
-                  }
                 }}
               >
                 <span style={{ fontSize: "20px" }}>{cat.icon}</span>
@@ -370,26 +254,23 @@ const RestaurantsPage = () => {
           }}
         >
           <div>
-            <h2
-              style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                color: "#333",
-                marginBottom: "5px",
-              }}
-            >
+            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#333" }}>
               {activeCategory === "Tất cả"
                 ? "Tất cả nhà hàng"
                 : `Danh mục: ${activeCategory}`}
             </h2>
             <p style={{ color: "#666", fontSize: "14px" }}>
-              Tìm thấy <strong>{filteredRestaurants.length}</strong> kết quả
+              Tìm thấy <strong>{totalResults}</strong> kết quả — Trang{" "}
+              <strong>{currentPage}</strong> / {totalPages}
             </p>
           </div>
 
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm("")}
+              onClick={() => {
+                setSearchTerm("");
+                setCurrentPage(1);
+              }}
               style={{
                 padding: "8px 16px",
                 background: "#667eea",
@@ -405,7 +286,7 @@ const RestaurantsPage = () => {
           )}
         </div>
 
-        {/* ===== LOADING STATE ===== */}
+        {/* ===== LOADING ===== */}
         {loading && (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div
@@ -425,7 +306,7 @@ const RestaurantsPage = () => {
           </div>
         )}
 
-        {/* ===== ERROR STATE ===== */}
+        {/* ===== ERROR ===== */}
         {error && !loading && (
           <div
             style={{
@@ -436,73 +317,133 @@ const RestaurantsPage = () => {
               border: "2px solid #ffc107",
             }}
           >
-            <p style={{ fontSize: "24px", marginBottom: "10px" }}>⚠️</p>
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#856404",
-                marginBottom: "10px",
-              }}
-            >
-              <strong>Không thể tải dữ liệu từ server</strong>
+            <p style={{ fontSize: "24px" }}>⚠️</p>
+            <p style={{ fontSize: "16px", color: "#856404" }}>
+              Không thể tải dữ liệu từ server
             </p>
-            <p
-              style={{
-                fontSize: "14px",
-                color: "#856404",
-                marginBottom: "20px",
-              }}
-            >
-              {error}
-            </p>
-            <p style={{ fontSize: "14px", color: "#666" }}>
-              Hiển thị dữ liệu mẫu để bạn test UI
-            </p>
+            <p style={{ fontSize: "14px", color: "#856404" }}>{error}</p>
           </div>
         )}
 
         {/* ===== RESTAURANTS GRID ===== */}
-        {!loading && filteredRestaurants.length > 0 && (
-          <div
-            className="card-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "25px",
-              marginTop: "20px",
-            }}
-          >
-            {filteredRestaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant._id} restaurant={restaurant} />
-            ))}
-          </div>
+        {!loading && restaurants.length > 0 && (
+          <>
+            <div
+              className="card-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "25px",
+                marginTop: "20px",
+              }}
+            >
+              {restaurants.map((restaurant) => (
+                <RestaurantCard key={restaurant._id} restaurant={restaurant} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div
+              style={{
+                marginTop: "30px",
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Nút Trước */}
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #ddd",
+                  background: currentPage === 1 ? "#eee" : "#fff",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                }}
+              >
+                ⬅ Trước
+              </button>
+
+              {/* Các số trang + '...' */}
+              {getPaginationRange().map((item, index) => {
+                if (typeof item === "string") {
+                  return (
+                    <span
+                      key={item + index}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: "6px",
+                        color: "#666",
+                      }}
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                const page = item;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border:
+                        currentPage === page
+                          ? "2px solid #667eea"
+                          : "1px solid #ddd",
+                      background: currentPage === page ? "#667eea" : "#fff",
+                      color: currentPage === page ? "#fff" : "#333",
+                      cursor: "pointer",
+                      minWidth: "36px",
+                    }}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              {/* Nút Sau */}
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #ddd",
+                  background: currentPage === totalPages ? "#eee" : "#fff",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
+                }}
+              >
+                Sau ➡
+              </button>
+            </div>
+          </>
         )}
 
         {/* ===== NO RESULTS ===== */}
-        {!loading && filteredRestaurants.length === 0 && (
+        {!loading && restaurants.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <p style={{ fontSize: "60px", marginBottom: "20px" }}>🔍</p>
-            <h3
-              style={{ fontSize: "24px", color: "#333", marginBottom: "10px" }}
-            >
-              Không tìm thấy kết quả
-            </h3>
-            <p style={{ color: "#666", marginBottom: "20px" }}>
-              Thử tìm kiếm với từ khóa khác hoặc chọn danh mục khác
-            </p>
+            <p style={{ fontSize: "60px" }}>🔍</p>
+            <h3 style={{ fontSize: "24px" }}>Không tìm thấy kết quả</h3>
             <button
               onClick={() => {
                 setActiveCategory("Tất cả");
                 setSearchTerm("");
+                setCurrentPage(1);
               }}
               style={{
                 padding: "12px 24px",
                 background: "#667eea",
                 color: "#fff",
-                border: "none",
                 borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "16px",
               }}
             >
               Xem tất cả nhà hàng
@@ -513,15 +454,10 @@ const RestaurantsPage = () => {
 
       <Footer />
 
-      {/* Spinning animation CSS */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-        
-        .card-grid::-webkit-scrollbar {
-          display: none;
         }
       `}</style>
     </div>
