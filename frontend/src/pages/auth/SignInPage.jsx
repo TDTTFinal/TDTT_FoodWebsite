@@ -7,6 +7,9 @@ import { auth, googleProvider } from "../../firebaseConfig";
 
 import logoImg from "../../assets/logo.svg";
 
+// ✅ Import useAuth để sử dụng login từ AuthContext
+import { useAuth } from "../../context/AuthContext";
+
 const API_BASE_URL = "http://localhost:5000/api";
 
 function SignInPage() {
@@ -19,6 +22,9 @@ function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // ✅ Lấy hàm login từ AuthContext
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
@@ -51,13 +57,16 @@ function SignInPage() {
         throw new Error(data.message || "Đăng nhập thất bại");
       }
 
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({ token: data.token, user: data.user })
-      );
+      // ✅ GỌI login() TỪ AuthContext thay vì lưu localStorage trực tiếp
+      // Hàm login() sẽ tự động:
+      // 1. Lưu vào localStorage
+      // 2. Update state user trong AuthContext
+      login(data.user, data.token);
 
+      // ✅ Navigate sau khi đã update AuthContext
       navigate("/");
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.message || "Có lỗi xảy ra");
     } finally {
       setLoading(false);
@@ -87,10 +96,8 @@ function SignInPage() {
         throw new Error(data.message || "Đăng nhập Google thất bại");
       }
 
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({ token: data.token, user: data.user })
-      );
+      // ✅ GỌI login() TỪ AuthContext cho Google login
+      login(data.user, data.token);
 
       navigate("/");
     } catch (err) {
