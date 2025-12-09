@@ -11,7 +11,6 @@ const userSchema = new mongoose.Schema(
     // và KHÔNG dùng field này để đăng nhập.
     passwordHash: { type: String, required: true },
 
-    
     // Ảnh đại diện (lấy từ Google nếu có)
     avatar: { type: String },
 
@@ -28,9 +27,10 @@ const userSchema = new mongoose.Schema(
     budget: { type: Number, default: 2 },
     maxDistanceKm: { type: Number, default: 5 },
     topTags: { type: [String], default: [] },
-    
+
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
+    lastPasswordResetRequest: { type: Date },
   },
   { timestamps: true }
 );

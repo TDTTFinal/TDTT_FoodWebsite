@@ -214,6 +214,25 @@ exports.forgotPassword = async (req, res) => {
           "Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi.",
       });
     }
+    const LIMIT = 60 * 1000; // 60 giây
+
+    if (
+      user.lastPasswordResetRequest &&
+      Date.now() - user.lastPasswordResetRequest < LIMIT
+    ) {
+      const wait = Math.ceil(
+        (LIMIT - (Date.now() - user.lastPasswordResetRequest)) / 1000
+      );
+
+      return res.status(429).json({
+        message: `Bạn đã yêu cầu gần đây, vui lòng thử lại sau ${wait} giây.`,
+      });
+    }
+
+    // Nếu vượt qua limit thì cập nhật lại thời gian request
+    user.lastPasswordResetRequest = Date.now();
+    await user.save();
+
 
     // Tạo token ngẫu nhiên
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -238,14 +257,58 @@ exports.forgotPassword = async (req, res) => {
       await transporter.sendMail({
         from: `"Chewz App" <${process.env.EMAIL_CHEWZ}>`,
         to: user.email,
-        subject: "Đặt lại mật khẩu Chewz",
+        subject: "Yêu cầu đặt lại mật khẩu Chewz",
         html: `
-          <p>Chào ${user.name || "bạn"},</p>
-          <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản Chewz.</p>
-          <p>Nhấn vào link sau để đặt lại mật khẩu (link có hiệu lực trong 15 phút):</p>
-          <p><a href="${resetURL}">${resetURL}</a></p>
-          <p>Nếu bạn không yêu cầu, vui lòng bỏ qua email này.</p>
-        `,
+    <div style="
+        font-family: Arial, sans-serif;
+        max-width: 520px;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+    ">
+      <h2 style="color: #ff6600; text-align: center; font-weight: 700;">
+        Đặt lại mật khẩu của bạn
+      </h2>
+
+      <p style="font-size: 14px; color: #333;">
+        Xin chào <strong>${user.name || "bạn"}</strong>,
+      </p>
+
+      <p style="font-size: 14px; color: #333; line-height: 1.6;">
+        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Chewz của bạn.
+        Nếu yêu cầu này do bạn thực hiện, vui lòng nhấn vào nút bên dưới để tiếp tục.
+      </p>
+
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${resetURL}"
+          style="
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #ff6600;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+          ">
+          Đặt lại mật khẩu
+        </a>
+      </div>
+
+      <p style="font-size: 13px; color: #555; line-height: 1.6;">
+        Liên kết sẽ hết hiệu lực sau <strong>15 phút</strong>.  
+        Nếu bạn không yêu cầu hành động này, vui lòng bỏ qua email — tài khoản của bạn vẫn an toàn.
+      </p>
+
+      <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
+
+      <p style="font-size: 12px; color: #999; text-align: center;">
+        Đây là email tự động, vui lòng không trả lời lại.<br/>
+        © ${new Date().getFullYear()} Chewz. All rights reserved.
+      </p>
+    </div>
+  `,
       });
 
       console.log("✅ Reset email sent to:", user.email);

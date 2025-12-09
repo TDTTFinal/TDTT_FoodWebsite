@@ -1,5 +1,5 @@
 // src/pages/ForgotPasswordPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 const ForgotPasswordPage = () => {
@@ -7,14 +7,33 @@ const ForgotPasswordPage = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0); // ⏳ thời gian chờ gửi lại
 
   // Link API (nhớ check file .env nha)
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+  // Đếm ngược cooldown
+  useEffect(() => {
+    if (cooldown === 0) return;
+
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
     setError("");
+
+    // Nếu đang trong thời gian chờ thì không cho gửi nữa
+    if (cooldown > 0) {
+      setError(`Bạn vừa yêu cầu rồi, vui lòng đợi ${cooldown}s nữa nha.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -25,9 +44,19 @@ const ForgotPasswordPage = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Lỗi rồi bà ơi!");
 
-      setMessage("📧 Link xác nhận đã được gửi! Bà check email ngay nha.");
+      if (!response.ok) {
+        // Backend có thể trả 429 + message "vui lòng thử lại sau X giây"
+        throw new Error(data.message || "Lỗi rồi bà ơi!");
+      }
+
+      // Thành công
+      setMessage(
+        data.message || "📧 Link xác nhận đã được gửi! Bà check email ngay nha."
+      );
+
+      // Bắt đầu cooldown 60s (tùy bạn chỉnh 30, 90, 120...)
+      setCooldown(60);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -35,12 +64,11 @@ const ForgotPasswordPage = () => {
     }
   };
 
+  const isDisabled = loading || cooldown > 0;
+
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
-        {/* Nếu có Logo thì bỏ vào đây nha */}
-        {/* <img src="/logo.png" alt="Logo" style={{height: 50, marginBottom: 20}} /> */}
-
         <h2 className="auth-title">Quên mật khẩu?</h2>
         <p className="auth-subtitle">
           Đừng lo, chuyện nhỏ! Nhập email vào đây tụi tui gửi lại mật khẩu cho.
@@ -62,8 +90,12 @@ const ForgotPasswordPage = () => {
             />
           </div>
 
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Đang gửi..." : "Gửi link khôi phục"}
+          <button type="submit" className="auth-btn" disabled={isDisabled}>
+            {loading
+              ? "Đang gửi..."
+              : cooldown > 0
+              ? `Gửi lại sau ${cooldown}s`
+              : "Gửi link khôi phục"}
           </button>
         </form>
 
