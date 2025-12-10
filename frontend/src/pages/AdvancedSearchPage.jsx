@@ -1,3 +1,6 @@
+// FIXED VERSION - Sửa bug filter quận có tên nhiều từ
+// Thay đổi chính: extractDistrict() và logic so sánh district
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "../components/Header";
@@ -133,12 +136,77 @@ const AdvancedSearchPage = () => {
     }
   };
 
-  // Extract district from address
+  // ⭐ FIXED: Extract district from address - hỗ trợ quận nhiều từ
   const extractDistrict = (address) => {
     if (!address) return "";
-    const match = address.match(/Quận\s+\d+|Q\.\s*\d+|Quận\s+\w+/i);
-    if (!match) return "";
-    return match[0].replace(/Q\./i, "Quận");
+
+    // Normalize address: Q. -> Quận
+    const normalizedAddress = address
+      .replace(/Q\.\s*/gi, "Quận ")
+      .replace(/P\.\s*/gi, "Phường ")
+      .trim();
+
+    // Try matching numbered districts first (Quận 1-12)
+    let match = normalizedAddress.match(/Quận\s+(\d+)/i);
+    if (match) {
+      return `Quận ${match[1]}`;
+    }
+
+    // Try matching named districts (multi-word)
+    // Look for district name until comma or other delimiter
+    match = normalizedAddress.match(
+      /Quận\s+([\p{L}\s]+?)(?=,|\s*-|\s+P\b|\s+Phường|$)/iu
+    );
+    if (match) {
+      let districtName = match[1].trim();
+
+      // Remove trailing junk
+      districtName = districtName.replace(/\s+/g, " ");
+
+      // Only return if it's a reasonable length (1-3 words)
+      const wordCount = districtName.split(" ").length;
+      if (wordCount >= 1 && wordCount <= 3) {
+        return districtName;
+      }
+    }
+
+    return "";
+  };
+
+  // ⭐ FIXED: Check if district matches - hỗ trợ so sánh linh hoạt
+  const matchesDistrict = (address, filterDistrict) => {
+    if (filterDistrict === "Tất cả") return true;
+
+    const extracted = extractDistrict(address);
+    if (!extracted) return false;
+
+    // Exact match (Quận 4 === Quận 4)
+    if (extracted === filterDistrict) return true;
+
+    // Check if filter is "Quận X" and extracted is just "X"
+    if (filterDistrict.startsWith("Quận ")) {
+      return (
+        extracted === filterDistrict || `Quận ${extracted}` === filterDistrict
+      );
+    }
+
+    // Check if extracted is "Quận X" and filter is just "X"
+    if (extracted.startsWith("Quận ")) {
+      return (
+        extracted === filterDistrict || extracted === `Quận ${filterDistrict}`
+      );
+    }
+
+    // For named districts: case-insensitive partial match
+    // This handles cases where database has "Bình Thạnh" and filter has "Bình Thạnh"
+    const normalizedExtracted = extracted.toLowerCase().trim();
+    const normalizedFilter = filterDistrict.toLowerCase().trim();
+
+    return (
+      normalizedExtracted === normalizedFilter ||
+      normalizedExtracted.includes(normalizedFilter) ||
+      normalizedFilter.includes(normalizedExtracted)
+    );
   };
 
   // Calculate hybrid score (weighted combination)
@@ -244,56 +312,45 @@ const AdvancedSearchPage = () => {
       filtered = filtered.filter((r) => r.avg_rating >= f.minRating);
     }
 
-    // Filter by district
+    // ⭐ FIXED: Filter by district - dùng hàm matchesDistrict mới
     if (f.district !== "Tất cả") {
-      filtered = filtered.filter((r) => {
-        const district = extractDistrict(r.address);
-        return district === f.district;
-      });
+      filtered = filtered.filter((r) => matchesDistrict(r.address, f.district));
     }
 
     // Filter by max distance (if location available)
     if (f.maxDistance && loc) {
-      filtered = filtered.filter((r) => {
-        return r.distance !== null && r.distance <= f.maxDistance;
-      });
+      filtered = filtered.filter(
+        (r) => r.distance !== null && r.distance <= f.maxDistance
+      );
     }
 
-    // Sort results
-    switch (f.sortBy) {
-      case "hybrid":
-        filtered.sort((a, b) => {
-          const scoreA = calculateHybridScore(a);
-          const scoreB = calculateHybridScore(b);
-          return scoreB - scoreA;
-        });
-        break;
-      case "semantic":
-        filtered.sort(
-          (a, b) => (b.semantic_score || 0) - (a.semantic_score || 0)
-        );
-        break;
-      case "tfidf":
-        filtered.sort((a, b) => (b.tfidf_score || 0) - (a.tfidf_score || 0));
-        break;
-      case "rating":
-        filtered.sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
-        break;
-      case "distance":
-        if (loc) {
-          filtered.sort((a, b) => {
-            const distA = a.distance !== null ? a.distance : Infinity;
-            const distB = b.distance !== null ? b.distance : Infinity;
-            return distA - distB;
-          });
-        }
-        break;
-      case "name":
-        filtered.sort((a, b) => a.name.localeCompare(b.name, "vi"));
-        break;
-      default:
-        break;
-    }
+    // Sort
+    filtered.sort((a, b) => {
+      switch (f.sortBy) {
+        case "hybrid":
+          return calculateHybridScore(b) - calculateHybridScore(a);
+
+        case "semantic":
+          return (b.semantic_score || 0) - (a.semantic_score || 0);
+
+        case "tfidf":
+          return (b.tfidf_score || 0) - (a.tfidf_score || 0);
+
+        case "rating":
+          return b.avg_rating - a.avg_rating;
+
+        case "distance":
+          if (a.distance === null) return 1;
+          if (b.distance === null) return -1;
+          return a.distance - b.distance;
+
+        case "name":
+          return a.name.localeCompare(b.name, "vi");
+
+        default:
+          return 0;
+      }
+    });
 
     return filtered;
   };
@@ -305,46 +362,36 @@ const AdvancedSearchPage = () => {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    setError("");
-    setHasSearched(true);
-    setCurrentPage(1);
-
-    if (!keyword.trim()) {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) {
       setError("Vui lòng nhập từ khóa tìm kiếm");
       return;
     }
 
+    setLoading(true);
+    setError("");
+    setHasSearched(true);
+    setCurrentPage(1);
+
     try {
-      setLoading(true);
+      const response = await searchAPI.advanced({ q: trimmedKeyword });
 
-      // Call HuggingFace search API
-      const params = {
-        q: keyword.trim(),
-        top_k: 9999, // để backend truyền lên HF
-      };
+      if (response.success && Array.isArray(response.data)) {
+        setRestaurants(response.data);
+        const filtered = applyFilters(response.data);
+        setFilteredRestaurants(filtered);
 
-      // nếu sau này bạn muốn dùng luôn tọa độ của người dùng
-      if (userLocation) {
-        params.lat = userLocation.lat;
-        params.lon = userLocation.lon;
-        params.radius = 0; // hoặc 5, 10km tùy ý
-        params.alpha = 0.6;
+        // Update URL
+        setSearchParams({ q: trimmedKeyword });
+      } else {
+        throw new Error("Invalid response format");
       }
-
-      const res = await searchAPI.advanced(params);
-      const searchResults = res.data || [];
-
-      setRestaurants(searchResults);
-
-      // Apply filters immediately
-      const filtered = applyFilters(searchResults);
-      setFilteredRestaurants(filtered);
-
-      // Update URL
-      setSearchParams({ q: keyword.trim() });
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Lỗi tìm kiếm");
+      console.error("Search error:", err);
+      setError(
+        err.response?.data?.message ||
+          "Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại."
+      );
       setRestaurants([]);
       setFilteredRestaurants([]);
     } finally {
@@ -353,7 +400,7 @@ const AdvancedSearchPage = () => {
   };
 
   // ==========================================
-  // FILTER CHANGE HANDLER
+  // FILTER HANDLERS
   // ==========================================
 
   const handleFilterChange = (filterName, value) => {
@@ -361,14 +408,13 @@ const AdvancedSearchPage = () => {
     setFilters(newFilters);
     setCurrentPage(1);
 
-    // Dùng newFilters + userLocation hiện tại
+    // Re-apply filters
     const filtered = applyFilters(restaurants, newFilters, userLocation);
     setFilteredRestaurants(filtered);
   };
 
-  // Reset filters
   const handleResetFilters = () => {
-    const defaultFilters = {
+    const resetFilters = {
       category: "Tất cả",
       priceRange: "Tất cả",
       minRating: 0,
@@ -376,35 +422,12 @@ const AdvancedSearchPage = () => {
       sortBy: "hybrid",
       maxDistance: null,
     };
-
-    setFilters(defaultFilters);
-    setUserLocation(null);
-    setLocationError("");
-
-    const filtered = applyFilters(restaurants, defaultFilters, null);
-    setFilteredRestaurants(filtered);
+    setFilters(resetFilters);
     setCurrentPage(1);
+
+    const filtered = applyFilters(restaurants, resetFilters, userLocation);
+    setFilteredRestaurants(filtered);
   };
-
-  // ==========================================
-  // EFFECTS
-  // ==========================================
-
-  // Load initial search from URL
-  useEffect(() => {
-    if (hasSearched && restaurants.length > 0) {
-      const filtered = applyFilters(restaurants, filters, userLocation);
-      setFilteredRestaurants(filtered);
-    }
-  }, [userLocation, filters]);
-
-  // Re-apply filters when userLocation changes
-  useEffect(() => {
-    if (hasSearched && restaurants.length > 0) {
-      const filtered = applyFilters(restaurants);
-      setFilteredRestaurants(filtered);
-    }
-  }, [userLocation]);
 
   // ==========================================
   // PAGINATION
@@ -412,26 +435,34 @@ const AdvancedSearchPage = () => {
 
   const totalPages = Math.ceil(filteredRestaurants.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentRestaurants = filteredRestaurants.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentRestaurants = filteredRestaurants.slice(startIndex, endIndex);
 
   const handlePageChange = (page) => {
-    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getPageNumbers = () => {
     const pages = [];
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
     } else {
       if (currentPage <= 3) {
-        pages.push(1, 2, 3, "...", totalPages);
+        pages.push(1, 2, 3, 4, "...", totalPages);
       } else if (currentPage >= totalPages - 2) {
-        pages.push(1, "...", totalPages - 2, totalPages - 1, totalPages);
+        pages.push(
+          1,
+          "...",
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages
+        );
       } else {
         pages.push(
           1,
@@ -444,161 +475,162 @@ const AdvancedSearchPage = () => {
         );
       }
     }
+
     return pages;
   };
+
+  // ==========================================
+  // EFFECTS
+  // ==========================================
+
+  useEffect(() => {
+    const queryParam = searchParams.get("q");
+    if (queryParam && queryParam !== keyword) {
+      setKeyword(queryParam);
+      handleSearch();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (restaurants.length > 0) {
+      const filtered = applyFilters(restaurants, filters, userLocation);
+      setFilteredRestaurants(filtered);
+    }
+  }, [userLocation]);
 
   // ==========================================
   // RENDER
   // ==========================================
 
   return (
-    <div className="app-container">
+    <div
+      style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
+    >
       <Header />
 
       <main
-        className="container"
-        style={{ minHeight: "70vh", paddingTop: "40px" }}
+        style={{
+          flex: 1,
+          padding: "40px 20px",
+          maxWidth: "1400px",
+          margin: "0 auto",
+          width: "100%",
+        }}
       >
-        {/* Page Title */}
-        <div style={{ marginBottom: "30px" }}>
+        {/* Search Bar */}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            padding: "32px",
+            marginBottom: "32px",
+          }}
+        >
           <h1
             style={{
               fontSize: "32px",
-              fontWeight: "800",
-              color: "#E65100",
-              marginBottom: "10px",
+              fontWeight: "700",
+              color: "#333",
+              marginBottom: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
             }}
           >
-            🔍 Tìm kiếm thông minh
+            <span style={{ fontSize: "36px" }}>🔍</span> Tìm kiếm thông minh
           </h1>
-          <p style={{ color: "#666", fontSize: "15px" }}>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#666",
+              marginBottom: "24px",
+            }}
+          >
             Hơn 1,200 nhà hàng với thuật toán Hybrid Ranking (Semantic + TF-IDF)
           </p>
-        </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} style={{ marginBottom: "30px" }}>
-          <div
+          <form
+            onSubmit={handleSearch}
             style={{
               display: "flex",
               gap: "12px",
-              maxWidth: "100%",
-              flexWrap: "wrap",
             }}
           >
             <input
               type="text"
-              placeholder="Nhập món ăn, tên quán, hoặc khu vực..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
+              placeholder='Ví dụ: "phở bò", "lẩu hải sản", "quán ăn vặt"...'
               style={{
                 flex: 1,
-                minWidth: "300px",
-                padding: "14px 20px",
-                fontSize: "15px",
+                padding: "16px 20px",
+                fontSize: "16px",
                 border: "2px solid #E0E0E0",
                 borderRadius: "12px",
                 outline: "none",
-                transition: "all 0.3s",
+                transition: "border-color 0.2s",
               }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#E65100";
-                e.target.style.boxShadow = "0 0 0 3px rgba(230,81,0,0.1)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#E0E0E0";
-                e.target.style.boxShadow = "none";
-              }}
+              onFocus={(e) => (e.target.style.borderColor = "#E65100")}
+              onBlur={(e) => (e.target.style.borderColor = "#E0E0E0")}
             />
             <button
               type="submit"
+              disabled={loading}
               style={{
-                padding: "14px 32px",
-                background: "linear-gradient(135deg, #E65100 0%, #FF6D00 100%)",
+                padding: "16px 32px",
+                background: loading ? "#BDBDBD" : "#E65100",
                 color: "#fff",
                 border: "none",
                 borderRadius: "12px",
-                fontSize: "15px",
+                fontSize: "16px",
                 fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.3s",
-                boxShadow: "0 4px 12px rgba(230,81,0,0.3)",
-                whiteSpace: "nowrap",
-              }}
-              onMouseOver={(e) => {
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 6px 20px rgba(230,81,0,0.4)";
-              }}
-              onMouseOut={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(230,81,0,0.3)";
-              }}
-            >
-              🔍 Tìm kiếm
-            </button>
-
-            {/* "Quán gần tôi" Button */}
-            <button
-              type="button"
-              onClick={getUserLocation}
-              disabled={locationLoading}
-              style={{
-                padding: "14px 24px",
-                background: userLocation
-                  ? "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)"
-                  : "linear-gradient(135deg, #2196F3 0%, #42A5F5 100%)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "12px",
-                fontSize: "15px",
-                fontWeight: "600",
-                cursor: locationLoading ? "not-allowed" : "pointer",
-                transition: "all 0.3s",
-                boxShadow: "0 4px 12px rgba(33,150,243,0.3)",
-                whiteSpace: "nowrap",
-                opacity: locationLoading ? 0.7 : 1,
-              }}
-              onMouseOver={(e) => {
-                if (!locationLoading) {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 6px 20px rgba(33,150,243,0.4)";
-                }
-              }}
-              onMouseOut={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(33,150,243,0.3)";
-              }}
-            >
-              {locationLoading
-                ? "📍 Đang định vị..."
-                : userLocation
-                ? "✅ Đã có vị trí"
-                : "📍 Quán gần tôi"}
-            </button>
-          </div>
-
-          {/* Location info/error */}
-          {userLocation && (
-            <div
-              style={{
-                marginTop: "12px",
-                padding: "10px 16px",
-                background: "#E8F5E9",
-                borderRadius: "8px",
-                fontSize: "13px",
-                color: "#2E7D32",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
               }}
             >
-              <span>✅</span>
-              <span>
-                Vị trí hiện tại: {userLocation.lat.toFixed(6)},{" "}
-                {userLocation.lon.toFixed(6)}
-                {filters.maxDistance &&
-                  ` (trong bán kính ${filters.maxDistance}km)`}
-              </span>
+              {loading ? "⏳" : "🔍"} Tìm kiếm
+            </button>
+            <button
+              type="button"
+              onClick={getUserLocation}
+              disabled={locationLoading}
+              style={{
+                padding: "16px 24px",
+                background: locationLoading
+                  ? "#BDBDBD"
+                  : userLocation
+                  ? "#2196F3"
+                  : "#fff",
+                color: userLocation ? "#fff" : "#333",
+                border: userLocation ? "none" : "2px solid #E0E0E0",
+                borderRadius: "12px",
+                fontSize: "16px",
+                fontWeight: "600",
+                cursor: locationLoading ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+              }}
+            >
+              {locationLoading ? "⏳" : userLocation ? "✓" : "📍"} Quán gần tôi
+            </button>
+          </form>
+
+          {error && (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px 16px",
+                background: "#FFEBEE",
+                border: "1px solid #FFCDD2",
+                borderRadius: "8px",
+                color: "#C62828",
+                fontSize: "14px",
+              }}
+            >
+              ⚠️ {error}
             </div>
           )}
 
@@ -606,61 +638,35 @@ const AdvancedSearchPage = () => {
             <div
               style={{
                 marginTop: "12px",
-                padding: "10px 16px",
-                background: "#FFEBEE",
+                padding: "12px 16px",
+                background: "#FFF3E0",
+                border: "1px solid #FFE0B2",
                 borderRadius: "8px",
-                fontSize: "13px",
-                color: "#C62828",
+                color: "#E65100",
+                fontSize: "14px",
               }}
             >
               ⚠️ {locationError}
             </div>
           )}
-        </form>
+        </div>
 
-        {loading && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "40px",
-              fontSize: "16px",
-              color: "#666",
-            }}
-          >
-            🔍 Đang tìm kiếm với AI Semantic Search...
-          </div>
-        )}
-
-        {error && (
-          <div
-            style={{
-              padding: "16px",
-              background: "#FFEBEE",
-              color: "#C62828",
-              borderRadius: "8px",
-              marginBottom: "20px",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Main Content Area */}
-        {hasSearched && !loading && !error && (
-          <div style={{ display: "flex", gap: "30px" }}>
-            {/* Sidebar Filters */}
-            <aside
+        {/* Results Section */}
+        {hasSearched && !loading && (
+          <div style={{ display: "flex", gap: "24px" }}>
+            {/* Filters Sidebar */}
+            <div
               style={{
-                width: "280px",
+                width: "300px",
                 flexShrink: 0,
               }}
             >
               <div
                 style={{
                   background: "#fff",
-                  borderRadius: "16px",
-                  padding: "24px",
+                  borderRadius: "12px",
                   boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+                  padding: "24px",
                   position: "sticky",
                   top: "20px",
                 }}
@@ -678,9 +684,12 @@ const AdvancedSearchPage = () => {
                       fontSize: "18px",
                       fontWeight: "700",
                       color: "#333",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
                     }}
                   >
-                    🎯 Bộ lọc
+                    <span>🎯</span> Bộ lọc
                   </h3>
                   <button
                     onClick={handleResetFilters}
@@ -698,7 +707,7 @@ const AdvancedSearchPage = () => {
                   </button>
                 </div>
 
-                {/* Sort By - PRIORITY FIRST */}
+                {/* Sắp xếp theo */}
                 <div style={{ marginBottom: "24px" }}>
                   <label
                     style={{
@@ -706,10 +715,10 @@ const AdvancedSearchPage = () => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#555",
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    🔄 Sắp xếp theo
+                    🎨 Sắp xếp theo
                   </label>
                   <select
                     value={filters.sortBy}
@@ -718,84 +727,34 @@ const AdvancedSearchPage = () => {
                     }
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px",
+                      fontSize: "14px",
                       border: "2px solid #E0E0E0",
                       borderRadius: "8px",
-                      fontSize: "14px",
                       cursor: "pointer",
-                      outline: "none",
-                      background: "#FFF3E0",
-                      fontWeight: "600",
+                      background: "#fff",
                     }}
                   >
-                    <option value="hybrid">🎯 Hybrid Score (Đề xuất)</option>
-                    <option value="semantic">🧠 Semantic Score</option>
-                    <option value="tfidf">📊 TF-IDF Score</option>
-                    <option value="rating">⭐ Đánh giá cao nhất</option>
-                    {userLocation && (
-                      <option value="distance">📍 Gần nhất</option>
-                    )}
-                    <option value="name">🔤 Tên A-Z</option>
+                    <option value="hybrid">Hybrid Score (Đề xuất)</option>
+                    <option value="semantic">Semantic Score</option>
+                    <option value="tfidf">TF-IDF Score</option>
+                    <option value="rating">Đánh giá cao</option>
+                    <option value="distance">Khoảng cách gần</option>
+                    <option value="name">Tên A-Z</option>
                   </select>
-                  <div
+                  <p
                     style={{
                       fontSize: "11px",
                       color: "#999",
                       marginTop: "6px",
-                      fontStyle: "italic",
+                      lineHeight: "1.4",
                     }}
                   >
-                    {filters.sortBy === "hybrid" && "60% Semantic + 40% TF-IDF"}
-                    {filters.sortBy === "semantic" &&
-                      "Dựa trên ý nghĩa ngữ nghĩa"}
-                    {filters.sortBy === "tfidf" && "Dựa trên keyword matching"}
-                  </div>
+                    60% Semantic + 40% TF-IDF
+                  </p>
                 </div>
 
-                {/* Distance Filter (if location available) */}
-                {userLocation && (
-                  <div style={{ marginBottom: "24px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "600",
-                        color: "#555",
-                        marginBottom: "10px",
-                      }}
-                    >
-                      📍 Khoảng cách tối đa
-                    </label>
-                    <select
-                      value={filters.maxDistance || ""}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          "maxDistance",
-                          e.target.value ? parseFloat(e.target.value) : null
-                        )
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "2px solid #E0E0E0",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="">Không giới hạn</option>
-                      <option value="1">1 km</option>
-                      <option value="2">2 km</option>
-                      <option value="3">3 km</option>
-                      <option value="5">5 km</option>
-                      <option value="10">10 km</option>
-                      <option value="20">20 km</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Category Filter */}
+                {/* Loại món */}
                 <div style={{ marginBottom: "24px" }}>
                   <label
                     style={{
@@ -803,10 +762,10 @@ const AdvancedSearchPage = () => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#555",
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    🍴 Loại món
+                    🍜 Loại món
                   </label>
                   <select
                     value={filters.category}
@@ -815,12 +774,12 @@ const AdvancedSearchPage = () => {
                     }
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px",
+                      fontSize: "14px",
                       border: "2px solid #E0E0E0",
                       borderRadius: "8px",
-                      fontSize: "14px",
                       cursor: "pointer",
-                      outline: "none",
+                      background: "#fff",
                     }}
                   >
                     {categories.map((cat) => (
@@ -831,7 +790,7 @@ const AdvancedSearchPage = () => {
                   </select>
                 </div>
 
-                {/* Price Range Filter */}
+                {/* Mức giá */}
                 <div style={{ marginBottom: "24px" }}>
                   <label
                     style={{
@@ -839,7 +798,7 @@ const AdvancedSearchPage = () => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#555",
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
                     💰 Mức giá
@@ -851,12 +810,12 @@ const AdvancedSearchPage = () => {
                     }
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px",
+                      fontSize: "14px",
                       border: "2px solid #E0E0E0",
                       borderRadius: "8px",
-                      fontSize: "14px",
                       cursor: "pointer",
-                      outline: "none",
+                      background: "#fff",
                     }}
                   >
                     {priceRanges.map((range) => (
@@ -867,7 +826,7 @@ const AdvancedSearchPage = () => {
                   </select>
                 </div>
 
-                {/* Rating Filter */}
+                {/* Đánh giá tối thiểu */}
                 <div style={{ marginBottom: "24px" }}>
                   <label
                     style={{
@@ -875,57 +834,57 @@ const AdvancedSearchPage = () => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#555",
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    ⭐ Đánh giá tối thiểu (0–10)
+                    ⭐ Đánh giá tối thiểu (0-10)
                   </label>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
+                  <div style={{ display: "flex", gap: "8px" }}>
                     {[0, 5, 7, 8, 9].map((rating) => (
                       <label
                         key={rating}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          cursor: "pointer",
-                          padding: "8px",
-                          borderRadius: "6px",
-                          background:
-                            filters.minRating === rating
-                              ? "#FFF3E0"
-                              : "transparent",
-                          transition: "all 0.2s",
+                          flex: 1,
+                          textAlign: "center",
                         }}
                       >
                         <input
                           type="radio"
-                          name="rating"
+                          name="minRating"
                           value={rating}
                           checked={filters.minRating === rating}
                           onChange={(e) =>
                             handleFilterChange(
                               "minRating",
-                              parseFloat(e.target.value)
+                              parseInt(e.target.value)
                             )
                           }
-                          style={{ cursor: "pointer" }}
+                          style={{ display: "none" }}
                         />
-                        <span style={{ fontSize: "14px" }}>
-                          {rating === 0 ? "Tất cả" : `${rating}+ điểm`}
-                        </span>
+                        <div
+                          style={{
+                            padding: "8px 4px",
+                            background:
+                              filters.minRating === rating
+                                ? "#E65100"
+                                : "#F5F5F5",
+                            color:
+                              filters.minRating === rating ? "#fff" : "#666",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {rating === 0 ? "Tất cả" : `${rating}+`}
+                        </div>
                       </label>
                     ))}
                   </div>
                 </div>
 
-                {/* District Filter */}
+                {/* Quận/Huyện */}
                 <div style={{ marginBottom: "24px" }}>
                   <label
                     style={{
@@ -933,10 +892,10 @@ const AdvancedSearchPage = () => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#555",
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    📍 Khu vực
+                    📍 Quận/Huyện
                   </label>
                   <select
                     value={filters.district}
@@ -945,12 +904,12 @@ const AdvancedSearchPage = () => {
                     }
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px",
+                      fontSize: "14px",
                       border: "2px solid #E0E0E0",
                       borderRadius: "8px",
-                      fontSize: "14px",
                       cursor: "pointer",
-                      outline: "none",
+                      background: "#fff",
                     }}
                   >
                     {districts.map((dist) => (
@@ -961,129 +920,92 @@ const AdvancedSearchPage = () => {
                   </select>
                 </div>
               </div>
-            </aside>
+            </div>
 
-            {/* Results Area */}
+            {/* Results Grid */}
             <div style={{ flex: 1 }}>
-              {/* Results Header */}
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "24px",
-                  padding: "16px",
                   background: "#fff",
                   borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+                  padding: "24px",
+                  marginBottom: "24px",
                 }}
               >
-                <div>
-                  <h2
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: "700",
-                      color: "#333",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Kết quả tìm kiếm
-                  </h2>
-                  <p style={{ fontSize: "14px", color: "#666" }}>
-                    Tìm thấy <strong>{filteredRestaurants.length}</strong> nhà
-                    hàng
-                    {restaurants.length !== filteredRestaurants.length &&
-                      ` (từ ${restaurants.length} kết quả)`}
-                  </p>
-                </div>
-                <div style={{ fontSize: "14px", color: "#999" }}>
-                  Trang {currentPage} / {totalPages || 1}
-                </div>
+                <h2
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#333",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Kết quả tìm kiếm
+                </h2>
+                <p style={{ fontSize: "14px", color: "#666" }}>
+                  Tìm thấy{" "}
+                  <strong style={{ color: "#E65100" }}>
+                    {filteredRestaurants.length}
+                  </strong>{" "}
+                  nhà hàng{" "}
+                  {filters.district !== "Tất cả" && `tại ${filters.district}`}
+                </p>
               </div>
 
-              {/* Restaurant Grid */}
               {currentRestaurants.length > 0 ? (
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns:
-                      "repeat(auto-fill, minmax(300px, 1fr))",
+                      "repeat(auto-fill, minmax(280px, 1fr))",
                     gap: "24px",
-                    marginBottom: "40px",
                   }}
                 >
                   {currentRestaurants.map((restaurant) => (
-                    <div key={restaurant._id} style={{ position: "relative" }}>
+                    <div
+                      key={restaurant._id}
+                      onClick={() => navigate(`/restaurant/${restaurant._id}`)}
+                      style={{
+                        cursor: "pointer",
+                        position: "relative",
+                        background: "#fff",
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+                        transition: "all 0.3s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-8px)";
+                        e.currentTarget.style.boxShadow =
+                          "0 8px 24px rgba(0,0,0,0.15)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow =
+                          "0 2px 12px rgba(0,0,0,0.08)";
+                      }}
+                    >
                       <RestaurantCard restaurant={restaurant} />
 
-                      {/* Show distance badge if available */}
-                      {restaurant.distance !== undefined &&
-                        restaurant.distance !== null && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              bottom: "16px",
-                              right: "16px",
-                              background: "rgba(33,150,243,0.95)",
-                              color: "#fff",
-                              padding: "6px 12px",
-                              borderRadius: "20px",
-                              fontSize: "12px",
-                              fontWeight: "600",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                              zIndex: 10,
-                            }}
-                          >
-                            📍 {restaurant.distance.toFixed(1)} km
-                          </div>
-                        )}
-
-                      {/* Show score badges in debug mode */}
-                      {false && ( // Set to true to enable debug display
+                      {/* Distance Badge */}
+                      {userLocation && restaurant.distance !== null && (
                         <div
                           style={{
                             position: "absolute",
-                            top: "60px",
-                            left: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
+                            bottom: "16px",
+                            right: "16px",
+                            background: "rgba(33,150,243,0.95)",
+                            color: "#fff",
+                            padding: "6px 12px",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                            zIndex: 10,
                           }}
                         >
-                          <div
-                            style={{
-                              background: "rgba(0,0,0,0.7)",
-                              color: "#fff",
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              fontSize: "10px",
-                            }}
-                          >
-                            Hybrid:{" "}
-                            {calculateHybridScore(restaurant).toFixed(3)}
-                          </div>
-                          <div
-                            style={{
-                              background: "rgba(0,0,0,0.7)",
-                              color: "#fff",
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              fontSize: "10px",
-                            }}
-                          >
-                            Sem: {(restaurant.semantic_score || 0).toFixed(3)}
-                          </div>
-                          <div
-                            style={{
-                              background: "rgba(0,0,0,0.7)",
-                              color: "#fff",
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              fontSize: "10px",
-                            }}
-                          >
-                            TFIDF: {(restaurant.tfidf_score || 0).toFixed(3)}
-                          </div>
+                          📍 {restaurant.distance.toFixed(1)} km
                         </div>
                       )}
                     </div>
