@@ -13,6 +13,7 @@ cd backend
 npm install
 npm run server
 
+cd admin
 cd admin-panel
 npm install
 npm install lucide-react    

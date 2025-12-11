@@ -159,7 +159,7 @@ function SignInPage() {
                   if (pendingAuth) {
                     login(pendingAuth.user, pendingAuth.token);
                   }
-                  window.location.href = "http://localhost:5173";
+                  window.location.href = "http://localhost:5174";
                 }}
                 style={{
                   padding: "10px",
