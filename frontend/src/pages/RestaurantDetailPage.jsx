@@ -292,12 +292,12 @@ const RestaurantDetailPage = () => {
               {restaurant.name}
             </h1>
             <p style={{ fontSize: "16px", color: "#555", marginBottom: "8px" }}>
-              📍 <b>Địa chỉ:</b> {restaurant.address}
+              <b>Địa chỉ:</b> {restaurant.address}
             </p>
             <p
               style={{ fontSize: "16px", color: "#555", marginBottom: "20px" }}
             >
-              ⏰ <b>Giờ mở:</b> {restaurant.open_time} | 💵{" "}
+              <b>Giờ mở:</b> {restaurant.open_time} | <b>Giá:</b> {" "}
               {restaurant.price_range}
             </p>
 
