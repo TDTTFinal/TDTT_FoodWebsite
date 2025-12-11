@@ -130,7 +130,7 @@ const RestaurantCard = ({ restaurant }) => {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
               }}
             >
-              <span>⭐</span>
+               {/* <span>⭐</span>  Removed star emoji */}
               {formatRating(avg_rating)}
             </div>
           )}
@@ -194,7 +194,7 @@ const RestaurantCard = ({ restaurant }) => {
               fontSize: "13px",
             }}
           >
-            <span style={{ fontSize: "14px", marginTop: "1px" }}>📍</span>
+            {/* <span style={{ fontSize: "14px", marginTop: "1px" }}>📍</span> Removed pin emoji */}
             <span
               style={{
                 flex: 1,
@@ -240,7 +240,7 @@ const RestaurantCard = ({ restaurant }) => {
                 fontSize: "13px",
               }}
             >
-              <span>🕐</span>
+              {/* <span>🕐</span> Removed clock emoji */}
               <span>{opening_hours}</span>
             </div>
           )}
@@ -258,7 +258,7 @@ const RestaurantCard = ({ restaurant }) => {
                 fontWeight: "600",
               }}
             >
-              <span>💰</span>
+              {/* <span>💰</span> Removed bag emoji */}
               <span>{price_range}</span>
             </div>
           )}
@@ -292,7 +292,7 @@ const RestaurantCard = ({ restaurant }) => {
                   gap: "4px",
                 }}
               >
-                <span>🍴</span>
+                {/* <span>🍴</span> Removed fork emoji */}
                 {menu.length} món
               </div>
             )}

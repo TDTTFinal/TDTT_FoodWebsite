@@ -43,31 +43,52 @@ router.get("/advanced", async (req, res) => {
 
     let results = hfResponse.data;
 
-    if (Array.isArray(results)) {
+    // ⭐ ENRICHMENT STEPS:
+    // 1. Get List of IDs
+    // 2. Query MongoDB
+    // 3. Merge Data
+    if (Array.isArray(results) && results.length > 0) {
+      const Restaurant = require("../models/Restaurant"); // Lazy require or move top
+      
+      const ids = results
+        .map((r) => r.restaurant_id || r._id || r.id)
+        .filter((id) => id); // Remove null/undefined
+
+      // Fetch full details from MongoDB
+      const dbRestaurants = await Restaurant.find({ _id: { $in: ids } }).lean();
+
+      // Create Map for fast lookup
+      const dbMap = new Map(dbRestaurants.map((r) => [r._id.toString(), r]));
+
       results = results
         .map((item) => {
+          const id = item.restaurant_id || item._id || item.id;
+          const dbItem = dbMap.get(id);
+
+          // If not found in DB, skip or keep original (risk of missing data)
+          if (!dbItem) return null; 
+
           const semanticScore = item.semantic_score || 0;
           const tfidfScore = item.tfidf_score || 0;
           const hybridScore =
             alphaValue * semanticScore + (1 - alphaValue) * tfidfScore;
 
-          // ⭐ Check keyword match
-          const hasKeywordInName = item.name.toLowerCase().includes(queryLower);
-          const hasKeywordInMenu =
-            item.menu?.some((m) => m.name.toLowerCase().includes(queryLower)) ||
-            false;
-          const hasKeywordMatch = hasKeywordInName || hasKeywordInMenu;
+          const hasKeywordMatch =
+            dbItem.name.toLowerCase().includes(queryLower) ||
+            dbItem.menu?.some((m) => m.name.toLowerCase().includes(queryLower));
 
+          // Merge: DB data overwrites generic fields, but keep scores
           return {
-            ...item,
+            ...item,            // Original scores/metadata
+            ...dbItem,          // Full Mongo Data (price_range, etc.)
+            _id: dbItem._id,    // Ensure ID format
             hybrid_score: hybridScore,
             has_keyword_match: hasKeywordMatch,
           };
         })
         .filter((item) => {
-          // ⭐ LOGIC: Giữ lại nếu:
-          // 1. Score cao (>= threshold) HOẶC
-          // 2. Có keyword match trực tiếp (với score tối thiểu 0.2)
+          if (!item) return false;
+          // Filtering logic
           return (
             item.hybrid_score >= minScore ||
             (item.has_keyword_match && item.hybrid_score >= 0.2)

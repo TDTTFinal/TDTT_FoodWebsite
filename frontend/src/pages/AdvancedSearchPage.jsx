@@ -8,7 +8,7 @@ import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
 import { searchAPI } from "/services/api";
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 15;
 
 const AdvancedSearchPage = () => {
   const navigate = useNavigate();
@@ -57,11 +57,11 @@ const AdvancedSearchPage = () => {
 
   const priceRanges = [
     "Tất cả",
-    "Dưới 50k",
-    "50k - 100k",
-    "100k - 200k",
-    "200k - 500k",
-    "Trên 500k",
+    "Dưới 50.000",
+    "50.000 - 100.000",
+    "100.000 - 200.000",
+    "200.000 - 500.000",
+    "Trên 500.000",
   ];
 
   const districts = [
@@ -106,31 +106,97 @@ const AdvancedSearchPage = () => {
     return R * c;
   };
 
-  // Extract price from price_range string
-  const extractPrice = (priceRange) => {
-    if (!priceRange || priceRange === "Đang cập nhật") return null;
-    const match = priceRange.match(/(\d+)k?/i);
-    return match ? parseInt(match[1]) * 1000 : null;
+  // ⭐ FIXED: Parse price range string to {min, max} object
+  const parsePriceRange = (rangeStr) => {
+    if (!rangeStr || typeof rangeStr !== 'string') return null;
+
+    // Normalization:
+    // 1. Lowercase
+    // 2. Remove dots, commas (thousands separators)
+    // 3. Remove 'đ', 'vnd', 'k' (unless k is multiplier? logic below assumes full numbers usually)
+    //    Actually, user inputs might be "50k", DB might be "50.000".
+    //    Let's strip dots/commas first.
+    let cleanStr = rangeStr.toLowerCase().replace(/\./g, "").replace(/,/g, "");
+
+    // Remove currency symbols/words
+    cleanStr = cleanStr.replace(/đ|vnd|vnđ/g, "").trim();
+
+    // Check for "đang cập nhật"
+    if (cleanStr.includes("cập nhật")) return null;
+
+    console.log(`[PriceParse] Parsing: "${rangeStr}" -> "${cleanStr}"`);
+
+    // Case 1: "30000 - 50000" (using hyphen, en-dash, em-dash)
+    // Regex: (\d+) \s* [ - – — ] \s* (\d+)
+    const rangeMatch = cleanStr.match(/(\d+)\s*[-–—]\s*(\d+)/);
+    if (rangeMatch) {
+      const min = parseInt(rangeMatch[1]);
+      const max = parseInt(rangeMatch[2]);
+      console.log(`[PriceParse] Range Detected: ${min} - ${max}`);
+      return { min, max };
+    }
+
+    // Case 2: "Dưới 50000", "< 50000", "Under 50000"
+    const underMatch = cleanStr.match(/(dưới|<|under|khoảng)\s*(\d+)/);
+    if (underMatch) {
+      const val = parseInt(underMatch[2]);
+      // If "khoảng", treating as point value or small range?
+      // Let's treat "dưới" as 0 to val
+      if (underMatch[1] === 'khoảng') {
+         return { min: val, max: val };
+      }
+      return { min: 0, max: val };
+    }
+
+    // Case 3: "Trên 200000", "> 200000", "Over 200000"
+    const overMatch = cleanStr.match(/(trên|>|over)\s*(\d+)/);
+    if (overMatch) {
+      return { min: parseInt(overMatch[2]), max: Infinity };
+    }
+
+    // Case 4: Single number "20000"
+    const numberMatch = cleanStr.match(/(\d+)/);
+    if (numberMatch) {
+      const val = parseInt(numberMatch[1]);
+       // If just a number, maybe it's a fixed price?
+       console.log(`[PriceParse] Single value: ${val}`);
+       return { min: val, max: val };
+    }
+
+    return null;
   };
 
   // Check if restaurant matches price range filter
-  const matchesPriceRange = (restaurant, range) => {
-    if (range === "Tất cả") return true;
+  const matchesPriceRange = (restaurant, filterRange) => {
+    if (filterRange === "Tất cả") return true;
 
-    const price = extractPrice(restaurant.price_range);
-    if (!price) return false;
+    // Log the restaurant being checked (optional, mostly for debugging specific ones)
+    // console.log("Checking price for:", restaurant.name, restaurant.price_range);
 
-    switch (range) {
-      case "Dưới 50k":
-        return price < 50000;
-      case "50k - 100k":
-        return price >= 50000 && price <= 100000;
-      case "100k - 200k":
-        return price >= 100000 && price <= 200000;
-      case "200k - 500k":
-        return price >= 200000 && price <= 500000;
-      case "Trên 500k":
-        return price > 500000;
+    const priceData = parsePriceRange(restaurant.price_range);
+    
+    // STRICT RULE: If price is unknown or updating, DO NOT show when a specific filter is applied.
+    // Logic: User wants "Cheap", we don't know if "Updating" is cheap.
+    if (!priceData) return false; 
+
+    const { min: rMin, max: rMax } = priceData;
+
+    switch (filterRange) {
+      case "Dưới 50.000": 
+        return rMin < 50000;
+
+      case "50.000 - 100.000":
+        return rMin < 100000 && rMax > 50000;
+
+      case "100.000 - 200.000": 
+        return rMin < 200000 && rMax > 100000;
+
+      case "200.000 - 500.000": 
+        return rMin < 500000 && rMax > 200000;
+
+      case "Trên 500.000": 
+        return rMax > 500000;
+
       default:
         return true;
     }
@@ -521,30 +587,36 @@ const AdvancedSearchPage = () => {
         <div
           style={{
             background: "#fff",
-            borderRadius: "16px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            padding: "32px",
-            marginBottom: "32px",
+            borderRadius: "24px", // Increased radius for modern look
+            boxShadow: "0 8px 32px rgba(0,0,0,0.08)", // Softer, deeper shadow
+            padding: "40px",
+            marginBottom: "40px",
+            display: "flex", // Center content
+            flexDirection: "column",
+            alignItems: "center",
           }}
         >
           <h1
             style={{
-              fontSize: "32px",
-              fontWeight: "700",
+              fontSize: "36px",
+              fontWeight: "800",
               color: "#333",
-              marginBottom: "8px",
+              marginBottom: "12px",
               display: "flex",
               alignItems: "center",
-              gap: "12px",
+              gap: "16px",
+              textAlign: "center",
             }}
           >
-            <span style={{ fontSize: "36px" }}>🔍</span> Tìm kiếm thông minh
+            Tìm kiếm thông minh
           </h1>
           <p
             style={{
-              fontSize: "14px",
+              fontSize: "16px",
               color: "#666",
-              marginBottom: "24px",
+              marginBottom: "32px",
+              textAlign: "center",
+              maxWidth: "600px",
             }}
           >
             Hơn 1,200 nhà hàng với thuật toán Hybrid Ranking (Semantic + TF-IDF)
@@ -554,7 +626,10 @@ const AdvancedSearchPage = () => {
             onSubmit={handleSearch}
             style={{
               display: "flex",
-              gap: "12px",
+              gap: "16px",
+              width: "100%",
+              maxWidth: "800px",
+              flexWrap: "wrap", // Allow wrapping on small screens
             }}
           >
             <input
@@ -563,90 +638,110 @@ const AdvancedSearchPage = () => {
               onChange={(e) => setKeyword(e.target.value)}
               placeholder='Ví dụ: "phở bò", "lẩu hải sản", "quán ăn vặt"...'
               style={{
-                flex: 1,
-                padding: "16px 20px",
+                flex: "1 1 300px", // Grow, shrink, base width
+                padding: "18px 24px",
                 fontSize: "16px",
                 border: "2px solid #E0E0E0",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 outline: "none",
-                transition: "border-color 0.2s",
+                transition: "all 0.2s ease",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "#E65100")}
-              onBlur={(e) => (e.target.style.borderColor = "#E0E0E0")}
+              onFocus={(e) => {
+                e.target.style.borderColor = "#E65100";
+                e.target.style.boxShadow = "0 4px 12px rgba(230, 81, 0, 0.1)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "#E0E0E0";
+                e.target.style.boxShadow = "none";
+              }}
             />
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: "16px 32px",
-                background: loading ? "#BDBDBD" : "#E65100",
-                color: "#fff",
-                border: "none",
-                borderRadius: "12px",
-                fontSize: "16px",
-                fontWeight: "600",
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {loading ? "⏳" : "🔍"} Tìm kiếm
-            </button>
-            <button
-              type="button"
-              onClick={getUserLocation}
-              disabled={locationLoading}
-              style={{
-                padding: "16px 24px",
-                background: locationLoading
-                  ? "#BDBDBD"
-                  : userLocation
-                  ? "#2196F3"
-                  : "#fff",
-                color: userLocation ? "#fff" : "#333",
-                border: userLocation ? "none" : "2px solid #E0E0E0",
-                borderRadius: "12px",
-                fontSize: "16px",
-                fontWeight: "600",
-                cursor: locationLoading ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {locationLoading ? "⏳" : userLocation ? "✓" : "📍"} Quán gần tôi
-            </button>
+            <div style={{ display: "flex", gap: "12px", flex: "0 1 auto" }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  padding: "18px 32px",
+                  background: loading ? "#BDBDBD" : "#E65100",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "16px",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  transition: "transform 0.1s ease, box-shadow 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 4px 12px rgba(230, 81, 0, 0.2)",
+                }}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = "translateY(-2px)")}
+                onMouseLeave={(e) => !loading && (e.currentTarget.style.transform = "translateY(0)")}
+              >
+                {loading ? "Loading..." : "Tìm kiếm"}
+              </button>
+              <button
+                type="button"
+                onClick={getUserLocation}
+                disabled={locationLoading}
+                style={{
+                  padding: "18px 24px",
+                  background: locationLoading
+                    ? "#BDBDBD"
+                    : userLocation
+                    ? "#2196F3"
+                    : "#fff",
+                  color: userLocation ? "#fff" : "#333",
+                  border: userLocation ? "none" : "2px solid #E0E0E0",
+                  borderRadius: "16px",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  cursor: locationLoading ? "not-allowed" : "pointer",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {locationLoading ? "Loading..." : userLocation ? "Đã xác định" : "Quán gần tôi"}
+              </button>
+            </div>
           </form>
 
           {error && (
             <div
               style={{
-                marginTop: "12px",
-                padding: "12px 16px",
+                marginTop: "20px",
+                padding: "12px 20px",
                 background: "#FFEBEE",
                 border: "1px solid #FFCDD2",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 color: "#C62828",
                 fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
               }}
             >
-              ⚠️ {error}
+              {error}
             </div>
           )}
 
           {locationError && (
             <div
               style={{
-                marginTop: "12px",
-                padding: "12px 16px",
+                marginTop: "20px",
+                padding: "12px 20px",
                 background: "#FFF3E0",
                 border: "1px solid #FFE0B2",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 color: "#E65100",
                 fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
               }}
             >
-              ⚠️ {locationError}
+              {locationError}
             </div>
           )}
         </div>
@@ -664,11 +759,12 @@ const AdvancedSearchPage = () => {
               <div
                 style={{
                   background: "#fff",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-                  padding: "24px",
+                  borderRadius: "20px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                  padding: "32px",
                   position: "sticky",
-                  top: "20px",
+                  top: "24px",
+                  border: "1px solid #F0F0F0",
                 }}
               >
                 <div
@@ -689,7 +785,7 @@ const AdvancedSearchPage = () => {
                       gap: "8px",
                     }}
                   >
-                    <span>🎯</span> Bộ lọc
+                    Bộ lọc
                   </h3>
                   <button
                     onClick={handleResetFilters}
@@ -958,8 +1054,8 @@ const AdvancedSearchPage = () => {
                   style={{
                     display: "grid",
                     gridTemplateColumns:
-                      "repeat(auto-fill, minmax(280px, 1fr))",
-                    gap: "24px",
+                      "repeat(auto-fill, minmax(190px, 1fr))",
+                    gap: "16px",
                   }}
                 >
                   {currentRestaurants.map((restaurant) => (
@@ -1130,19 +1226,21 @@ const AdvancedSearchPage = () => {
           <div
             style={{
               textAlign: "center",
-              padding: "80px 20px",
+              padding: "100px 24px",
               background: "#fff",
-              borderRadius: "16px",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+              borderRadius: "24px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
+              maxWidth: "800px",
+              margin: "0 auto",
             }}
           >
-            <div style={{ fontSize: "64px", marginBottom: "20px" }}>🎯</div>
+            <div style={{ fontSize: "80px", marginBottom: "24px", animation: "bounce 2s infinite" }}>🎯</div>
             <h2
               style={{
-                fontSize: "24px",
-                fontWeight: "700",
+                fontSize: "28px",
+                fontWeight: "800",
                 color: "#333",
-                marginBottom: "12px",
+                marginBottom: "16px",
               }}
             >
               Tìm kiếm thông minh với AI
@@ -1150,9 +1248,10 @@ const AdvancedSearchPage = () => {
             <p
               style={{
                 color: "#666",
-                fontSize: "15px",
+                fontSize: "16px",
                 maxWidth: "600px",
-                margin: "0 auto 20px",
+                margin: "0 auto 32px",
+                lineHeight: "1.6",
               }}
             >
               Sử dụng thuật toán Hybrid Ranking (Semantic Search + TF-IDF) để
@@ -1161,17 +1260,26 @@ const AdvancedSearchPage = () => {
             <div
               style={{
                 display: "flex",
-                gap: "16px",
+                gap: "24px",
                 justifyContent: "center",
-                marginTop: "24px",
+                flexWrap: "wrap",
                 fontSize: "14px",
-                color: "#999",
+                color: "#888",
+                fontWeight: "500",
               }}
             >
-              <span>🧠 Semantic Score</span>
-              <span>📊 TF-IDF Score</span>
-              <span>📍 Geolocation</span>
-              <span>⭐ Rating</span>
+              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
+                🧠 Semantic Score
+              </span>
+              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
+                📊 TF-IDF Score
+              </span>
+              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
+                📍 Geolocation
+              </span>
+              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
+                ⭐ Rating
+              </span>
             </div>
           </div>
         )}
