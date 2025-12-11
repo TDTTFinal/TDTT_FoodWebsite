@@ -1,0 +1,21 @@
+name: Wake HuggingFace Search API
+
+on:
+  schedule:
+    # Chạy mỗi 10 phút
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-hf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wake HF API
+        run: |
+          echo "Sending keep-alive ping..."
+          curl -X POST "https://nemo-chewz.hf.space/api/v1/search/" \
+               -H "Content-Type: application/json" \
+               -H "Authorization: hf_....ufSP" \
+               -d '{"query": "health_check"}' \
+          || echo "Ping failed."
