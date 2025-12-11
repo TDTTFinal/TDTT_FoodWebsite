@@ -21,6 +21,13 @@ const userSchema = new mongoose.Schema(
       default: "local",
     },
 
+    // Role của user
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
     // Lưu UID của Google (decoded.uid)
     googleId: { type: String },
 

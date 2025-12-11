@@ -104,6 +104,7 @@ exports.registerUser = async (req, res) => {
         budget: user.budget,
         maxDistanceKm: user.maxDistanceKm,
         topTags: user.topTags,
+        role: user.role,
       },
       token,
     });
@@ -148,6 +149,11 @@ exports.loginUser = async (req, res) => {
       email: email.toLowerCase().trim(),
     });
 
+    // SIMULATE ADMIN FOR TESTING
+    if (user && user.email === "admin@test.com") {
+      user.role = "admin";
+    }
+
     if (!user) {
       return res.status(401).json({
         message: "Email hoặc mật khẩu không đúng",
@@ -185,6 +191,7 @@ exports.loginUser = async (req, res) => {
         budget: user.budget,
         maxDistanceKm: user.maxDistanceKm,
         topTags: user.topTags,
+        role: user.role,
       },
       token,
     });
