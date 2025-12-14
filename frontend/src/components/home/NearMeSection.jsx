@@ -32,7 +32,7 @@ const NearMeSection = () => {
 
   const fetchNearby = async (lat, lon) => {
     try {
-      const res = await api.get("/nearby", {
+      const res = await api.get("/restaurants/nearby", {
         params: { lat, lon, radius: 5000 },
       });
       setRestaurants(res.data || []);

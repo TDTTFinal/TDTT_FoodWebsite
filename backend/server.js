@@ -29,7 +29,7 @@ app.use("/api/auth", authRoutes);
 
 // 🆕 THÊM ĐOẠN NÀY VÀO ĐÂY
 const restaurantRoutes = require("./routes/restaurantRoutes");
-app.use("/api", restaurantRoutes);
+app.use("/api/restaurants", restaurantRoutes);
 // -> /api/restaurants
 // -> /api/restaurants/:id
 // -> /api/restaurants/featured
@@ -47,6 +47,12 @@ const userRoutes = require("./routes/userRoutes");
 app.use("/api/users", userRoutes);
 // -> /api/users/upload-avatar
 // -> /api/users/profile
+
+// 🌦️ Weather API for Food Tour
+const weatherRoutes = require("./routes/weatherRoutes");
+app.use("/api/weather", weatherRoutes);
+// -> /api/weather/forecast
+// -> /api/weather/check-slot
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));

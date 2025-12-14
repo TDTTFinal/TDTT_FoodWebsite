@@ -9,7 +9,7 @@ const CommunityReviews = () => {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const res = await api.get("/reviews/latest");
+        const res = await api.get("/restaurants/reviews/latest");
         if (res.success) {
           setReviews(res.data);
         }

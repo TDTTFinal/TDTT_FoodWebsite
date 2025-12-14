@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import api from "../config/api";
 
 const RestaurantDetailPage = () => {
   const { id } = useParams();
@@ -20,15 +21,7 @@ const RestaurantDetailPage = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `http://localhost:5000/api/restaurants/${id}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await api.get(`/restaurants/${id}`);
 
       // Parse response từ backend: { success: true, data: {...} }
       if (result.success && result.data) {
@@ -74,9 +67,8 @@ const RestaurantDetailPage = () => {
       }
     } catch (err) {
       console.error("Error fetching restaurant:", err);
-      setError(err.message);
-      // Fallback: Load mock data
-      loadMockData();
+      setError(err.message || "Không thể tải thông tin nhà hàng");
+      setRestaurant(null);
     } finally {
       setLoading(false);
     }

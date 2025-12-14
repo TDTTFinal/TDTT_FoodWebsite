@@ -27,7 +27,7 @@ const FeatureRankSection = ({ type }) => {
   useEffect(() => {
     const fetchCollection = async () => {
       try {
-        const res = await api.get(`/collections?type=${type}`);
+        const res = await api.get(`/restaurants/collections?type=${type}`);
         if (res.success) {
           setRestaurants(res.data);
         }

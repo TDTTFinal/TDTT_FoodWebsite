@@ -14,7 +14,7 @@ const Slots = {
     dinner: { title: 'Buổi Tối', icon: <Moon size={16} className="text-purple-500" /> }
 };
 
-const TourBuilder = ({ tourItems, onDragOver, onDragEnd, onRemove, tourName, setTourName, onSave, isSaving }) => {
+const TourBuilder = ({ tourItems, onDragStart, onDragOver, onDragEnd, onRemove, tourName, setTourName, onSave, isSaving }) => {
     const [activeId, setActiveId] = useState(null);
     const [activeItem, setActiveItem] = useState(null);
 
@@ -22,6 +22,11 @@ const TourBuilder = ({ tourItems, onDragOver, onDragEnd, onRemove, tourName, set
         const { active } = event;
         setActiveId(active.id);
         setActiveItem(active.data.current?.restaurant);
+        
+        // Call parent's onDragStart if provided
+        if (onDragStart) {
+            onDragStart(event);
+        }
     };
 
     const handleDragEndInternal = (event) => {

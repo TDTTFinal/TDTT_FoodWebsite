@@ -36,7 +36,7 @@ const HomePage = () => {
 
   const fetchFeatured = async () => {
     try {
-      const res = await api.get("/featured?limit=8");
+      const res = await api.get("/restaurants/featured?limit=8");
       if (res.success) {
         setFeatured(res.data);
       }

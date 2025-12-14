@@ -17,6 +17,10 @@ import StepsDisplay from "../components/foodtour/StepsDisplay";
 import RoutesDisplay from "../components/foodtour/RoutesDisplay";
 import ApplyRouteModal from "../components/foodtour/ApplyRouteModal";
 
+// Weather Integration
+import WeatherWarning from "../components/foodtour/WeatherWarning";
+import { checkWeatherWarning, getSlotLabel } from "../services/weatherService";
+
 const ITEMS_PER_PAGE = 15;
 
 const AdvancedSearchPage = () => {
@@ -62,6 +66,17 @@ const AdvancedSearchPage = () => {
   // ==========================================
   const [tourName, setTourName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Weather Warning States
+  const [weatherWarning, setWeatherWarning] = useState({
+    isOpen: false,
+    restaurant: null,
+    slot: null,
+    weather: null, // Full weather data
+    message: "",
+  });
+  const [pendingDrop, setPendingDrop] = useState(null); // Store pending drop action
+  const [dragSourceInfo, setDragSourceInfo] = useState(null); // Track source container at drag start
 
   const [tourItems, setTourItems] = useState({
     unsorted: [],
@@ -111,6 +126,23 @@ const AdvancedSearchPage = () => {
     return Object.keys(tourItems).find((key) =>
       tourItems[key].find((item) => item.cartId === id)
     );
+  };
+
+  // Capture source container when drag starts
+  const handleDragStart = (event) => {
+    const { active } = event;
+    const sourceContainer = findContainer(active.id);
+    const sourceItem = tourItems[sourceContainer]?.find(
+      (item) => item.cartId === active.id
+    );
+    
+    console.log("🌦️ Drag Start - source:", sourceContainer, "item:", sourceItem?.name);
+    
+    setDragSourceInfo({
+      container: sourceContainer,
+      item: sourceItem,
+      itemId: active.id,
+    });
   };
 
   const handleDragOver = (event) => {
@@ -253,6 +285,124 @@ const AdvancedSearchPage = () => {
         }));
       }
     }
+  };
+
+  // ==========================================
+  // WEATHER WARNING HANDLERS
+  // ==========================================
+
+  // Check weather when item is dropped into a time slot
+  const checkWeatherForDrop = async (restaurant, targetSlot) => {
+    // Only check for time slots, not unsorted
+    if (targetSlot === "unsorted") return { shouldWarn: false };
+    
+    try {
+      const result = await checkWeatherWarning(restaurant, targetSlot);
+      return result;
+    } catch (error) {
+      console.error("Weather check failed:", error);
+      return { shouldWarn: false };
+    }
+  };
+
+  // Handle weather warning confirmation (user wants to add despite rain)
+  const handleWeatherConfirm = () => {
+    // Item is already moved, just close the modal and clear pending
+    setPendingDrop(null);
+    setWeatherWarning({ ...weatherWarning, isOpen: false });
+  };
+
+  // Handle weather warning cancel (user wants to choose different restaurant)
+  const handleWeatherCancel = () => {
+    // Revert the drop if cancelled
+    if (pendingDrop?.revertState) {
+      setTourItems(pendingDrop.revertState);
+    }
+    setPendingDrop(null);
+    setWeatherWarning({ ...weatherWarning, isOpen: false });
+  };
+
+  // Weather-aware drag end handler
+  const handleDragEndWithWeather = (event) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    console.log("🌦️ Drag End - active:", active?.id, "over:", overId);
+    console.log("🌦️ Source info:", dragSourceInfo);
+
+    // Clear dragSourceInfo and return if no target
+    if (!overId) {
+      console.log("🌦️ No overId, returning");
+      setDragSourceInfo(null);
+      return;
+    }
+
+    // Get current container (where item is NOW after handleDragOver moved it)
+    const currentContainer = findContainer(active.id);
+    
+    // Get the ORIGINAL source container from dragSourceInfo
+    const sourceContainer = dragSourceInfo?.container;
+    const sourceItem = dragSourceInfo?.item;
+
+    // Get target container
+    let targetContainer = findContainer(overId);
+    if (!targetContainer && overId in tourItems) {
+      targetContainer = overId;
+    }
+
+    console.log("🌦️ Source:", sourceContainer, "Target:", targetContainer, "Current:", currentContainer);
+
+    // If no movement or same container, just reorder
+    if (!sourceContainer || sourceContainer === currentContainer) {
+      // Same container - just reorder (handled by dnd-kit)
+      console.log("🌦️ Same container or no source info");
+      setDragSourceInfo(null);
+      return;
+    }
+
+    // Item was moved from sourceContainer to currentContainer (by handleDragOver)
+    // Check if we need to show weather warning
+    if (sourceContainer && currentContainer && sourceContainer !== currentContainer) {
+      // Use the item from dragSourceInfo since it has original data
+      const activeItem = sourceItem || tourItems[currentContainer]?.find(
+        (item) => item.cartId === active.id
+      );
+
+      if (!activeItem) {
+        console.log("🌦️ No activeItem found!");
+        setDragSourceInfo(null);
+        return;
+      }
+
+      console.log("🌦️ Item:", activeItem.name, "moved from", sourceContainer, "to", currentContainer);
+
+      // If moved TO a time slot (not unsorted), check weather
+      if (currentContainer !== "unsorted") {
+        // Store current state for potential revert (item is already in new container)
+        const revertState = JSON.parse(JSON.stringify(tourItems));
+
+        // Check weather asynchronously
+        checkWeatherForDrop(activeItem, currentContainer).then((weatherResult) => {
+          console.log("🌦️ Weather result:", weatherResult);
+          // Always show weather info when we have it
+          if (weatherResult.weather) {
+            setPendingDrop({ revertState });
+            setWeatherWarning({
+              isOpen: true,
+              restaurant: activeItem,
+              slot: currentContainer,
+              weather: weatherResult.weather,
+              message: weatherResult.message,
+            });
+          }
+        }).catch(err => {
+          console.error("🌦️ Weather check error:", err);
+        });
+      }
+    }
+
+    // Clear drag source info
+    setDragSourceInfo(null);
   };
 
   // ==========================================
@@ -598,7 +748,7 @@ const AdvancedSearchPage = () => {
 
     try {
       // Call /nearby endpoint
-      const res = await api.get(`/nearby?lat=${lat}&lon=${lon}&radius=5000`);
+      const res = await api.get(`/restaurants/nearby?lat=${lat}&lon=${lon}&radius=5000`);
       
       if (res.success) {
         setRestaurants(res.data);
@@ -1297,8 +1447,9 @@ const AdvancedSearchPage = () => {
              <div className="w-full">
                  <TourBuilder 
                     tourItems={tourItems} 
+                    onDragStart={handleDragStart}
                     onDragOver={handleDragOver} 
-                    onDragEnd={handleDragEnd}
+                    onDragEnd={handleDragEndWithWeather}
                     onRemove={handleRemoveFromTour}
                     tourName={tourName}
                     setTourName={setTourName}
@@ -1309,6 +1460,18 @@ const AdvancedSearchPage = () => {
         </div>
 
       </main>
+
+      {/* Weather Warning Modal */}
+      <WeatherWarning
+        isOpen={weatherWarning.isOpen}
+        onClose={handleWeatherCancel}
+        onConfirm={handleWeatherConfirm}
+        onCancel={handleWeatherCancel}
+        restaurantName={weatherWarning.restaurant?.name || ""}
+        slotLabel={getSlotLabel(weatherWarning.slot)}
+        weather={weatherWarning.weather}
+        message={weatherWarning.message}
+      />
 
       <Footer />
     </div>

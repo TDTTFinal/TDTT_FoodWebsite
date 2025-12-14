@@ -11,7 +11,7 @@ const ContextAwareSection = () => {
   useEffect(() => {
     const fetchContext = async () => {
       try {
-        const res = await api.get("/contextual");
+        const res = await api.get("/restaurants/contextual");
         if (res.success) {
           setData({
             title: res.context.title,
