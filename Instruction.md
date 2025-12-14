@@ -1,20 +1,26 @@
-Cần dán 1 file serviceAccountKey.json vào backend\cònig mới cahyj được
+Cần dán 1 file serviceAccountKey.json vào backend\config mới chạy được
 
 npm install nodemailer trong backend dùng để gửi lại mail reset mật khẩu
 
 
+
 cd frontend
 npm install
-npm install mongodb
+npm install -D tailwindcss postcss autoprefixer
+npm install lucide-react    
 npm run dev
-
 
 cd backend
 npm install
-npm run server
+npm run dev
 
 cd admin
 cd admin-panel
 npm install
 npm install lucide-react    
 npm run dev
+
+
+
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+mkdir frontend\src\components\foodtour

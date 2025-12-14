@@ -33,8 +33,22 @@ export const AuthProvider = ({ children }) => {
     window.location.href = "/";
   };
 
+  const updateUser = (updatedUserData) => {
+    const storedAuth = localStorage.getItem("auth");
+    if (storedAuth) {
+      try {
+        const parsedData = JSON.parse(storedAuth);
+        const newUserData = { ...parsedData.user, ...updatedUserData };
+        localStorage.setItem("auth", JSON.stringify({ user: newUserData, token: parsedData.token }));
+        setUser(newUserData);
+      } catch (error) {
+        console.error("Lỗi update user:", error);
+      }
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

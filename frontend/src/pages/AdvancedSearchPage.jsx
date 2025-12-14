@@ -1,16 +1,30 @@
-// FIXED VERSION - Sửa bug filter quận có tên nhiều từ
-// Thay đổi chính: extractDistrict() và logic so sánh district
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Sparkles, Hand } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
-import { searchAPI } from "/services/api";
+import api from "../config/api";
+import { useAuth } from "../context/AuthContext";
+
+// Food Tour Imports
+import TourBuilder from "../components/foodtour/TourBuilder";
+import { arrayMove } from "@dnd-kit/sortable";
+
+// NL Food Tour Imports
+import NLSuggestBox from "../components/foodtour/NLSuggestBox";
+import StepsDisplay from "../components/foodtour/StepsDisplay";
+import RoutesDisplay from "../components/foodtour/RoutesDisplay";
+import ApplyRouteModal from "../components/foodtour/ApplyRouteModal";
+
+// Weather Integration
+import WeatherWarning from "../components/foodtour/WeatherWarning";
+import { checkWeatherWarning, getSlotLabel } from "../services/weatherService";
 
 const ITEMS_PER_PAGE = 15;
 
 const AdvancedSearchPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -27,6 +41,13 @@ const AdvancedSearchPage = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState("");
 
+  // NL Food Tour States
+  const [activeTab, setActiveTab] = useState('manual'); // 'manual' | 'suggest'
+  const [nlSteps, setNlSteps] = useState(null);
+  const [nlRoutes, setNlRoutes] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+
   // Filter States
   const [filters, setFilters] = useState({
     category: "Tất cả",
@@ -39,6 +60,432 @@ const AdvancedSearchPage = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ==========================================
+  // FOOD TOUR STATE & LOGIC
+  // ==========================================
+  const [tourName, setTourName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Weather Warning States
+  const [weatherWarning, setWeatherWarning] = useState({
+    isOpen: false,
+    restaurant: null,
+    slot: null,
+    weather: null, // Full weather data
+    message: "",
+  });
+  const [pendingDrop, setPendingDrop] = useState(null); // Store pending drop action
+  const [dragSourceInfo, setDragSourceInfo] = useState(null); // Track source container at drag start
+
+  const [tourItems, setTourItems] = useState({
+    unsorted: [],
+    morning: [],
+    lunch: [],
+    afternoon: [],
+    dinner: [],
+  });
+
+  const generateId = () => "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+
+  // Check if restaurant is already in tour
+  const isInTour = (restaurantId) => {
+    const allSlots = Object.values(tourItems);
+    return allSlots.some(slot => 
+      slot.some(item => item._id === restaurantId)
+    );
+  };
+
+  const handleAddToTour = (restaurant) => {
+    // Prevent duplicates
+    if (isInTour(restaurant._id)) {
+      return;
+    }
+    
+    setTourItems((prev) => {
+      const newItem = { ...restaurant, cartId: generateId() };
+      return {
+        ...prev,
+        unsorted: [...prev.unsorted, newItem],
+      };
+    });
+  };
+
+  const handleRemoveFromTour = (itemId) => {
+    setTourItems((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        next[key] = next[key].filter((item) => item.cartId !== itemId);
+      });
+      return next;
+    });
+  };
+
+  const findContainer = (id) => {
+    if (id in tourItems) return id;
+    return Object.keys(tourItems).find((key) =>
+      tourItems[key].find((item) => item.cartId === id)
+    );
+  };
+
+  // Capture source container when drag starts
+  const handleDragStart = (event) => {
+    const { active } = event;
+    const sourceContainer = findContainer(active.id);
+    const sourceItem = tourItems[sourceContainer]?.find(
+      (item) => item.cartId === active.id
+    );
+    
+    console.log("🌦️ Drag Start - source:", sourceContainer, "item:", sourceItem?.name);
+    
+    setDragSourceInfo({
+      container: sourceContainer,
+      item: sourceItem,
+      itemId: active.id,
+    });
+  };
+
+  const handleDragOver = (event) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    if (!overId || active.id === overId) return;
+
+    const activeContainer = findContainer(active.id);
+    const overContainer = findContainer(overId);
+
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      return;
+    }
+
+    setTourItems((prev) => {
+      const activeItems = prev[activeContainer];
+      const overItems = prev[overContainer];
+      const activeIndex = activeItems.findIndex((i) => i.cartId === active.id);
+      const overIndex = overItems.findIndex((i) => i.cartId === overId);
+
+      let newIndex;
+      if (overId in prev) {
+        newIndex = overItems.length + 1;
+      } else {
+        const isBelowOverItem =
+          over &&
+          active.rect.current.translated &&
+          active.rect.current.translated.top >
+            over.rect.top + over.rect.height;
+
+        const modifier = isBelowOverItem ? 1 : 0;
+        newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+      }
+
+      return {
+        ...prev,
+        [activeContainer]: [
+          ...prev[activeContainer].filter((item) => item.cartId !== active.id),
+        ],
+        [overContainer]: [
+          ...prev[overContainer].slice(0, newIndex),
+          activeItems[activeIndex],
+          ...prev[overContainer].slice(newIndex, prev[overContainer].length),
+        ],
+      };
+    });
+  };
+
+  const handleSaveTour = async () => {
+    console.log("🖱️ Handle Save Tour Triggered");
+    console.log("👤 User state:", user);
+
+    if (!user) {
+        alert("Vui lòng đăng nhập để lưu Food Tour.");
+        return;
+    }
+
+    if (!tourName.trim()) {
+        alert("Vui lòng nhập tên cho Food Tour.");
+        return;
+    }
+
+    // Calculate total restaurants
+    const totalRestaurants = 
+      tourItems.morning.length + 
+      tourItems.lunch.length + 
+      tourItems.afternoon.length + 
+      tourItems.dinner.length +
+      tourItems.unsorted.length;
+
+    console.log("🔢 Total restaurants:", totalRestaurants);
+
+    if (totalRestaurants === 0) {
+        alert("Tour chưa có địa điểm nào!");
+        return;
+    }
+
+    const payload = {
+      name: tourName,
+      description: `Tour ${totalRestaurants} điểm ăn uống tại TP.HCM (Tạo từ tìm kiếm nâng cao)`,
+      tourItems: tourItems, // Flexible structure
+      totalRestaurants
+    };
+
+    console.log("📦 Payload prepared:", payload);
+
+    try {
+      setIsSaving(true);
+      console.log("🚀 Sending API request to /food-tours");
+      const res = await api.post("/food-tours", payload);
+      console.log("✅ API Response:", res);
+
+      if (res.success) {
+        alert("✅ Đã lưu Food tour thành công! Kiểm tra trong Profile > Tour của tôi.");
+      } else {
+        console.error("❌ API returned false success:", res);
+        alert("❌ Lưu thất bại: " + (res.message || "Lỗi không xác định"));
+      }
+    } catch (err) {
+      console.error("❌ Catch Error:", err);
+      console.error("❌ Error Response Data:", err.response?.data);
+      console.error("❌ Error Status:", err.response?.status);
+      alert("❌ Lỗi khi lưu tour: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    const { id } = active;
+    const overId = over?.id;
+
+    if (!overId) return;
+
+    const activeContainer = findContainer(id);
+    const overContainer = findContainer(overId);
+
+    if (
+      activeContainer &&
+      overContainer &&
+      activeContainer === overContainer
+    ) {
+      const activeIndex = tourItems[activeContainer].findIndex(
+        (i) => i.cartId === id
+      );
+      const overIndex = tourItems[overContainer].findIndex(
+        (i) => i.cartId === overId
+      );
+
+      if (activeIndex !== overIndex) {
+        setTourItems((prev) => ({
+          ...prev,
+          [activeContainer]: arrayMove(
+            prev[activeContainer],
+            activeIndex,
+            overIndex
+          ),
+        }));
+      }
+    }
+  };
+
+  // ==========================================
+  // WEATHER WARNING HANDLERS
+  // ==========================================
+
+  // Check weather when item is dropped into a time slot
+  const checkWeatherForDrop = async (restaurant, targetSlot) => {
+    // Only check for time slots, not unsorted
+    if (targetSlot === "unsorted") return { shouldWarn: false };
+    
+    try {
+      const result = await checkWeatherWarning(restaurant, targetSlot);
+      return result;
+    } catch (error) {
+      console.error("Weather check failed:", error);
+      return { shouldWarn: false };
+    }
+  };
+
+  // Handle weather warning confirmation (user wants to add despite rain)
+  const handleWeatherConfirm = () => {
+    // Item is already moved, just close the modal and clear pending
+    setPendingDrop(null);
+    setWeatherWarning({ ...weatherWarning, isOpen: false });
+  };
+
+  // Handle weather warning cancel (user wants to choose different restaurant)
+  const handleWeatherCancel = () => {
+    // Revert the drop if cancelled
+    if (pendingDrop?.revertState) {
+      setTourItems(pendingDrop.revertState);
+    }
+    setPendingDrop(null);
+    setWeatherWarning({ ...weatherWarning, isOpen: false });
+  };
+
+  // Weather-aware drag end handler
+  const handleDragEndWithWeather = (event) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    console.log("🌦️ Drag End - active:", active?.id, "over:", overId);
+    console.log("🌦️ Source info:", dragSourceInfo);
+
+    // Clear dragSourceInfo and return if no target
+    if (!overId) {
+      console.log("🌦️ No overId, returning");
+      setDragSourceInfo(null);
+      return;
+    }
+
+    // Get current container (where item is NOW after handleDragOver moved it)
+    const currentContainer = findContainer(active.id);
+    
+    // Get the ORIGINAL source container from dragSourceInfo
+    const sourceContainer = dragSourceInfo?.container;
+    const sourceItem = dragSourceInfo?.item;
+
+    // Get target container
+    let targetContainer = findContainer(overId);
+    if (!targetContainer && overId in tourItems) {
+      targetContainer = overId;
+    }
+
+    console.log("🌦️ Source:", sourceContainer, "Target:", targetContainer, "Current:", currentContainer);
+
+    // If no movement or same container, just reorder
+    if (!sourceContainer || sourceContainer === currentContainer) {
+      // Same container - just reorder (handled by dnd-kit)
+      console.log("🌦️ Same container or no source info");
+      setDragSourceInfo(null);
+      return;
+    }
+
+    // Item was moved from sourceContainer to currentContainer (by handleDragOver)
+    // Check if we need to show weather warning
+    if (sourceContainer && currentContainer && sourceContainer !== currentContainer) {
+      // Use the item from dragSourceInfo since it has original data
+      const activeItem = sourceItem || tourItems[currentContainer]?.find(
+        (item) => item.cartId === active.id
+      );
+
+      if (!activeItem) {
+        console.log("🌦️ No activeItem found!");
+        setDragSourceInfo(null);
+        return;
+      }
+
+      console.log("🌦️ Item:", activeItem.name, "moved from", sourceContainer, "to", currentContainer);
+
+      // If moved TO a time slot (not unsorted), check weather
+      if (currentContainer !== "unsorted") {
+        // Store current state for potential revert (item is already in new container)
+        const revertState = JSON.parse(JSON.stringify(tourItems));
+
+        // Check weather asynchronously
+        checkWeatherForDrop(activeItem, currentContainer).then((weatherResult) => {
+          console.log("🌦️ Weather result:", weatherResult);
+          // Always show weather info when we have it
+          if (weatherResult.weather) {
+            setPendingDrop({ revertState });
+            setWeatherWarning({
+              isOpen: true,
+              restaurant: activeItem,
+              slot: currentContainer,
+              weather: weatherResult.weather,
+              message: weatherResult.message,
+            });
+          }
+        }).catch(err => {
+          console.error("🌦️ Weather check error:", err);
+        });
+      }
+    }
+
+    // Clear drag source info
+    setDragSourceInfo(null);
+  };
+
+  // ==========================================
+  // NL FOOD TOUR HANDLERS
+  // ==========================================
+
+  const handleNLResults = (results) => {
+    setNlSteps(results.steps || []);
+    setNlRoutes(results.suggested_routes || []);
+  };
+
+  const handleNLError = (error) => {
+    console.error('[NL Food Tour] Error:', error);
+  };
+
+  const handleApplyRoute = (route) => {
+    setSelectedRoute(route);
+    setShowApplyModal(true);
+  };
+
+  const handleConfirmApply = (route, mergeMode) => {
+    setTourItems((prev) => {
+      let newTourItems = { ...prev };
+
+      switch (mergeMode) {
+        case 'replace':
+          newTourItems = { unsorted: [], morning: [], lunch: [], afternoon: [], dinner: [] };
+          route.stops.forEach((stop, idx) => {
+            const slot = smartAssignSlot(stop, idx, '');
+            newTourItems[slot].push(transformStopToTourItem(stop));
+          });
+          break;
+
+        case 'append':
+          route.stops.forEach((stop) => {
+            newTourItems.unsorted.push(transformStopToTourItem(stop));
+          });
+          break;
+
+        case 'smart':
+          route.stops.forEach((stop, idx) => {
+            const slot = smartAssignSlot(stop, idx, '');
+            newTourItems[slot].push(transformStopToTourItem(stop));
+          });
+          break;
+
+        default:
+          break;
+      }
+
+      return newTourItems;
+    });
+
+    setShowApplyModal(false);
+    setActiveTab('manual');
+  };
+
+  const smartAssignSlot = (stop, index, query = '') => {
+    const lowerQuery = query.toLowerCase();
+
+    if (lowerQuery.includes('sáng') || lowerQuery.includes('morning')) {
+      if (index === 0) return 'morning';
+    }
+    if (lowerQuery.includes('trưa') || lowerQuery.includes('lunch')) {
+      if (index <= 1) return 'lunch';
+    }
+    if (lowerQuery.includes('chiều') || lowerQuery.includes('afternoon')) {
+      if (index <= 2) return 'afternoon';
+    }
+    if (lowerQuery.includes('tối') || lowerQuery.includes('dinner') || lowerQuery.includes('evening')) {
+      if (index <= 3) return 'dinner';
+    }
+
+    const slotMap = ['morning', 'lunch', 'afternoon', 'dinner'];
+    return slotMap[index] || 'unsorted';
+  };
+
+  const transformStopToTourItem = (stop) => ({
+    ...stop,
+    cartId: generateId(),
+    source: 'suggested',
+    status: 'selected'
+  });
 
   // Categories
   const categories = [
@@ -124,7 +571,7 @@ const AdvancedSearchPage = () => {
     // Check for "đang cập nhật"
     if (cleanStr.includes("cập nhật")) return null;
 
-    console.log(`[PriceParse] Parsing: "${rangeStr}" -> "${cleanStr}"`);
+    console.log("[PriceParse] Parsing: \"" + rangeStr + "\" -> \"" + cleanStr + "\"");
 
     // Case 1: "30000 - 50000" (using hyphen, en-dash, em-dash)
     // Regex: (\d+) \s* [ - – — ] \s* (\d+)
@@ -132,7 +579,7 @@ const AdvancedSearchPage = () => {
     if (rangeMatch) {
       const min = parseInt(rangeMatch[1]);
       const max = parseInt(rangeMatch[2]);
-      console.log(`[PriceParse] Range Detected: ${min} - ${max}`);
+      console.log("[PriceParse] Range Detected: " + min + " - " + max);
       return { min, max };
     }
 
@@ -289,7 +736,66 @@ const AdvancedSearchPage = () => {
   // GEOLOCATION
   // ==========================================
 
+  // ==========================================
+  // GEOLOCATION
+  // ==========================================
+
+  const fetchNearby = async (lat, lon) => {
+    setLoading(true);
+    setError("");
+    setHasSearched(true);
+    setCurrentPage(1);
+
+    try {
+      // Call /nearby endpoint
+      const res = await api.get(`/restaurants/nearby?lat=${lat}&lon=${lon}&radius=5000`);
+      
+      if (res.success) {
+        setRestaurants(res.data);
+        const filtered = applyFilters(res.data, {
+            ...filters,
+            sortBy: "distance"
+        }, { lat, lon });
+        setFilteredRestaurants(filtered);
+      }
+    } catch (err) {
+      console.error("Nearby fetch error:", err);
+      // Don't block UI, just log or show subtle error
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getUserLocation = () => {
+    // TOGGLE LOGIC: If location enabled -> Disable it
+    if (userLocation) {
+        setUserLocation(null);
+        setLocationError("");
+        
+        // Reset filters dependent on location
+        setFilters(prev => ({
+            ...prev,
+            maxDistance: null,
+            sortBy: "hybrid" // Back to default
+        }));
+
+        // If user was viewing "Near Me" results (implied by empty keyword), 
+        // we should probably reset the list or show empty state to avoid confusion.
+        if (!keyword.trim()) {
+            setRestaurants([]);
+            setFilteredRestaurants([]);
+            setHasSearched(false);
+        } else {
+            // If keyword exists, re-filter current list without distance bias
+            // (handled by existing useEffect or manual re-filter?)
+            // We'll manually trigger filter update in effect or here
+            // Note: applyFilters depends on userLocation state, so proper React effect might handle it,
+            // but let's be safe.
+        }
+        return;
+    }
+
+    // ENABLE LOGIC
     if (!navigator.geolocation) {
       setLocationError("Trình duyệt không hỗ trợ định vị");
       return;
@@ -310,9 +816,14 @@ const AdvancedSearchPage = () => {
         // Auto-apply distance filter
         setFilters((prev) => ({
           ...prev,
-          maxDistance: 5, // Default 5km
+          maxDistance: 5,
           sortBy: "distance",
         }));
+
+        // If no keyword, auto-fetch nearby
+        if (!keyword.trim()) {
+            fetchNearby(location.lat, location.lon);
+        }
       },
       (error) => {
         setLocationLoading(false);
@@ -333,7 +844,7 @@ const AdvancedSearchPage = () => {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000, // Cache 5 minutes
+        maximumAge: 300000,
       }
     );
   };
@@ -357,7 +868,9 @@ const AdvancedSearchPage = () => {
       filtered = filtered.map((r) => ({
         ...r,
         distance:
-          r.lat && r.lon
+          r.location?.coordinates // Mongo GeoJSON [lon, lat]
+            ? calculateDistance(loc.lat, loc.lon, r.location.coordinates[1], r.location.coordinates[0])
+            : r.lat && r.lon // Legacy fallback
             ? calculateDistance(loc.lat, loc.lon, r.lat, r.lon)
             : null,
       }));
@@ -378,7 +891,7 @@ const AdvancedSearchPage = () => {
       filtered = filtered.filter((r) => r.avg_rating >= f.minRating);
     }
 
-    // ⭐ FIXED: Filter by district - dùng hàm matchesDistrict mới
+    // Filter by district
     if (f.district !== "Tất cả") {
       filtered = filtered.filter((r) => matchesDistrict(r.address, f.district));
     }
@@ -406,8 +919,8 @@ const AdvancedSearchPage = () => {
           return b.avg_rating - a.avg_rating;
 
         case "distance":
-          if (a.distance === null) return 1;
-          if (b.distance === null) return -1;
+          if (a.distance == null) return 1;
+          if (b.distance == null) return -1;
           return a.distance - b.distance;
 
         case "name":
@@ -429,9 +942,15 @@ const AdvancedSearchPage = () => {
     if (e) e.preventDefault();
 
     const trimmedKeyword = keyword.trim();
+    
+    // Empty keyword + Location -> Fetch Nearby
     if (!trimmedKeyword) {
-      setError("Vui lòng nhập từ khóa tìm kiếm");
-      return;
+        if (userLocation) {
+             fetchNearby(userLocation.lat, userLocation.lon);
+             return;
+        }
+        setError("Vui lòng nhập từ khóa tìm kiếm");
+        return;
     }
 
     setLoading(true);
@@ -440,14 +959,24 @@ const AdvancedSearchPage = () => {
     setCurrentPage(1);
 
     try {
-      const response = await searchAPI.advanced({ q: trimmedKeyword });
+      const params = { q: trimmedKeyword };
+      if (userLocation) {
+          params.lat = userLocation.lat;
+          params.lon = userLocation.lon;
+          params.radius = 5000;
+      }
 
-      if (response.success && Array.isArray(response.data)) {
+      // Updated endpoint: api.get (using axios instance)
+      const response = await api.get("/search/advanced", { params });
+
+      // Note: api.js interceptor returns response.data
+      // And /search/advanced returns { success: true, data: [...], ... }
+      
+      if (response && Array.isArray(response.data)) {
         setRestaurants(response.data);
         const filtered = applyFilters(response.data);
         setFilteredRestaurants(filtered);
 
-        // Update URL
         setSearchParams({ q: trimmedKeyword });
       } else {
         throw new Error("Invalid response format");
@@ -456,7 +985,7 @@ const AdvancedSearchPage = () => {
       console.error("Search error:", err);
       setError(
         err.response?.data?.message ||
-          "Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại."
+          "Có lỗi xảy ra khi tìm kiếm."
       );
       setRestaurants([]);
       setFilteredRestaurants([]);
@@ -551,8 +1080,10 @@ const AdvancedSearchPage = () => {
 
   useEffect(() => {
     const queryParam = searchParams.get("q");
-    if (queryParam && queryParam !== keyword) {
+    if (queryParam) {
       setKeyword(queryParam);
+      // Pass queryParam explicitly or ensure handleSearch reads it
+      // Since handleSearch reads 'keyword' state, and on mount 'keyword' is init from URL, it works.
       handleSearch();
     }
   }, []);
@@ -569,721 +1100,378 @@ const AdvancedSearchPage = () => {
   // ==========================================
 
   return (
-    <div
-      style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
-    >
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
 
-      <main
-        style={{
-          flex: 1,
-          padding: "40px 20px",
-          maxWidth: "1400px",
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
-        {/* Search Bar */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "24px", // Increased radius for modern look
-            boxShadow: "0 8px 32px rgba(0,0,0,0.08)", // Softer, deeper shadow
-            padding: "40px",
-            marginBottom: "40px",
-            display: "flex", // Center content
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "36px",
-              fontWeight: "800",
-              color: "#333",
-              marginBottom: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "16px",
-              textAlign: "center",
-            }}
-          >
-            Tìm kiếm thông minh
-          </h1>
-          <p
-            style={{
-              fontSize: "16px",
-              color: "#666",
-              marginBottom: "32px",
-              textAlign: "center",
-              maxWidth: "600px",
-            }}
-          >
-            Hơn 1,200 nhà hàng với thuật toán Hybrid Ranking (Semantic + TF-IDF)
-          </p>
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
+        {/* === SEARCH HEADER === */}
+        <div className="bg-white shadow-lg rounded-3xl p-8 md:p-12 mb-10 flex flex-col items-center text-center relative overflow-hidden">
+             {/* Decorative Background Elements */}
+             <div className="absolute top-0 left-0 w-32 h-32 bg-orange-100 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute bottom-0 right-0 w-48 h-48 bg-red-50 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
+            
+            <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
+                <h1 className="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4 flex items-center justify-center gap-3">
+                    <Search className="text-orange-600" size={32} />
+                    Tìm kiếm thông minh
+                </h1>
+                <p className="text-gray-500 text-lg mb-8 max-w-2xl">
+                    Kết hợp tìm kiếm ngữ nghĩa và từ khóa để đưa ra gợi ý nhà hàng chính xác nhất cho bạn.
+                </p>
 
-          <form
-            onSubmit={handleSearch}
-            style={{
-              display: "flex",
-              gap: "16px",
-              width: "100%",
-              maxWidth: "800px",
-              flexWrap: "wrap", // Allow wrapping on small screens
-            }}
-          >
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder='Ví dụ: "phở bò", "lẩu hải sản", "quán ăn vặt"...'
-              style={{
-                flex: "1 1 300px", // Grow, shrink, base width
-                padding: "18px 24px",
-                fontSize: "16px",
-                border: "2px solid #E0E0E0",
-                borderRadius: "16px",
-                outline: "none",
-                transition: "all 0.2s ease",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#E65100";
-                e.target.style.boxShadow = "0 4px 12px rgba(230, 81, 0, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#E0E0E0";
-                e.target.style.boxShadow = "none";
-              }}
-            />
-            <div style={{ display: "flex", gap: "12px", flex: "0 1 auto" }}>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: "18px 32px",
-                  background: loading ? "#BDBDBD" : "#E65100",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "16px",
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  transition: "transform 0.1s ease, box-shadow 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  whiteSpace: "nowrap",
-                  boxShadow: "0 4px 12px rgba(230, 81, 0, 0.2)",
-                }}
-                onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = "translateY(-2px)")}
-                onMouseLeave={(e) => !loading && (e.currentTarget.style.transform = "translateY(0)")}
-              >
-                {loading ? "Loading..." : "Tìm kiếm"}
-              </button>
-              <button
-                type="button"
-                onClick={getUserLocation}
-                disabled={locationLoading}
-                style={{
-                  padding: "18px 24px",
-                  background: locationLoading
-                    ? "#BDBDBD"
-                    : userLocation
-                    ? "#2196F3"
-                    : "#fff",
-                  color: userLocation ? "#fff" : "#333",
-                  border: userLocation ? "none" : "2px solid #E0E0E0",
-                  borderRadius: "16px",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  cursor: locationLoading ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {locationLoading ? "Loading..." : userLocation ? "Đã xác định" : "Quán gần tôi"}
-              </button>
-            </div>
-          </form>
+                <form
+                    onSubmit={handleSearch}
+                    className="w-full flex flex-col md:flex-row gap-4"
+                >
+                    <div className="flex-1 relative">
+                        <input
+                            type="text"
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                            placeholder='Thử tìm: "Phở bò quận 1", "Lẩu thái chua cay"...'
+                            className="w-full h-14 pl-6 pr-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-lg focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100 transition-all shadow-sm"
+                        />
+                    </div>
+                    
+                    <div className="flex gap-3">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`h-14 px-8 rounded-2xl font-bold text-white shadow-lg transition-transform active:scale-95 flex items-center gap-2 whitespace-nowrap ${
+                                loading 
+                                ? "bg-gray-400 cursor-not-allowed" 
+                                : "bg-gradient-to-r from-orange-500 to-red-600 hover:shadow-orange-200"
+                            }`}
+                        >
+                            {loading ? (
+                                <span className="flex items-center gap-2">Wait...</span>
+                            ) : (
+                                <>
+                                    <Search size={20} /> Tìm kiếm
+                                </>
+                            )}
+                        </button>
 
-          {error && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "12px 20px",
-                background: "#FFEBEE",
-                border: "1px solid #FFCDD2",
-                borderRadius: "12px",
-                color: "#C62828",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {error}
-            </div>
-          )}
+                        <button
+                            type="button"
+                            onClick={getUserLocation}
+                            disabled={locationLoading}
+                            className={`h-14 px-6 rounded-2xl font-bold border-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+                                userLocation
+                                    ? "bg-blue-500 border-blue-500 text-white shadow-blue-200 shadow-lg"
+                                    : "bg-white border-gray-200 text-gray-600 hover:border-orange-500 hover:text-orange-600"
+                            }`}
+                        >
+                            <MapPin size={20} />
+                            <span className="hidden sm:inline">
+                                {locationLoading ? "..." : userLocation ? "Gần tôi" : "Gần tôi"}
+                            </span>
+                        </button>
+                    </div>
+                </form>
 
-          {locationError && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "12px 20px",
-                background: "#FFF3E0",
-                border: "1px solid #FFE0B2",
-                borderRadius: "12px",
-                color: "#E65100",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {locationError}
+                 {/* Error Messages */}
+                {error && (
+                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 border border-red-100 animate-in fade-in slide-in-from-top-2">
+                         <span>⚠️ {error}</span>
+                    </div>
+                )}
+                 {locationError && (
+                    <div className="mt-4 p-4 bg-yellow-50 text-yellow-700 rounded-lg flex items-center gap-2 border border-yellow-100 animate-in fade-in slide-in-from-top-2">
+                         <MapPin size={16} /> {locationError}
+                    </div>
+                )}
             </div>
-          )}
         </div>
 
-        {/* Results Section */}
-        {hasSearched && !loading && (
-          <div style={{ display: "flex", gap: "24px" }}>
-            {/* Filters Sidebar */}
-            <div
-              style={{
-                width: "300px",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: "20px",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-                  padding: "32px",
-                  position: "sticky",
-                  top: "24px",
-                  border: "1px solid #F0F0F0",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "20px",
-                  }}
+        {/* === TAB NAVIGATION === */}
+        <div className="flex flex-col gap-6">
+            <div className="flex border-b border-gray-200">
+                <button
+                    onClick={() => setActiveTab('manual')}
+                    className={"flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors " + (
+                        activeTab === 'manual'
+                            ? "border-orange-500 text-orange-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    )}
                 >
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: "700",
-                      color: "#333",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    Bộ lọc
-                  </h3>
-                  <button
-                    onClick={handleResetFilters}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#E65100",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    Đặt lại
-                  </button>
-                </div>
-
-                {/* Sắp xếp theo */}
-                <div style={{ marginBottom: "24px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: "#555",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    🎨 Sắp xếp theo
-                  </label>
-                  <select
-                    value={filters.sortBy}
-                    onChange={(e) =>
-                      handleFilterChange("sortBy", e.target.value)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      fontSize: "14px",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="hybrid">Hybrid Score (Đề xuất)</option>
-                    <option value="semantic">Semantic Score</option>
-                    <option value="tfidf">TF-IDF Score</option>
-                    <option value="rating">Đánh giá cao</option>
-                    <option value="distance">Khoảng cách gần</option>
-                    <option value="name">Tên A-Z</option>
-                  </select>
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      color: "#999",
-                      marginTop: "6px",
-                      lineHeight: "1.4",
-                    }}
-                  >
-                    60% Semantic + 40% TF-IDF
-                  </p>
-                </div>
-
-                {/* Loại món */}
-                <div style={{ marginBottom: "24px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: "#555",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    🍜 Loại món
-                  </label>
-                  <select
-                    value={filters.category}
-                    onChange={(e) =>
-                      handleFilterChange("category", e.target.value)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      fontSize: "14px",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: "#fff",
-                    }}
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Mức giá */}
-                <div style={{ marginBottom: "24px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: "#555",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    💰 Mức giá
-                  </label>
-                  <select
-                    value={filters.priceRange}
-                    onChange={(e) =>
-                      handleFilterChange("priceRange", e.target.value)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      fontSize: "14px",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: "#fff",
-                    }}
-                  >
-                    {priceRanges.map((range) => (
-                      <option key={range} value={range}>
-                        {range}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Đánh giá tối thiểu */}
-                <div style={{ marginBottom: "24px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: "#555",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    ⭐ Đánh giá tối thiểu (0-10)
-                  </label>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    {[0, 5, 7, 8, 9].map((rating) => (
-                      <label
-                        key={rating}
-                        style={{
-                          flex: 1,
-                          textAlign: "center",
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="minRating"
-                          value={rating}
-                          checked={filters.minRating === rating}
-                          onChange={(e) =>
-                            handleFilterChange(
-                              "minRating",
-                              parseInt(e.target.value)
-                            )
-                          }
-                          style={{ display: "none" }}
-                        />
-                        <div
-                          style={{
-                            padding: "8px 4px",
-                            background:
-                              filters.minRating === rating
-                                ? "#E65100"
-                                : "#F5F5F5",
-                            color:
-                              filters.minRating === rating ? "#fff" : "#666",
-                            borderRadius: "8px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {rating === 0 ? "Tất cả" : `${rating}+`}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quận/Huyện */}
-                <div style={{ marginBottom: "24px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: "#555",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    📍 Quận/Huyện
-                  </label>
-                  <select
-                    value={filters.district}
-                    onChange={(e) =>
-                      handleFilterChange("district", e.target.value)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      fontSize: "14px",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: "#fff",
-                    }}
-                  >
-                    {districts.map((dist) => (
-                      <option key={dist} value={dist}>
-                        {dist}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    <Hand size={20} />
+                    Thủ công
+                </button>
+                <button
+                    onClick={() => setActiveTab('suggest')}
+                    className={"flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors " + (
+                        activeTab === 'suggest'
+                            ? "border-orange-500 text-orange-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    )}
+                >
+                    <Sparkles size={20} />
+                    Gợi ý theo ý bạn
+                </button>
             </div>
+        </div>
 
-            {/* Results Grid */}
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-                  padding: "24px",
-                  marginBottom: "24px",
-                }}
-              >
-                <h2
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: "700",
-                    color: "#333",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Kết quả tìm kiếm
-                </h2>
-                <p style={{ fontSize: "14px", color: "#666" }}>
-                  Tìm thấy{" "}
-                  <strong style={{ color: "#E65100" }}>
-                    {filteredRestaurants.length}
-                  </strong>{" "}
-                  nhà hàng{" "}
-                  {filters.district !== "Tất cả" && `tại ${filters.district}`}
-                </p>
-              </div>
+        {/* === MAIN CONTENT === */}
+        <div className="flex flex-col gap-8">
+             
+             {/* TAB: MANUAL SEARCH */}
+             {activeTab === 'manual' && (
+             <div className="w-full">
+                 
+                 {hasSearched && !loading && (
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        {/* Filter Sidebar */}
+                        <aside className="w-full lg:w-64 flex-shrink-0">
+                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 lg:sticky lg:top-24">
+                                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                                    <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                        <Filter size={18} className="text-orange-500"/> Bộ lọc
+                                    </h3>
+                                    <button
+                                        onClick={handleResetFilters}
+                                        className="text-xs font-medium text-orange-600 hover:bg-orange-50 px-2.5 py-1 rounded-full transition-colors flex items-center gap-1"
+                                    >
+                                        <RotateCcw size={12} /> Đặt lại
+                                    </button>
+                                </div>
 
-              {currentRestaurants.length > 0 ? (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fill, minmax(190px, 1fr))",
-                    gap: "16px",
-                  }}
-                >
-                  {currentRestaurants.map((restaurant) => (
-                    <div
-                      key={restaurant._id}
-                      onClick={() => navigate(`/restaurant/${restaurant._id}`)}
-                      style={{
-                        cursor: "pointer",
-                        position: "relative",
-                        background: "#fff",
-                        borderRadius: "12px",
-                        overflow: "hidden",
-                        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-                        transition: "all 0.3s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-8px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 8px 24px rgba(0,0,0,0.15)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow =
-                          "0 2px 12px rgba(0,0,0,0.08)";
-                      }}
-                    >
-                      <RestaurantCard restaurant={restaurant} />
+                                <div className="space-y-4">
+                                    {/* Category */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Danh mục món</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.category}
+                                                onChange={(e) => handleFilterChange("category", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                            <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* Price */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Khoảng giá</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.priceRange}
+                                                onChange={(e) => handleFilterChange("priceRange", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {priceRanges.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                            <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* District */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Khu vực</label>
+                                        <div className="relative">
+                                             <select
+                                                value={filters.district}
+                                                onChange={(e) => handleFilterChange("district", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {districts.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                             <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* Sort */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sắp xếp theo</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.sortBy}
+                                                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                <option value="hybrid">Độ liên quan (Hybrid)</option>
+                                                <option value="rating">Đánh giá cao nhất</option>
+                                                <option value="distance">Gần tôi nhất</option>
+                                                <option value="name">Tên A-Z</option>
+                                            </select>
+                                            <SlidersHorizontal className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+                        </aside>
 
-                      {/* Distance Badge */}
-                      {userLocation && restaurant.distance !== null && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            bottom: "16px",
-                            right: "16px",
-                            background: "rgba(33,150,243,0.95)",
-                            color: "#fff",
-                            padding: "6px 12px",
-                            borderRadius: "20px",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                            zIndex: 10,
-                          }}
-                        >
-                          📍 {restaurant.distance.toFixed(1)} km
+                        {/* Results Grid */}
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between mb-5">
+                                <h2 className="text-lg font-bold text-gray-800">
+                                    Kết quả tìm kiếm
+                                    <span className="ml-2 text-xs font-normal text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                                        {filteredRestaurants.length} nhà hàng
+                                    </span>
+                                </h2>
+                            </div>
+
+                            {filteredRestaurants.length === 0 ? (
+                                <div className="bg-white rounded-2xl p-10 text-center border-2 border-dashed border-gray-200">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Search className="text-gray-300" size={28} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-2">Không tìm thấy kết quả</h3>
+                                    <p className="text-sm text-gray-500">Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm nhé.</p>
+                                    <button
+                                        onClick={handleResetFilters}
+                                        className="mt-5 px-5 py-2 bg-orange-50 text-orange-600 font-bold text-sm rounded-lg hover:bg-orange-100 transition-colors"
+                                    >
+                                        Xóa bộ lọc
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                        {currentRestaurants.map((restaurant) => {
+                                            const inTour = isInTour(restaurant._id);
+                                            return (
+                                                <div key={restaurant._id} className="h-[380px] hover:z-10 relative">
+                                                    <RestaurantCard 
+                                                        restaurant={restaurant} 
+                                                        action={
+                                                            inTour ? (
+                                                                <button
+                                                                    disabled
+                                                                    className="bg-gray-400 text-white px-2.5 py-1.5 text-xs rounded-lg font-bold shadow-md flex items-center gap-1 cursor-not-allowed opacity-60"
+                                                                >
+                                                                    ✓ Đã thêm vào Tour
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleAddToTour(restaurant);
+                                                                    }}
+                                                                    className="bg-orange-600 text-white px-2.5 py-1.5 text-xs rounded-lg font-bold hover:bg-orange-700 shadow-md flex items-center gap-1 transition-transform active:scale-95"
+                                                                >
+                                                                    <Plus size={12} /> Thêm vào Tour
+                                                                </button>
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="mt-10 flex justify-center items-center gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronLeft size={18} />
+                                            </button>
+
+                                            {getPageNumbers().map((page, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => typeof page === "number" && handlePageChange(page)}
+                                                    disabled={page === "..."}
+                                                    className={"w-9 h-9 flex items-center justify-center rounded-full font-bold text-xs transition-all " + (
+                                                        page === currentPage
+                                                            ? "bg-orange-600 text-white shadow-lg shadow-orange-200 scale-110"
+                                                            : page === "..."
+                                                            ? "bg-transparent text-gray-400 cursor-default"
+                                                            : "bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200"
+                                                    )}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronRight size={18} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
-                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "60px 20px",
-                    background: "#fff",
-                    borderRadius: "12px",
-                  }}
-                >
-                  <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-                    😔
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: "600",
-                      color: "#333",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Không tìm thấy kết quả
-                  </h3>
-                  <p style={{ color: "#666", fontSize: "14px" }}>
-                    Thử điều chỉnh bộ lọc hoặc tìm kiếm từ khóa khác
-                  </p>
-                </div>
-              )}
+                 )}
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "20px 0",
-                  }}
-                >
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    style={{
-                      padding: "10px 16px",
-                      background: currentPage === 1 ? "#F5F5F5" : "#fff",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: currentPage === 1 ? "#999" : "#333",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    ← Trước
-                  </button>
+                 {/* Empty State / Intro */}
+                 {!hasSearched && !loading && (
+                    <div className="text-center py-16 opacity-40">
+                        <Search size={56} className="mx-auto mb-3 text-gray-300" />
+                        <p className="text-lg font-medium text-gray-400">Nhập từ khóa để bắt đầu tìm kiếm</p>
+                    </div>
+                )}
+             </div>
+             )}
 
-                  {getPageNumbers().map((p, index) =>
-                    p === "..." ? (
-                      <span
-                        key={`dots-${index}`}
-                        style={{ padding: "0 8px", color: "#999" }}
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={p}
-                        onClick={() => handlePageChange(p)}
-                        style={{
-                          padding: "10px 16px",
-                          background: p === currentPage ? "#E65100" : "#fff",
-                          border: "2px solid",
-                          borderColor:
-                            p === currentPage ? "#E65100" : "#E0E0E0",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          color: p === currentPage ? "#fff" : "#333",
-                          minWidth: "44px",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
+             {/* TAB: AI SUGGEST */}
+             {activeTab === 'suggest' && (
+             <div className="w-full">
+                 <NLSuggestBox 
+                     onResults={handleNLResults}
+                     onError={handleNLError}
+                 />
+                 
+                 {nlSteps && nlSteps.length >0 && (
+                     <StepsDisplay steps={nlSteps} />
+                 )}
 
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    style={{
-                      padding: "10px 16px",
-                      background:
-                        currentPage === totalPages ? "#F5F5F5" : "#fff",
-                      border: "2px solid #E0E0E0",
-                      borderRadius: "8px",
-                      cursor:
-                        currentPage === totalPages ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color: currentPage === totalPages ? "#999" : "#333",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    Sau →
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                 {nlRoutes && nlRoutes.length > 0 && (
+                     <RoutesDisplay 
+                         routes={nlRoutes}
+                         onApplyRoute={handleApplyRoute}
+                     />
+                 )}
 
-        {/* Empty state when no search performed */}
-        {!hasSearched && !loading && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "100px 24px",
-              background: "#fff",
-              borderRadius: "24px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
-              maxWidth: "800px",
-              margin: "0 auto",
-            }}
-          >
-            <div style={{ fontSize: "80px", marginBottom: "24px", animation: "bounce 2s infinite" }}>🎯</div>
-            <h2
-              style={{
-                fontSize: "28px",
-                fontWeight: "800",
-                color: "#333",
-                marginBottom: "16px",
-              }}
-            >
-              Tìm kiếm thông minh với AI
-            </h2>
-            <p
-              style={{
-                color: "#666",
-                fontSize: "16px",
-                maxWidth: "600px",
-                margin: "0 auto 32px",
-                lineHeight: "1.6",
-              }}
-            >
-              Sử dụng thuật toán Hybrid Ranking (Semantic Search + TF-IDF) để
-              tìm nhà hàng phù hợp nhất với bạn
-            </p>
-            <div
-              style={{
-                display: "flex",
-                gap: "24px",
-                justifyContent: "center",
-                flexWrap: "wrap",
-                fontSize: "14px",
-                color: "#888",
-                fontWeight: "500",
-              }}
-            >
-              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
-                🧠 Semantic Score
-              </span>
-              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
-                📊 TF-IDF Score
-              </span>
-              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
-                📍 Geolocation
-              </span>
-              <span style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', padding: '8px 16px', borderRadius: '20px'}}>
-                ⭐ Rating
-              </span>
-            </div>
-          </div>
-        )}
+                 {/* Apply Route Modal */}
+                 {showApplyModal && selectedRoute && (
+                     <ApplyRouteModal
+                         route={selectedRoute}
+                         onConfirm={handleConfirmApply}
+                         onCancel={() => setShowApplyModal(false)}
+                     />
+                 )}
+             </div>
+             )}
+
+             {/* FOOD TOUR BUILDER - BOTTOM SECTION */}
+             <div className="w-full">
+                 <TourBuilder 
+                    tourItems={tourItems} 
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver} 
+                    onDragEnd={handleDragEndWithWeather}
+                    onRemove={handleRemoveFromTour}
+                    tourName={tourName}
+                    setTourName={setTourName}
+                    onSave={handleSaveTour}
+                    isSaving={isSaving}
+                 />
+             </div>
+        </div>
+
       </main>
+
+      {/* Weather Warning Modal */}
+      <WeatherWarning
+        isOpen={weatherWarning.isOpen}
+        onClose={handleWeatherCancel}
+        onConfirm={handleWeatherConfirm}
+        onCancel={handleWeatherCancel}
+        restaurantName={weatherWarning.restaurant?.name || ""}
+        slotLabel={getSlotLabel(weatherWarning.slot)}
+        weather={weatherWarning.weather}
+        message={weatherWarning.message}
+      />
 
       <Footer />
     </div>

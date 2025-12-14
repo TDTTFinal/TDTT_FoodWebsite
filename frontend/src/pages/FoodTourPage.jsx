@@ -1,6 +1,9 @@
 // src/pages/FoodTourPage.jsx
 import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import api from '../config/api'; // Import api instance
+import { useAuth } from '../context/AuthContext'; // Import auth context
 // import restaurantsData from "../data/restaurants.json"; // nếu chưa có API
 
 const TIME_SLOTS = [
@@ -11,12 +14,16 @@ const TIME_SLOTS = [
 ];
 
 const FoodTourPage = () => {
+  const { user } = useAuth(); // Get user from auth
+  const navigate = useNavigate();
+
   const [restaurants, setRestaurants] = useState([]);
   const [foodTour, setFoodTour] = useState({
     morning: [],
     noon: [],
     afternoon: [],
     evening: [],
+    unsorted: [] // Added unsorted to match schema default
   });
   const [tourName, setTourName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -74,40 +81,47 @@ const FoodTourPage = () => {
 
   // ===== NÚT LƯU FOOD TOUR =====
   const handleSaveTour = async () => {
+    if (!user) {
+      setSaveMessage("⚠️ Vui lòng đăng nhập để lưu Food Tour.");
+      return;
+    }
+
     if (!tourName.trim()) {
       setSaveMessage("⚠️ Nhập tên tour trước đã nha.");
       return;
     }
+
+    // Calculate total restaurants
+    const totalRestaurants = 
+      foodTour.morning.length + 
+      foodTour.noon.length + 
+      foodTour.afternoon.length + 
+      foodTour.evening.length;
+
     const payload = {
       name: tourName,
-      slots: {
-        morning: foodTour.morning.map((r) => r._id),
-        noon: foodTour.noon.map((r) => r._id),
-        afternoon: foodTour.afternoon.map((r) => r._id),
-        evening: foodTour.evening.map((r) => r._id),
-      },
+      description: `Tour ${totalRestaurants} điểm ăn uống tại TP.HCM`, // Auto description or add input later
+      tourItems: foodTour, // Send entire state object
+      totalRestaurants
     };
 
     try {
       setSaving(true);
       setSaveMessage("");
 
-      const res = await fetch("http://localhost:5000/api/food-tours", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include", // nếu dùng JWT cookie
-      });
+      // Use api instance which handles base URL and auth tokens
+      const res = await api.post("/food-tours", payload);
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Lưu thất bại");
+      if (res.success) {
+        setSaveMessage("✅ Đã lưu Food tour! Xem trong Profile.");
+        // Optional: redirect to profile
+        // setTimeout(() => navigate('/profile'), 1500);
+      } else {
+        throw new Error(res.message || "Lưu thất bại");
       }
-
-      setSaveMessage("✅ Đã lưu Food tour!");
     } catch (err) {
       console.error(err);
-      setSaveMessage("❌ Lỗi khi lưu tour: " + err.message);
+      setSaveMessage("❌ Lỗi khi lưu tour: " + (err.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }

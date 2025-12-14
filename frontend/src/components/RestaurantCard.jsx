@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Star, MapPin, Clock, DollarSign } from "lucide-react";
 
-const RestaurantCard = ({ restaurant }) => {
-  // ===== EXTRACT DATA =====
+const RestaurantCard = ({ restaurant, action }) => {
   const {
     _id,
     name,
@@ -14,41 +14,22 @@ const RestaurantCard = ({ restaurant }) => {
     category,
     scores,
     menu,
+    distance, // Add distance here
   } = restaurant;
 
-  // ===== FORMAT RATING =====
-  const formatRating = (rating) => {
-    if (!rating) return "N/A";
-    return typeof rating === "number" ? rating.toFixed(1) : rating;
+  // Format rating
+  const formatRating = (rating) =>
+    typeof rating === "number" ? rating.toFixed(1) : "N/A";
+
+  // Get rating color class
+  const getRatingColorClass = (rating) => {
+    if (!rating) return "bg-gray-400";
+    if (rating >= 8.0) return "bg-green-500"; // Scale 10
+    if (rating >= 6.5) return "bg-yellow-500";
+    return "bg-red-500";
   };
 
-  // ===== GET RATING COLOR =====
-  const getRatingColor = (rating) => {
-    if (!rating) return "#999";
-    if (rating >= 4.5) return "#4CAF50"; // Xanh lá - Xuất sắc
-    if (rating >= 4.0) return "#FFC107"; // Vàng - Tốt
-    if (rating >= 3.5) return "#FF9800"; // Cam - Khá
-    return "#F44336"; // Đỏ - Trung bình
-  };
-
-  // ===== GET CATEGORY BADGE COLOR =====
-  const getCategoryColor = (cat) => {
-    const colors = {
-      Lẩu: "#4ECDC4",
-      BBQ: "#FFE66D",
-      Cơm: "#95E1D3",
-      Phở: "#F38181",
-      Bún: "#AA96DA",
-      "Bánh mì": "#FCBAD3",
-      "Trà sữa": "#A8D8EA",
-      "Hải sản": "#FFA07A",
-      Pizza: "#FFD93D",
-      Chay: "#6BCB77",
-    };
-    return colors[cat] || "#E0E0E0";
-  };
-
-  // ===== EXTRACT DISTRICT FROM ADDRESS =====
+  // Get district
   const getDistrict = (addr) => {
     if (!addr) return "";
     const match = addr.match(/Quận\s+\d+|Q\.\s*\d+|Quận\s+\w+/i);
@@ -56,291 +37,88 @@ const RestaurantCard = ({ restaurant }) => {
   };
 
   return (
-    <Link
-      to={`/restaurant/${_id}`}
-      style={{ textDecoration: "none", color: "inherit" }}
-    >
-      <div
-        className="restaurant-card"
-        style={{
-          background: "#fff",
-          borderRadius: "16px",
-          overflow: "hidden",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-          transition: "all 0.3s ease",
-          cursor: "pointer",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.transform = "translateY(-8px)";
-          e.currentTarget.style.boxShadow = "0 12px 24px rgba(0,0,0,0.15)";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-        }}
-      >
-        {/* ===== IMAGE SECTION ===== */}
-        <div
-          style={{
-            position: "relative",
-            paddingTop: "66.67%",
-            overflow: "hidden",
-          }}
-        >
+    <Link to={`/restaurant/${_id}`} className="block h-full">
+      <div className="group h-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
+        {/* Image Container */}
+        <div className="relative pt-[66.67%] overflow-hidden bg-gray-100">
           <img
-            src={
-              avatar_url ||
-              "https://placehold.co/400x300/E0E0E0/999?text=No+Image"
-            }
+            src={avatar_url || "https://placehold.co/400x300/E0E0E0/999?text=No+Image"}
             alt={name}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transition: "transform 0.3s ease",
-            }}
+            className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={(e) => {
-              e.target.src =
-                "https://placehold.co/400x300/E0E0E0/999?text=No+Image";
+              e.target.src = "https://placehold.co/400x300/E0E0E0/999?text=No+Image";
             }}
           />
 
-          {/* Rating badge */}
-          {avg_rating && (
-            <div
-              style={{
-                position: "absolute",
-                top: "12px",
-                right: "12px",
-                background: getRatingColor(avg_rating),
-                color: "#fff",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                fontSize: "14px",
-                fontWeight: "700",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-               {/* <span>⭐</span>  Removed star emoji */}
-              {formatRating(avg_rating)}
-            </div>
-          )}
-
-          {/* Category badge */}
-          {category && (
-            <div
-              style={{
-                position: "absolute",
-                top: "12px",
-                left: "12px",
-                background: getCategoryColor(category),
-                color: "#fff",
-                padding: "5px 12px",
-                borderRadius: "15px",
-                fontSize: "12px",
-                fontWeight: "600",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              {category}
-            </div>
-          )}
-        </div>
-
-        {/* ===== CONTENT SECTION ===== */}
-        <div
-          style={{
-            padding: "16px",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {/* Restaurant name */}
-          <h3
-            style={{
-              fontSize: "17px",
-              fontWeight: "700",
-              color: "#333",
-              marginBottom: "10px",
-              lineHeight: "1.3",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              minHeight: "44px",
-            }}
-          >
-            {name}
-          </h3>
-
-          {/* Address */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "6px",
-              marginBottom: "8px",
-              color: "#666",
-              fontSize: "13px",
-            }}
-          >
-            {/* <span style={{ fontSize: "14px", marginTop: "1px" }}>📍</span> Removed pin emoji */}
-            <span
-              style={{
-                flex: 1,
-                lineHeight: "1.4",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {address || "Chưa có địa chỉ"}
-            </span>
-          </div>
-
-          {/* District highlight */}
+          {/* District Badge */}
           {getDistrict(address) && (
-            <div
-              style={{
-                display: "inline-block",
-                background: "#F5F5F5",
-                padding: "4px 10px",
-                borderRadius: "12px",
-                fontSize: "12px",
-                color: "#555",
-                fontWeight: "600",
-                marginBottom: "10px",
-                alignSelf: "flex-start",
-              }}
-            >
+            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
               {getDistrict(address)}
             </div>
           )}
 
-          {/* Opening hours */}
-          {opening_hours && (
+          {/* Rating Badge */}
+          {avg_rating > 0 && (
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginBottom: "8px",
-                color: "#666",
-                fontSize: "13px",
-              }}
+              className={`absolute top-2 right-2 ${getRatingColorClass(
+                avg_rating
+              )} text-white text-xs font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1`}
             >
-              {/* <span>🕐</span> Removed clock emoji */}
-              <span>{opening_hours}</span>
+              <Star size={10} fill="currentColor" />
+              {formatRating(avg_rating)}
             </div>
           )}
 
-          {/* Price range */}
-          {price_range && price_range !== "Đang cập nhật" && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginBottom: "12px",
-                color: "#E65100",
-                fontSize: "13px",
-                fontWeight: "600",
-              }}
-            >
-              {/* <span>💰</span> Removed bag emoji */}
-              <span>{price_range}</span>
+          {category && (
+            <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
+              {category}
             </div>
           )}
 
-          {/* Divider */}
-          <div
-            style={{
-              height: "1px",
-              background: "#E0E0E0",
-              margin: "12px 0",
-            }}
-          ></div>
-
-          {/* Footer info */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "auto",
-            }}
-          >
-            {/* Menu items count */}
-            {menu && menu.length > 0 && (
-              <div
-                style={{
-                  fontSize: "12px",
-                  color: "#999",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                {/* <span>🍴</span> Removed fork emoji */}
-                {menu.length} món
-              </div>
-            )}
-
-            {/* Scores preview */}
-            {scores && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "4px",
-                  fontSize: "11px",
-                }}
-              >
-                {Object.entries(scores)
-                  .slice(0, 3)
-                  .map(([key, value]) => (
-                    <span
-                      key={key}
-                      style={{
-                        background: "#F5F5F5",
-                        padding: "3px 8px",
-                        borderRadius: "8px",
-                        color: "#666",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {key}: {value}
-                    </span>
-                  ))}
-              </div>
-            )}
-
-            {/* View details button */}
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#667eea",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                marginLeft: "auto",
-              }}
-            >
-              Xem chi tiết
-              <span style={{ fontSize: "16px" }}>→</span>
+          {/* Distance Badge (for Near Me) */}
+          {distance && (
+            <div className="absolute bottom-2 right-2 bg-blue-600/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+              <MapPin size={10} />
+              {distance} km
             </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-4 flex flex-col flex-1">
+          <h3 className="font-bold text-gray-800 text-lg mb-2 line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+            {name}
+          </h3>
+
+          <div className="flex items-start gap-1.5 mb-2 text-gray-500 text-sm">
+            <MapPin size={14} className="mt-0.5 shrink-0" />
+            <span className="line-clamp-1">{address || "Chưa có địa chỉ"}</span>
           </div>
+
+          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+               {opening_hours && (
+                <div className="flex items-center gap-1">
+                    <Clock size={12} />
+                    <span>{opening_hours}</span>
+                </div>
+               )}
+            </div>
+            
+            {price_range && price_range !== "Đang cập nhật" && (
+                <div className="flex items-center gap-1 text-xs font-bold text-orange-600">
+                    <DollarSign size={12} />
+                    {price_range}
+                </div>
+            )}
+          </div>
+          
+           {/* Custom Action (e.g. Add to Tour) */}
+           {action && (
+              <div className="mt-3 pt-2 border-t border-gray-50 flex justify-end">
+                  {action}
+              </div>
+           )}
         </div>
       </div>
     </Link>

@@ -31,7 +31,7 @@ const restaurantSchema = new mongoose.Schema(
     },
     opening_hours: {
       type: String,
-      default: "Đang cập nhật",
+      default: "Đang cập nhật", // Format: "HH:mm - HH:mm"
     },
     price_range: {
       type: String,
@@ -44,7 +44,7 @@ const restaurantSchema = new mongoose.Schema(
         default: "Point",
       },
       coordinates: {
-        type: [Number],
+        type: [Number], // [longitude, latitude]
         default: [0, 0],
       },
     },
@@ -52,6 +52,8 @@ const restaurantSchema = new mongoose.Schema(
       type: [menuItemSchema],
       default: [],
     },
+    menu_min_price: Number,
+    menu_max_price: Number,
     reviews: {
       type: [reviewSchema],
       default: [],
@@ -60,15 +62,17 @@ const restaurantSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    image_url: {
+    // Use avatar_url to match existing data, keep image_url as fallback/alias if needed
+    avatar_url: {
       type: String,
       default: "https://placehold.co/400x300/FFF3E0/E65100?text=Restaurant",
     },
+    image_url: { type: String }, // Keep for backward compatibility if code uses it
     avg_rating: {
       type: Number,
       default: 0,
       min: 0,
-      max: 5,
+      max: 10, // Scale seems to be 10 based on user sample (9.5)
     },
     scores: {
       space: { type: Number, default: 0 },
@@ -77,34 +81,26 @@ const restaurantSchema = new mongoose.Schema(
       service: { type: Number, default: 0 },
       price: { type: Number, default: 0 },
     },
-    // Thêm field category để phân loại
     category: {
       type: String,
-      enum: [
-        "Tất cả",
-        "Lẩu",
-        "BBQ",
-        "Cơm",
-        "Phở",
-        "Bún",
-        "Trà sữa",
-        "Cafe",
-        "Hải sản",
-        "Buffet",
-        "Khác",
-      ],
-      default: "Khác",
+      default: "Khác", // Can be "Lẩu", "Cơm", etc.
     },
+    tags: [String], // New field for flexible tagging (e.g. "Ăn sáng", "Hẹn hò")
   },
   {
     timestamps: true,
-    collection: "restaurants", // Tên collection trong MongoDB
+    collection: "restaurants",
   }
 );
 
-// Index để tìm kiếm nhanh
+// Index for text search
 restaurantSchema.index({ name: "text", address: "text" });
+
+// Index for category and rating
 restaurantSchema.index({ category: 1 });
 restaurantSchema.index({ avg_rating: -1 });
+
+// Index for Geospatial queries (CRITICAL for "Near Me")
+restaurantSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Restaurant", restaurantSchema);
