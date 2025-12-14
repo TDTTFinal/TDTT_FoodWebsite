@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus } from "lucide-react";
+import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Sparkles, Hand } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
@@ -9,6 +9,12 @@ import api from "../config/api";
 // Food Tour Imports
 import TourBuilder from "../components/foodtour/TourBuilder";
 import { arrayMove } from "@dnd-kit/sortable";
+
+// NL Food Tour Imports
+import NLSuggestBox from "../components/foodtour/NLSuggestBox";
+import StepsDisplay from "../components/foodtour/StepsDisplay";
+import RoutesDisplay from "../components/foodtour/RoutesDisplay";
+import ApplyRouteModal from "../components/foodtour/ApplyRouteModal";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -28,6 +34,13 @@ const AdvancedSearchPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState("");
+
+  // NL Food Tour States
+  const [activeTab, setActiveTab] = useState('manual'); // 'manual' | 'suggest'
+  const [nlSteps, setNlSteps] = useState(null);
+  const [nlRoutes, setNlRoutes] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
 
   // Filter States
   const [filters, setFilters] = useState({
@@ -176,6 +189,88 @@ const AdvancedSearchPage = () => {
       }
     }
   };
+
+  // ==========================================
+  // NL FOOD TOUR HANDLERS
+  // ==========================================
+
+  const handleNLResults = (results) => {
+    setNlSteps(results.steps || []);
+    setNlRoutes(results.suggested_routes || []);
+  };
+
+  const handleNLError = (error) => {
+    console.error('[NL Food Tour] Error:', error);
+  };
+
+  const handleApplyRoute = (route) => {
+    setSelectedRoute(route);
+    setShowApplyModal(true);
+  };
+
+  const handleConfirmApply = (route, mergeMode) => {
+    setTourItems((prev) => {
+      let newTourItems = { ...prev };
+
+      switch (mergeMode) {
+        case 'replace':
+          newTourItems = { unsorted: [], morning: [], lunch: [], afternoon: [], dinner: [] };
+          route.stops.forEach((stop, idx) => {
+            const slot = smartAssignSlot(stop, idx, '');
+            newTourItems[slot].push(transformStopToTourItem(stop));
+          });
+          break;
+
+        case 'append':
+          route.stops.forEach((stop) => {
+            newTourItems.unsorted.push(transformStopToTourItem(stop));
+          });
+          break;
+
+        case 'smart':
+          route.stops.forEach((stop, idx) => {
+            const slot = smartAssignSlot(stop, idx, '');
+            newTourItems[slot].push(transformStopToTourItem(stop));
+          });
+          break;
+
+        default:
+          break;
+      }
+
+      return newTourItems;
+    });
+
+    setShowApplyModal(false);
+    setActiveTab('manual');
+  };
+
+  const smartAssignSlot = (stop, index, query = '') => {
+    const lowerQuery = query.toLowerCase();
+
+    if (lowerQuery.includes('sáng') || lowerQuery.includes('morning')) {
+      if (index === 0) return 'morning';
+    }
+    if (lowerQuery.includes('trưa') || lowerQuery.includes('lunch')) {
+      if (index <= 1) return 'lunch';
+    }
+    if (lowerQuery.includes('chiều') || lowerQuery.includes('afternoon')) {
+      if (index <= 2) return 'afternoon';
+    }
+    if (lowerQuery.includes('tối') || lowerQuery.includes('dinner') || lowerQuery.includes('evening')) {
+      if (index <= 3) return 'dinner';
+    }
+
+    const slotMap = ['morning', 'lunch', 'afternoon', 'dinner'];
+    return slotMap[index] || 'unsorted';
+  };
+
+  const transformStopToTourItem = (stop) => ({
+    ...stop,
+    cartId: generateId(),
+    source: 'suggested',
+    status: 'selected'
+  });
 
   // Categories
   const categories = [
@@ -874,10 +969,39 @@ const AdvancedSearchPage = () => {
             </div>
         </div>
 
+        {/* === TAB NAVIGATION === */}
+        <div className="flex flex-col gap-6">
+            <div className="flex border-b border-gray-200">
+                <button
+                    onClick={() => setActiveTab('manual')}
+                    className={"flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors " + (
+                        activeTab === 'manual'
+                            ? "border-orange-500 text-orange-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    )}
+                >
+                    <Hand size={20} />
+                    Thủ công
+                </button>
+                <button
+                    onClick={() => setActiveTab('suggest')}
+                    className={"flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors " + (
+                        activeTab === 'suggest'
+                            ? "border-orange-500 text-orange-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    )}
+                >
+                    <Sparkles size={20} />
+                    Gợi ý theo ý bạn
+                </button>
+            </div>
+        </div>
+
         {/* === MAIN CONTENT === */}
         <div className="flex flex-col gap-8">
              
-             {/* SEARCH RESULTS & FILTERS */}
+             {/* TAB: MANUAL SEARCH */}
+             {activeTab === 'manual' && (
              <div className="w-full">
                  
                  {hasSearched && !loading && (
@@ -1072,6 +1196,37 @@ const AdvancedSearchPage = () => {
                     </div>
                 )}
              </div>
+             )}
+
+             {/* TAB: AI SUGGEST */}
+             {activeTab === 'suggest' && (
+             <div className="w-full">
+                 <NLSuggestBox 
+                     onResults={handleNLResults}
+                     onError={handleNLError}
+                 />
+                 
+                 {nlSteps && nlSteps.length >0 && (
+                     <StepsDisplay steps={nlSteps} />
+                 )}
+
+                 {nlRoutes && nlRoutes.length > 0 && (
+                     <RoutesDisplay 
+                         routes={nlRoutes}
+                         onApplyRoute={handleApplyRoute}
+                     />
+                 )}
+
+                 {/* Apply Route Modal */}
+                 {showApplyModal && selectedRoute && (
+                     <ApplyRouteModal
+                         route={selectedRoute}
+                         onConfirm={handleConfirmApply}
+                         onCancel={() => setShowApplyModal(false)}
+                     />
+                 )}
+             </div>
+             )}
 
              {/* FOOD TOUR BUILDER - BOTTOM SECTION */}
              <div className="w-full">
