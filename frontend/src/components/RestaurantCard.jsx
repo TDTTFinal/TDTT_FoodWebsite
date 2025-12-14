@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Star, MapPin, Clock, DollarSign } from "lucide-react";
 
-const RestaurantCard = ({ restaurant }) => {
+const RestaurantCard = ({ restaurant, action }) => {
   const {
     _id,
     name,
@@ -112,6 +112,13 @@ const RestaurantCard = ({ restaurant }) => {
                 </div>
             )}
           </div>
+          
+           {/* Custom Action (e.g. Add to Tour) */}
+           {action && (
+              <div className="mt-3 pt-2 border-t border-gray-50 flex justify-end">
+                  {action}
+              </div>
+           )}
         </div>
       </div>
     </Link>

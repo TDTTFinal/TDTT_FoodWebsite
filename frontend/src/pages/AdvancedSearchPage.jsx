@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
 import api from "../config/api";
+
+// Food Tour Imports
+import TourBuilder from "../components/foodtour/TourBuilder";
+import { arrayMove } from "@dnd-kit/sortable";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -37,6 +41,141 @@ const AdvancedSearchPage = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ==========================================
+  // FOOD TOUR STATE & LOGIC
+  // ==========================================
+  const [tourItems, setTourItems] = useState({
+    unsorted: [],
+    morning: [],
+    lunch: [],
+    afternoon: [],
+    dinner: [],
+  });
+
+  const generateId = () => "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+
+  // Check if restaurant is already in tour
+  const isInTour = (restaurantId) => {
+    const allSlots = Object.values(tourItems);
+    return allSlots.some(slot => 
+      slot.some(item => item._id === restaurantId)
+    );
+  };
+
+  const handleAddToTour = (restaurant) => {
+    // Prevent duplicates
+    if (isInTour(restaurant._id)) {
+      return;
+    }
+    
+    setTourItems((prev) => {
+      const newItem = { ...restaurant, cartId: generateId() };
+      return {
+        ...prev,
+        unsorted: [...prev.unsorted, newItem],
+      };
+    });
+  };
+
+  const handleRemoveFromTour = (itemId) => {
+    setTourItems((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        next[key] = next[key].filter((item) => item.cartId !== itemId);
+      });
+      return next;
+    });
+  };
+
+  const findContainer = (id) => {
+    if (id in tourItems) return id;
+    return Object.keys(tourItems).find((key) =>
+      tourItems[key].find((item) => item.cartId === id)
+    );
+  };
+
+  const handleDragOver = (event) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    if (!overId || active.id === overId) return;
+
+    const activeContainer = findContainer(active.id);
+    const overContainer = findContainer(overId);
+
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      return;
+    }
+
+    setTourItems((prev) => {
+      const activeItems = prev[activeContainer];
+      const overItems = prev[overContainer];
+      const activeIndex = activeItems.findIndex((i) => i.cartId === active.id);
+      const overIndex = overItems.findIndex((i) => i.cartId === overId);
+
+      let newIndex;
+      if (overId in prev) {
+        newIndex = overItems.length + 1;
+      } else {
+        const isBelowOverItem =
+          over &&
+          active.rect.current.translated &&
+          active.rect.current.translated.top >
+            over.rect.top + over.rect.height;
+
+        const modifier = isBelowOverItem ? 1 : 0;
+        newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+      }
+
+      return {
+        ...prev,
+        [activeContainer]: [
+          ...prev[activeContainer].filter((item) => item.cartId !== active.id),
+        ],
+        [overContainer]: [
+          ...prev[overContainer].slice(0, newIndex),
+          activeItems[activeIndex],
+          ...prev[overContainer].slice(newIndex, prev[overContainer].length),
+        ],
+      };
+    });
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    const { id } = active;
+    const overId = over?.id;
+
+    if (!overId) return;
+
+    const activeContainer = findContainer(id);
+    const overContainer = findContainer(overId);
+
+    if (
+      activeContainer &&
+      overContainer &&
+      activeContainer === overContainer
+    ) {
+      const activeIndex = tourItems[activeContainer].findIndex(
+        (i) => i.cartId === id
+      );
+      const overIndex = tourItems[overContainer].findIndex(
+        (i) => i.cartId === overId
+      );
+
+      if (activeIndex !== overIndex) {
+        setTourItems((prev) => ({
+          ...prev,
+          [activeContainer]: arrayMove(
+            prev[activeContainer],
+            activeIndex,
+            overIndex
+          ),
+        }));
+      }
+    }
+  };
 
   // Categories
   const categories = [
@@ -122,7 +261,7 @@ const AdvancedSearchPage = () => {
     // Check for "đang cập nhật"
     if (cleanStr.includes("cập nhật")) return null;
 
-    console.log(`[PriceParse] Parsing: "${rangeStr}" -> "${cleanStr}"`);
+    console.log("[PriceParse] Parsing: \"" + rangeStr + "\" -> \"" + cleanStr + "\"");
 
     // Case 1: "30000 - 50000" (using hyphen, en-dash, em-dash)
     // Regex: (\d+) \s* [ - – — ] \s* (\d+)
@@ -130,7 +269,7 @@ const AdvancedSearchPage = () => {
     if (rangeMatch) {
       const min = parseInt(rangeMatch[1]);
       const max = parseInt(rangeMatch[2]);
-      console.log(`[PriceParse] Range Detected: ${min} - ${max}`);
+      console.log("[PriceParse] Range Detected: " + min + " - " + max);
       return { min, max };
     }
 
@@ -735,179 +874,215 @@ const AdvancedSearchPage = () => {
             </div>
         </div>
 
-        {/* === RESULTS SECTION === */}
-        {hasSearched && !loading && (
-          <div className="flex flex-col lg:flex-row gap-8">
-            
-            {/* === FILTER SIDEBAR === */}
-            <aside className="w-full lg:w-80 flex-shrink-0">
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-24">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                    <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
-                        <Filter size={20} className="text-orange-500"/> Bộ lọc
-                    </h3>
-                    <button
-                        onClick={handleResetFilters}
-                        className="text-sm font-medium text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1"
-                    >
-                        <RotateCcw size={14} /> Đặt lại
-                    </button>
-                </div>
-
-                <div className="space-y-6">
-                    {/* Category Filter */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Danh mục món</label>
-                        <div className="relative">
-                            <select
-                                value={filters.category}
-                                onChange={(e) => handleFilterChange("category", e.target.value)}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
-                            >
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronLeft className="absolute right-3 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={16} />
-                        </div>
-                    </div>
-
-                    {/* Price Filter */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Khoảng giá</label>
-                        <div className="relative">
-                            <select
-                                value={filters.priceRange}
-                                onChange={(e) => handleFilterChange("priceRange", e.target.value)}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
-                            >
-                                {priceRanges.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            <ChevronLeft className="absolute right-3 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={16} />
-                        </div>
-                    </div>
-
-                    {/* District Filter */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Khu vực</label>
-                        <div className="relative">
-                             <select
-                                value={filters.district}
-                                onChange={(e) => handleFilterChange("district", e.target.value)}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
-                            >
-                                {districts.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                             <ChevronLeft className="absolute right-3 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={16} />
-                        </div>
-                    </div>
-
-                    {/* Sort Filter */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Sắp xếp theo</label>
-                        <div className="relative">
-                            <select
-                                value={filters.sortBy}
-                                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
-                            >
-                                <option value="hybrid">Độ liên quan (Hybrid)</option>
-                                <option value="rating">Đánh giá cao nhất</option>
-                                <option value="distance">Gần tôi nhất</option>
-                                <option value="name">Tên A-Z</option>
-                            </select>
-                            <SlidersHorizontal className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                        </div>
-                    </div>
-                </div>
-              </div>
-            </aside>
-
-            {/* === MAIN RESULTS === */}
-            <div className="flex-1">
-                {/* Results Count Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-800">
-                        Kết quả tìm kiếm
-                        <span className="ml-2 text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                            {filteredRestaurants.length} nhà hàng
-                        </span>
-                    </h2>
-                </div>
-
-                {filteredRestaurants.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-200">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Search className="text-gray-300" size={32} />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">Không tìm thấy kết quả</h3>
-                        <p className="text-gray-500">Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm nhé.</p>
-                        <button
-                            onClick={handleResetFilters}
-                            className="mt-6 px-6 py-2 bg-orange-50 text-orange-600 font-bold rounded-xl hover:bg-orange-100 transition-colors"
-                        >
-                            Xóa bộ lọc
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        {/* Restaurant Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {currentRestaurants.map((restaurant) => (
-                                <div key={restaurant._id} className="h-[380px] hover:z-10 relative">
-                                    <RestaurantCard restaurant={restaurant} />
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="mt-12 flex justify-center items-center gap-2 flex-wrap">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <ChevronLeft size={20} />
-                                </button>
-
-                                {getPageNumbers().map((page, index) => (
+        {/* === MAIN CONTENT === */}
+        <div className="flex flex-col gap-8">
+             
+             {/* SEARCH RESULTS & FILTERS */}
+             <div className="w-full">
+                 
+                 {hasSearched && !loading && (
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        {/* Filter Sidebar */}
+                        <aside className="w-full lg:w-64 flex-shrink-0">
+                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 lg:sticky lg:top-24">
+                                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                                    <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                        <Filter size={18} className="text-orange-500"/> Bộ lọc
+                                    </h3>
                                     <button
-                                        key={index}
-                                        onClick={() => typeof page === "number" && handlePageChange(page)}
-                                        disabled={page === "..."}
-                                        className={`w-10 h-10 flex items-center justify-center rounded-full font-bold text-sm transition-all ${
-                                            page === currentPage
-                                                ? "bg-orange-600 text-white shadow-lg shadow-orange-200 scale-110"
-                                                : page === "..."
-                                                ? "bg-transparent text-gray-400 cursor-default"
-                                                : "bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200"
-                                        }`}
+                                        onClick={handleResetFilters}
+                                        className="text-xs font-medium text-orange-600 hover:bg-orange-50 px-2.5 py-1 rounded-full transition-colors flex items-center gap-1"
                                     >
-                                        {page}
+                                        <RotateCcw size={12} /> Đặt lại
                                     </button>
-                                ))}
+                                </div>
 
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <ChevronRight size={20} />
-                                </button>
+                                <div className="space-y-4">
+                                    {/* Category */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Danh mục món</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.category}
+                                                onChange={(e) => handleFilterChange("category", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                            <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* Price */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Khoảng giá</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.priceRange}
+                                                onChange={(e) => handleFilterChange("priceRange", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {priceRanges.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                            <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* District */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Khu vực</label>
+                                        <div className="relative">
+                                             <select
+                                                value={filters.district}
+                                                onChange={(e) => handleFilterChange("district", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                {districts.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                             <ChevronLeft className="absolute right-2.5 top-1/2 -translate-y-1/2 rotate-[-90deg] text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                    {/* Sort */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sắp xếp theo</label>
+                                        <div className="relative">
+                                            <select
+                                                value={filters.sortBy}
+                                                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+                                                className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 appearance-none font-medium text-gray-700"
+                                            >
+                                                <option value="hybrid">Độ liên quan (Hybrid)</option>
+                                                <option value="rating">Đánh giá cao nhất</option>
+                                                <option value="distance">Gần tôi nhất</option>
+                                                <option value="name">Tên A-Z</option>
+                                            </select>
+                                            <SlidersHorizontal className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+                        </aside>
+
+                        {/* Results Grid */}
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between mb-5">
+                                <h2 className="text-lg font-bold text-gray-800">
+                                    Kết quả tìm kiếm
+                                    <span className="ml-2 text-xs font-normal text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                                        {filteredRestaurants.length} nhà hàng
+                                    </span>
+                                </h2>
                             </div>
-                        )}
-                    </>
-                )}
-            </div>
-          </div>
-        )}
 
-        {/* Empty State / Intro */}
-        {!hasSearched && (
-            <div className="text-center py-20 opacity-40">
-                <Search size={64} className="mx-auto mb-4 text-gray-300" />
-                <p className="text-xl font-medium text-gray-400">Nhập từ khóa để bắt đầu tìm kiếm</p>
-            </div>
-        )}
+                            {filteredRestaurants.length === 0 ? (
+                                <div className="bg-white rounded-2xl p-10 text-center border-2 border-dashed border-gray-200">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Search className="text-gray-300" size={28} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-2">Không tìm thấy kết quả</h3>
+                                    <p className="text-sm text-gray-500">Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm nhé.</p>
+                                    <button
+                                        onClick={handleResetFilters}
+                                        className="mt-5 px-5 py-2 bg-orange-50 text-orange-600 font-bold text-sm rounded-lg hover:bg-orange-100 transition-colors"
+                                    >
+                                        Xóa bộ lọc
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                        {currentRestaurants.map((restaurant) => {
+                                            const inTour = isInTour(restaurant._id);
+                                            return (
+                                                <div key={restaurant._id} className="h-[380px] hover:z-10 relative">
+                                                    <RestaurantCard 
+                                                        restaurant={restaurant} 
+                                                        action={
+                                                            inTour ? (
+                                                                <button
+                                                                    disabled
+                                                                    className="bg-gray-400 text-white px-2.5 py-1.5 text-xs rounded-lg font-bold shadow-md flex items-center gap-1 cursor-not-allowed opacity-60"
+                                                                >
+                                                                    ✓ Đã thêm vào Tour
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleAddToTour(restaurant);
+                                                                    }}
+                                                                    className="bg-orange-600 text-white px-2.5 py-1.5 text-xs rounded-lg font-bold hover:bg-orange-700 shadow-md flex items-center gap-1 transition-transform active:scale-95"
+                                                                >
+                                                                    <Plus size={12} /> Thêm vào Tour
+                                                                </button>
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="mt-10 flex justify-center items-center gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronLeft size={18} />
+                                            </button>
+
+                                            {getPageNumbers().map((page, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => typeof page === "number" && handlePageChange(page)}
+                                                    disabled={page === "..."}
+                                                    className={"w-9 h-9 flex items-center justify-center rounded-full font-bold text-xs transition-all " + (
+                                                        page === currentPage
+                                                            ? "bg-orange-600 text-white shadow-lg shadow-orange-200 scale-110"
+                                                            : page === "..."
+                                                            ? "bg-transparent text-gray-400 cursor-default"
+                                                            : "bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200"
+                                                    )}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronRight size={18} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                 )}
+
+                 {/* Empty State / Intro */}
+                 {!hasSearched && !loading && (
+                    <div className="text-center py-16 opacity-40">
+                        <Search size={56} className="mx-auto mb-3 text-gray-300" />
+                        <p className="text-lg font-medium text-gray-400">Nhập từ khóa để bắt đầu tìm kiếm</p>
+                    </div>
+                )}
+             </div>
+
+             {/* FOOD TOUR BUILDER - BOTTOM SECTION */}
+             <div className="w-full">
+                 <TourBuilder 
+                    tourItems={tourItems} 
+                    onDragOver={handleDragOver} 
+                    onDragEnd={handleDragEnd}
+                    onRemove={handleRemoveFromTour}
+                 />
+             </div>
+        </div>
 
       </main>
 
