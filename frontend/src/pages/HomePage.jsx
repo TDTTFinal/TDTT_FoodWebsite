@@ -1,14 +1,26 @@
-// src/pages/HomePage.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import QuickActions from "../components/home/QuickActions";
+import CategorySection from "../components/home/CategorySection";
+import NearMeSection from "../components/home/NearMeSection";
+import CommunityReviews from "../components/home/CommunityReviews";
+import FeatureRankSection from "../components/home/FeatureRankSection";
+import ContextAwareSection from "../components/home/ContextAwareSection";
+import CollectionBanner from "../components/home/CollectionBanner";
+import RestaurantCard from "../components/RestaurantCard";
+import SkeletonCard from "../components/SkeletonCard";
+import api from "../config/api";
 
 const HomePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [slogan, setSlogan] = useState("");
-  const scrollRef = useRef(null);
+  const [featured, setFeatured] = useState([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // KHO TÀNG CA DAO / SLOGAN
   const funnyQuotes = [
@@ -16,420 +28,113 @@ const HomePage = () => {
     "Yêu là phải nói, cũng như đói là phải ăn. 💘",
     "Giảm cân là chuyện ngày mai, hôm nay cứ lai rai đã. 🍗",
     "Tiền là phù du, bò Wagyu là vĩnh cửu. 🥩",
-    "Không có tình yêu nào chân thành hơn tình yêu đồ ăn. 🍔",
-    "Đừng để cái bụng đói làm phiền não bộ thiên tài của bạn. 🧠",
-    "Có thực mới vực được đạo (và vực được cả tâm trạng). 😂",
-    "Ăn mà ngại là hại bao tử. 🍜",
   ];
 
-  // Random slogan mỗi khi vào trang
   useEffect(() => {
-    const randomQuote =
-      funnyQuotes[Math.floor(Math.random() * funnyQuotes.length)];
-    setSlogan(randomQuote);
+    setSlogan(funnyQuotes[Math.floor(Math.random() * funnyQuotes.length)]);
+    fetchFeatured();
   }, []);
 
-  // DATA DANH MỤC & NHÀ HÀNG (từ LandingPage)
-  const categories = [
-    { name: "Lẩu", icon: "🍲" },
-    { name: "BBQ", icon: "🔥" },
-    { name: "Cơm", icon: "🍚" },
-    { name: "Trà sữa", icon: "🧋" },
-    { name: "Hải sản", icon: "🦞" },
-    { name: "Sushi", icon: "🍣" },
-    { name: "Mì/Phở", icon: "🍜" },
-    { name: "Ăn vặt", icon: "🍟" },
-    { name: "Pizza", icon: "🍕" },
-    { name: "Burger", icon: "🍔" },
-    { name: "Bánh ngọt", icon: "🍰" },
-    { name: "Đồ uống", icon: "🍹" },
-    { name: "Chay", icon: "🥗" },
-    { name: "Healthy", icon: "🥑" },
-  ];
-
-  const restaurants = [
-    {
-      id: 1,
-      name: "Hải sản Trần Long",
-      address: "Q1, TPHCM",
-      rating: 9.5,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Hai+San",
-    },
-    {
-      id: 2,
-      name: "Kichi Kichi",
-      address: "Q3, TPHCM",
-      rating: 9.5,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Kichi",
-    },
-    {
-      id: 3,
-      name: "Bít tết Nha Trang",
-      address: "Q5, TPHCM",
-      rating: 9.5,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Bit+Tet",
-    },
-    {
-      id: 4,
-      name: "Gà hấp Đinh Tiên",
-      address: "Q10, TPHCM",
-      rating: 9.5,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Ga+Hap",
-    },
-  ];
-
-  // GỢI Ý RIÊNG CHO BẠN (HomePage cũ)
-  const recommended = [
-    {
-      id: 1,
-      name: "Cơm Tấm Sà Bì Chưởng",
-      address: "Q1, TPHCM",
-      rating: 9.8,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Com+Tam",
-    },
-    {
-      id: 2,
-      name: "Phở Lệ",
-      address: "Q5, TPHCM",
-      rating: 9.5,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Pho+Le",
-    },
-    {
-      id: 3,
-      name: "Bún Bò Gánh",
-      address: "Q3, TPHCM",
-      rating: 9.6,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Bun+Bo",
-    },
-    {
-      id: 4,
-      name: "Pizza 4P's",
-      address: "Q1, TPHCM",
-      rating: 9.9,
-      img: "https://placehold.co/300x200/FFF3E0/E65100?text=Pizza",
-    },
-  ];
-
-  // Scroll ngang cho slider danh mục
-  const scroll = (direction) => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({
-        left: direction === "left" ? -300 : 300,
-        behavior: "smooth",
-      });
+  const fetchFeatured = async () => {
+    try {
+      const res = await api.get("/featured?limit=8");
+      if (res.success) {
+        setFeatured(res.data);
+      }
+    } catch (err) {
+      console.error("Fetch featured error:", err);
+    } finally {
+      setLoadingFeatured(false);
     }
   };
 
-  // Chuỗi icon đồ ăn cho doodle animation
-  const foodIcons =
-    "🍕 🍔 🍟 🌭 🍿 🥓 🥚 🧇 🥞 🍞 🥐 🥨 🥯 🧀 🥗 🥙 🥪 🌮 🌯 🍖 🍗 🥩 🍠 🥟 🥡 🍱 🍙 🍚 🍛 🍜 🍣 🍤 🍥 🍡 🍢 🥘 🍲 🍝 🥧 🍦 🍩 🍪 🎂 🍰 🧁 🍫 🍬 🍭 🍮 🍯 ☕ 🍵 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🧊 🥢 🍽️";
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/search-advanced?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
 
   return (
-    <div>
+    <div className="min-h-screen flex flex-col bg-white">
       <Header />
 
-      {/* CSS ANIMATION CHO BANNER */}
-      <style>
-        {`
-          @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
+      {/* BANNER SECTION */}
+      <div className="relative bg-gradient-to-r from-orange-500 to-red-600 text-white py-12 overflow-hidden">
+        {/* Decorative Circles */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
 
-          @keyframes moveRight { 
-            from { transform: translateX(-50%); } 
-            to { transform: translateX(0); } 
-          }
-
-          @keyframes moveLeft { 
-            from { transform: translateX(0); } 
-            to { transform: translateX(-50%); } 
-          }
-
-          .animated-bg-container {
-            background: linear-gradient(-45deg, #FF9966, #FF5E62, #FFC043, #E65100);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            position: relative;
-            overflow: hidden;
-            padding: 80px 0;
-            color: white;
-          }
-
-          .doodle-row {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-            pointer-events: none;
-            opacity: 0.3;
-            filter: brightness(0) invert(1) blur(1px);
-          }
-
-          .doodle-track {
-            white-space: nowrap;
-            font-size: 45px;
-            padding-right: 50px;
-          }
-        `}
-      </style>
-
-      {/* BANNER TÌM KIẾM + CHÀO USER */}
-      <div className="animated-bg-container">
-        {/* Doodle rows */}
-        <div className="doodle-row" style={{ top: "5%" }}>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveRight 80s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveRight 80s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-        </div>
-
-        <div className="doodle-row" style={{ top: "35%", opacity: 0.25 }}>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveLeft 60s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveLeft 60s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-        </div>
-
-        <div className="doodle-row" style={{ top: "65%" }}>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveRight 70s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-          <div
-            className="doodle-track"
-            style={{ animation: "moveRight 70s linear infinite" }}
-          >
-            {foodIcons} {foodIcons} {foodIcons}
-          </div>
-        </div>
-
-        {/* Nội dung chính banner */}
-        <div
-          className="container search-content"
-          style={{ position: "relative", zIndex: 10 }}
-        >
-          {/* Chào user nếu đã đăng nhập */}
-          <h1
-            style={{
-              fontSize: "32px",
-              marginBottom: "10px",
-              fontWeight: "800",
-              textShadow: "0 2px 4px rgba(0,0,0,0.4)",
-            }}
-          >
-            Xin chào, {user?.name || "bạn mình ơi"}! 👋
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          <h1 className="text-3xl md:text-5xl font-extrabold mb-4 drop-shadow-md">
+            Chào {user?.name || "bạn"}, hôm nay "măm" gì? 👋
           </h1>
-
-          <p
-            style={{
-              color: "#fff",
-              fontSize: "18px",
-              fontWeight: "700",
-              fontStyle: "italic",
-              textShadow: "0 2px 4px rgba(0,0,0,0.8)",
-              marginBottom: "25px",
-              background: "rgba(255,255,255,0.2)",
-              display: "inline-block",
-              padding: "8px 20px",
-              borderRadius: "30px",
-              backdropFilter: "blur(5px)",
-              border: "1px solid rgba(255,255,255,0.3)",
-            }}
-          >
+          <p className="text-lg md:text-xl font-medium italic opacity-90 mb-8 bg-white/20 inline-block px-6 py-2 rounded-full backdrop-blur-sm border border-white/30">
             "{slogan}"
           </p>
-
-          <div className="search-bar-wrapper">
+          
+          {/* SEARCH BAR */}
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto relative group">
             <input
               type="text"
-              placeholder="Hôm nay bạn ăn gì?"
-              className="main-search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm món ngon, địa điểm..."
+              className="w-full h-14 pl-6 pr-14 rounded-full text-gray-800 shadow-lg focus:outline-none focus:ring-4 focus:ring-orange-300 transition-all font-medium"
             />
-            <span className="search-icon">🔍</span>
-          </div>
-
-          <div className="filter-row">
-            <select>
-              <option>Khu vực</option>
-            </select>
-            <select>
-              <option>Giá trung bình</option>
-            </select>
-            <select>
-              <option>Món ăn</option>
-            </select>
-          </div>
+            <button 
+              type="submit"
+              className="absolute right-2 top-2 h-10 w-10 bg-orange-600 rounded-full flex items-center justify-center text-white hover:bg-orange-700 transition-colors shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </form>
         </div>
       </div>
 
-      {/* NỘI DUNG CHÍNH */}
-      <main className="container main-content">
-        {/* SLIDER DANH MỤC (từ LandingPage) */}
-        <div className="category-section">
-          <button className="scroll-btn left" onClick={() => scroll("left")}>
-            &#10094;
-          </button>
-          <div className="category-container" ref={scrollRef}>
-            {categories.map((item, index) => (
-              <Link
-                to={`/category/${item.name}`}
-                key={index}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div className="cat-item">
-                  <div className="cat-circle">{item.icon}</div>
-                  <span>{item.name}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <button className="scroll-btn right" onClick={() => scroll("right")}>
-            &#10095;
-          </button>
-        </div>
+      <main className="flex-1 pb-12">
+        {/* SECTION 1: QUICK ACTIONS */}
+        <QuickActions />
 
-        {/* GỢI Ý RIÊNG CHO BẠN (HomePage cũ) */}
-        <section>
-          <h2 className="section-title">Gợi ý riêng cho bạn</h2>
-          <div className="card-grid">
-            {recommended.map((res) => (
-              <Link
-                to={`/restaurant/${res.id}`}
-                key={res.id}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div className="card">
-                  <img src={res.img} alt={res.name} className="card-img" />
-                  <div className="card-body">
-                    <h3
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "700",
-                        marginBottom: "5px",
-                      }}
-                    >
-                      {res.name}
-                    </h3>
-                    <p style={{ fontSize: "12px", color: "#666" }}>
-                      📍 {res.address}
-                    </p>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        marginTop: "8px",
-                        color: "#E65100",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      ⭐ {res.rating} (Rất phù hợp)
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* SECTION 1.5: CATEGORIES */}
+        <CategorySection />
 
-        {/* TOP NHÀ HÀNG ĐÁNH GIÁ CAO (LandingPage) */}
-        <section>
-          <h2 className="section-title">TOP NHÀ HÀNG ĐÁNH GIÁ CAO</h2>
-          <div className="card-grid">
-            {restaurants.map((res) => (
-              <Link
-                to={`/restaurant/${res.id}`}
-                key={res.id}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div className="card">
-                  <img src={res.img} alt={res.name} className="card-img" />
-                  <div className="card-body">
-                    <h3>{res.name}</h3>
-                    <p>📍 {res.address}</p>
-                    <div style={{ color: "#E65100", fontWeight: "bold" }}>
-                      ⭐ {res.rating}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* SECTION 2: NEAR ME */}
+        <NearMeSection />
 
-        {/* GỢI Ý HÔM NAY (LandingPage) */}
-        <section>
-          <h2 className="section-title">GỢI Ý HÔM NAY</h2>
-          <div className="card-grid">
-            {restaurants.map((res, idx) => (
-              <Link
-                to={`/restaurant/${res.id}`}
-                key={idx}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div className="card">
-                  <img
-                    src={`https://placehold.co/300x200/FFF3E0/E65100?text=Mon+Ngon+${
-                      idx + 1
-                    }`}
-                    alt="Mon"
-                    className="card-img"
-                  />
-                  <div className="card-body">
-                    <h3>Món Ngon {idx + 1}</h3>
-                    <p>📍 {res.address}</p>
-                    <div style={{ color: "#E65100", fontWeight: "bold" }}>
-                      ⭐ 9.8
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* SECTION 2.5: COMMUNITY REVIEWS (NEW) */}
+        <CommunityReviews />
 
-        {/* BLOCK "CHƯA BIẾT ĂN GÌ?" (từ HomePage cũ) */}
-        <section
-          style={{
-            marginTop: "50px",
-            textAlign: "center",
-            padding: "40px",
-            background: "#FFF3E0",
-            borderRadius: "20px",
-          }}
-        >
-          <h3 style={{ color: "#E65100", marginBottom: "15px" }}>
-            Chưa biết ăn gì?
-          </h3>
-          <p style={{ marginBottom: "20px", color: "#555" }}>
-            Để Chewz chọn đại một quán, ngon thì khen dở thì... thôi nhé!
-          </p>
-          <button
-            className="btn-sm register"
-            style={{ padding: "12px 30px", fontSize: "16px" }}
-          >
-            🎲 Chọn giúp tôi
-          </button>
+        {/* SECTION 2.6: BEST SPACE (NEW) */}
+        <FeatureRankSection type="space" />
+
+        {/* SECTION 3: COLLECTIONS */}
+        <CollectionBanner />
+
+         {/* SECTION 3.5: BUDGET (NEW) */}
+         <FeatureRankSection type="cheap" />
+        
+        {/* SECTION 4: CONTEXT AWARE */}
+        <ContextAwareSection />
+
+        {/* SECTION 5: FEATURED / FEED */}
+        <section className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <span className="text-orange-500">🔥</span> Nổi bật nhất
+            </h2>
+            <button className="text-orange-600 font-medium hover:underline text-sm">Xem tất cả</button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {loadingFeatured
+              ? Array(8).fill(0).map((_, i) => <SkeletonCard key={i} />)
+              : featured.map((res) => (
+                  <RestaurantCard key={res._id} restaurant={res} />
+                ))}
+          </div>
         </section>
       </main>
 

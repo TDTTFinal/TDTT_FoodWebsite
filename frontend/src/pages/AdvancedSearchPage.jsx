@@ -1,8 +1,6 @@
-// FIXED VERSION - Sửa bug filter quận có tên nhiều từ
-// Thay đổi chính: extractDistrict() và logic so sánh district
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
@@ -551,8 +549,10 @@ const AdvancedSearchPage = () => {
 
   useEffect(() => {
     const queryParam = searchParams.get("q");
-    if (queryParam && queryParam !== keyword) {
+    if (queryParam) {
       setKeyword(queryParam);
+      // Pass queryParam explicitly or ensure handleSearch reads it
+      // Since handleSearch reads 'keyword' state, and on mount 'keyword' is init from URL, it works.
       handleSearch();
     }
   }, []);
