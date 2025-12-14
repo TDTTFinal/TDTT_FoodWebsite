@@ -14,6 +14,7 @@ const RestaurantCard = ({ restaurant }) => {
     category,
     scores,
     menu,
+    distance, // Add distance here
   } = restaurant;
 
   // Format rating
@@ -68,10 +69,17 @@ const RestaurantCard = ({ restaurant }) => {
             </div>
           )}
 
-           {/* Category Badge */}
-           {category && (
+          {category && (
             <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
               {category}
+            </div>
+          )}
+
+          {/* Distance Badge (for Near Me) */}
+          {distance && (
+            <div className="absolute bottom-2 right-2 bg-blue-600/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+              <MapPin size={10} />
+              {distance} km
             </div>
           )}
         </div>

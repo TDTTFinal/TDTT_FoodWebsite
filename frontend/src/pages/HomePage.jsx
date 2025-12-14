@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
-import QuickActions from "../components/home/QuickActions";
 import CategorySection from "../components/home/CategorySection";
 import NearMeSection from "../components/home/NearMeSection";
 import CommunityReviews from "../components/home/CommunityReviews";
@@ -95,8 +94,7 @@ const HomePage = () => {
       </div>
 
       <main className="flex-1 pb-12">
-        {/* SECTION 1: QUICK ACTIONS */}
-        <QuickActions />
+
 
         {/* SECTION 1.5: CATEGORIES */}
         <CategorySection />

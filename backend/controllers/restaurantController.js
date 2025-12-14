@@ -99,11 +99,14 @@ exports.getRestaurantById = async (req, res) => {
 // @desc    Lấy các nhà hàng nổi bật (top rated)
 // @route   GET /api/restaurants/featured
 // @access  Public
+// @desc    Lấy các nhà hàng nổi bật (top rated)
+// @route   GET /api/restaurants/featured
+// @access  Public
 exports.getFeaturedRestaurants = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const restaurants = await Restaurant.find({ avg_rating: { $gte: 4.5 } })
+    const restaurants = await Restaurant.find({ avg_rating: { $gte: 8.0 } }) // Adjusted for 10-scale
       .sort({ avg_rating: -1 })
       .limit(parseInt(limit))
       .select("-__v");
@@ -118,6 +121,204 @@ exports.getFeaturedRestaurants = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy nhà hàng nổi bật",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Tìm nhà hàng gần đây (GeoJSON)
+// @route   GET /api/restaurants/nearby
+// @access  Public
+exports.getNearbyRestaurants = async (req, res) => {
+  try {
+    const { lat, lon, radius = 3000, limit = 10 } = req.query;
+
+    if (!lat || !lon) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp tọa độ (lat, lon)",
+      });
+    }
+
+    const restaurants = await Restaurant.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [parseFloat(lon), parseFloat(lat)],
+          },
+          $maxDistance: parseInt(radius),
+        },
+      },
+    })
+      .limit(parseInt(limit))
+      .select("-__v");
+
+    // Calculate distance for client convenience (rough estimate if needed, but client has coords)
+    // Mongo $near returns sorted by distance automatically.
+
+    res.status(200).json({
+      success: true,
+      count: restaurants.length,
+      data: restaurants,
+    });
+  } catch (error) {
+    console.error("Error in getNearbyRestaurants:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tìm nhà hàng gần đây",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Gợi ý theo ngữ cảnh (Sáng/Trưa/Tối)
+// @route   GET /api/restaurants/contextual
+// @access  Public
+exports.getContextualRestaurants = async (req, res) => {
+  try {
+    // Get current hour in Vietnam time (UTC+7)
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vnTime = new Date(utc + 3600000 * 7);
+    const currentHour = vnTime.getHours();
+
+    let contextTitle = "";
+    let query = {};
+    const limit = 8;
+
+    if (currentHour >= 5 && currentHour < 10) {
+      contextTitle = "Bữa sáng năng lượng 🍳";
+      query = {
+        $or: [
+          { category: { $in: ["Phở", "Bún", "Bánh mì", "Cafe"] } },
+          { name: { $regex: /phở|bún|bánh mì|cafe|coffee/i } },
+        ],
+      };
+    } else if (currentHour >= 10 && currentHour < 14) {
+      contextTitle = "Trưa nay ăn gì? 🍱";
+      query = {
+        $or: [
+          { category: { $in: ["Cơm", "Bento", "Sushi", "Healthy"] } },
+          { name: { $regex: /cơm|bento|lunch/i } },
+        ],
+      };
+    } else if (currentHour >= 14 && currentHour < 17) {
+      contextTitle = "Ăn vặt xế chiều 🍰";
+      query = {
+        $or: [
+          { category: { $in: ["Trà sữa", "Bánh ngọt", "Ăn vặt", "Cafe"] } },
+          { name: { $regex: /trà sữa|tea|coffee|cake/i } },
+        ],
+      };
+    } else {
+      contextTitle = "Tối nay chill đâu? 🍻";
+      query = {
+        $or: [
+          { category: { $in: ["Lẩu", "BBQ", "Hải sản", "Buffet"] } },
+          { name: { $regex: /lẩu|nướng|bbq|beer/i } },
+        ],
+      };
+    }
+
+    const restaurants = await Restaurant.find(query)
+      .limit(limit)
+      .sort({ avg_rating: -1 });
+
+    res.status(200).json({
+      success: true,
+      context: {
+        hour: currentHour,
+        title: contextTitle,
+      },
+      count: restaurants.length,
+      data: restaurants,
+    });
+  } catch (error) {
+    console.error("Error in getContextualRestaurants:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy gợi ý ngữ cảnh",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Lấy các review mới nhất từ cộng đồng
+// @route   GET /api/restaurants/reviews/latest
+// @access  Public
+exports.getLatestReviews = async (req, res) => {
+  try {
+    const reviews = await Restaurant.aggregate([
+      { $unwind: "$reviews" },
+      { $sort: { "reviews.date": -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          restaurant_id: "$_id",
+          restaurant_name: "$name",
+          restaurant_avatar: "$avatar_url",
+          user: "$reviews.user",
+          rating: "$reviews.rating",
+          comment: "$reviews.comment",
+          date: "$reviews.date",
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: reviews,
+    });
+  } catch (error) {
+    console.error("Error in getLatestReviews:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy review mới nhất",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Lấy theo bộ sưu tập (Trending, Discount, Space, Cheap...)
+// @route   GET /api/restaurants/collections
+// @access  Public
+exports.getCollectionRestaurants = async (req, res) => {
+  try {
+    const { type } = req.query;
+    let query = {};
+    let sort = {};
+
+    if (type === "trending") {
+      query = { avg_rating: { $gte: 8.5 } };
+      sort = { avg_rating: -1 };
+    } else if (type === "new") {
+      sort = { createdAt: -1 };
+    } else if (type === "space") {
+      // Top không gian (sống ảo)
+      query = { "scores.space": { $gte: 8.0 } };
+      sort = { "scores.space": -1 };
+    } else if (type === "cheap") {
+      // Giá rẻ / Hợp túi tiền (scores.price cao = giá hợp lý)
+      query = { "scores.price": { $gte: 8.0 } };
+      sort = { "scores.price": -1 };
+    } else {
+      // Default: mix
+      sort = { updatedAt: -1 };
+    }
+
+    const restaurants = await Restaurant.find(query).sort(sort).limit(10);
+
+    res.status(200).json({
+      success: true,
+      type,
+      data: restaurants,
+    });
+  } catch (error) {
+    console.error("Error in getCollectionRestaurants:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy collection",
       error: error.message,
     });
   }
@@ -235,6 +436,7 @@ exports.deleteRestaurant = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Xóa nhà hàng thành công",
+      data: {},
     });
   } catch (error) {
     console.error("Error in deleteRestaurant:", error);

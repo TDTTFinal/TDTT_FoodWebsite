@@ -43,7 +43,36 @@ const NearMeSection = () => {
     }
   };
 
-  if (error) return null; // Hide section if no location
+  // Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (R * c).toFixed(1); // Return string "1.5"
+  };
+
+  if (error) {
+    return (
+      <section className="py-8 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
+            <MapPin className="inline-block mr-2 mb-1" size={18} />
+            Không thể lấy vị trí: {error}
+            <br />
+            <small className="text-gray-500">Hãy kiểm tra quyền truy cập vị trí trên trình duyệt.</small>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-8 bg-gray-50">
@@ -53,7 +82,7 @@ const NearMeSection = () => {
           <h2 className="text-2xl font-bold text-gray-800">Gần bạn nhất</h2>
           {location && (
             <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded shadow-sm">
-              Cách 5km
+              Trong bán kính 5km
             </span>
           )}
         </div>
@@ -65,11 +94,27 @@ const NearMeSection = () => {
                   <SkeletonCard />
                 </div>
               ))
-            : restaurants.map((res) => (
-                <div key={res._id} className="min-w-[280px] w-[280px] snap-center">
-                  <RestaurantCard restaurant={res} />
-                </div>
-              ))}
+            : restaurants.map((res) => {
+                const dist =
+                  location &&
+                  res.location?.coordinates
+                    ? calculateDistance(
+                        location.lat,
+                        location.lon,
+                        res.location.coordinates[1], // Mongo: [lon, lat] -> [1] is lat
+                        res.location.coordinates[0]
+                      )
+                    : null;
+                
+                // Clone object to inject distance without mutating state deeply
+                const resWithDistance = { ...res, distance: dist };
+
+                return (
+                  <div key={res._id} className="min-w-[280px] w-[280px] snap-center">
+                    <RestaurantCard restaurant={resWithDistance} />
+                  </div>
+                );
+              })}
           
           {!loading && restaurants.length === 0 && (
             <div className="text-gray-500 italic">
