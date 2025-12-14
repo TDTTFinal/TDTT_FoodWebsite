@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
 import api from "../config/api";
+import { useAuth } from "../context/AuthContext";
 
 // Food Tour Imports
 import TourBuilder from "../components/foodtour/TourBuilder";
@@ -19,6 +20,7 @@ import ApplyRouteModal from "../components/foodtour/ApplyRouteModal";
 const ITEMS_PER_PAGE = 15;
 
 const AdvancedSearchPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -58,6 +60,9 @@ const AdvancedSearchPage = () => {
   // ==========================================
   // FOOD TOUR STATE & LOGIC
   // ==========================================
+  const [tourName, setTourName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const [tourItems, setTourItems] = useState({
     unsorted: [],
     morning: [],
@@ -153,6 +158,66 @@ const AdvancedSearchPage = () => {
         ],
       };
     });
+  };
+
+  const handleSaveTour = async () => {
+    console.log("🖱️ Handle Save Tour Triggered");
+    console.log("👤 User state:", user);
+
+    if (!user) {
+        alert("Vui lòng đăng nhập để lưu Food Tour.");
+        return;
+    }
+
+    if (!tourName.trim()) {
+        alert("Vui lòng nhập tên cho Food Tour.");
+        return;
+    }
+
+    // Calculate total restaurants
+    const totalRestaurants = 
+      tourItems.morning.length + 
+      tourItems.lunch.length + 
+      tourItems.afternoon.length + 
+      tourItems.dinner.length +
+      tourItems.unsorted.length;
+
+    console.log("🔢 Total restaurants:", totalRestaurants);
+
+    if (totalRestaurants === 0) {
+        alert("Tour chưa có địa điểm nào!");
+        return;
+    }
+
+    const payload = {
+      name: tourName,
+      description: `Tour ${totalRestaurants} điểm ăn uống tại TP.HCM (Tạo từ tìm kiếm nâng cao)`,
+      tourItems: tourItems, // Flexible structure
+      totalRestaurants
+    };
+
+    console.log("📦 Payload prepared:", payload);
+
+    try {
+      setIsSaving(true);
+      console.log("🚀 Sending API request to /food-tours");
+      const res = await api.post("/food-tours", payload);
+      console.log("✅ API Response:", res);
+
+      if (res.success) {
+        alert("✅ Đã lưu Food tour thành công! Kiểm tra trong Profile > Tour của tôi.");
+      } else {
+        console.error("❌ API returned false success:", res);
+        alert("❌ Lưu thất bại: " + (res.message || "Lỗi không xác định"));
+      }
+    } catch (err) {
+      console.error("❌ Catch Error:", err);
+      console.error("❌ Error Response Data:", err.response?.data);
+      console.error("❌ Error Status:", err.response?.status);
+      alert("❌ Lỗi khi lưu tour: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDragEnd = (event) => {
@@ -1235,6 +1300,10 @@ const AdvancedSearchPage = () => {
                     onDragOver={handleDragOver} 
                     onDragEnd={handleDragEnd}
                     onRemove={handleRemoveFromTour}
+                    tourName={tourName}
+                    setTourName={setTourName}
+                    onSave={handleSaveTour}
+                    isSaving={isSaving}
                  />
              </div>
         </div>

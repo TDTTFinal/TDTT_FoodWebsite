@@ -43,5 +43,10 @@ app.use("/api/search", searchRoutes); // dùng cho cả /api/search/advanced
 const foodTourRoutes = require("./routes/foodTourRoutes");
 app.use("/api/food-tours", foodTourRoutes);
 
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes);
+// -> /api/users/upload-avatar
+// -> /api/users/profile
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));

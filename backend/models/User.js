@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema(
     // Ảnh đại diện (lấy từ Google nếu có)
     avatar: { type: String },
 
+    // Thông tin liên hệ
+    phone: { type: String },
+    address: { type: String },
+
     // Provider để biết user này đăng ký kiểu gì
     provider: {
       type: String,
