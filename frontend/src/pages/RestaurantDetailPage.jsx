@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import api from "../config/api";
 import { MapPin, Clock, DollarSign, Star, ChevronRight, Utensils, MessageSquare, TrendingUp, Heart, Share2, ExternalLink } from "lucide-react";
+import { getOpenStatus, getStatusEmoji } from "../utils/openingHoursUtils";
 import ReviewSection from "../components/review/ReviewSection";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -257,15 +258,31 @@ const RestaurantDetailPage = () => {
           </div>
 
           {/* Opening Hours Card */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-              <Clock className="text-white" size={28} />
-            </div>
-            <div>
-              <div className="text-lg font-bold text-gray-800">{restaurant.open_time}</div>
-              <div className="text-sm text-gray-500">Giờ mở cửa</div>
-            </div>
-          </div>
+          {(() => {
+            const openStatus = getOpenStatus(restaurant.open_time);
+            const gradientClass = openStatus.isOpen === true
+              ? 'from-green-500 to-emerald-500'
+              : openStatus.isOpen === false
+                ? 'from-red-500 to-rose-500'
+                : 'from-gray-400 to-gray-500';
+            return (
+              <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
+                <div className={`w-16 h-16 bg-gradient-to-br ${gradientClass} rounded-xl flex items-center justify-center`}>
+                  <Clock className="text-white" size={28} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-gray-800">{restaurant.open_time}</span>
+                    <span className="text-lg">{getStatusEmoji(openStatus.status)}</span>
+                  </div>
+                  <div className="text-sm font-semibold" style={{ color: openStatus.statusColor === 'green' ? '#16a34a' : openStatus.statusColor === 'red' ? '#dc2626' : openStatus.statusColor === 'orange' ? '#ea580c' : openStatus.statusColor === 'yellow' ? '#ca8a04' : '#6b7280' }}>
+                    {openStatus.statusText}
+                    {openStatus.timeInfo && <span className="font-normal text-gray-500"> • {openStatus.timeInfo}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Price Range Card */}
           <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
@@ -347,8 +364,6 @@ const RestaurantDetailPage = () => {
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
-
-
 
             {/* Map Section */}
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
