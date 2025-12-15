@@ -289,7 +289,7 @@ const About = () => {
                   </div>
                   <div>
                     <p className="text-sm text-white/70">Email</p>
-                    <p className="font-semibold">contact@chewz.vn</p>
+                    <p className="font-semibold">ntson2434@clc.fitus.edu.vn</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -307,7 +307,7 @@ const About = () => {
                   </div>
                   <div>
                     <p className="text-sm text-white/70">Địa chỉ</p>
-                    <p className="font-semibold">TP. Hồ Chí Minh, Việt Nam</p>
+                    <p className="font-semibold">Trường Đại học KHTN, TP. Hồ Chí Minh, Việt Nam</p>
                   </div>
                 </div>
               </div>

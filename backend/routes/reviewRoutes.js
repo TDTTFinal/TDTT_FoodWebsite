@@ -245,6 +245,41 @@ router.delete("/:id", async (req, res) => {
 });
 
 // ========================
+// GET /api/reviews/community - Get reviews for community section
+// ========================
+router.get("/community", async (req, res) => {
+  try {
+    const reviews = await Review.find({
+      status: "active",
+      // Optional: Filter for high quality
+      // rating: { $gte: 7 },
+      // images: { $ne: [] }
+    })
+      .populate("user", "name avatar_url")
+      .populate("restaurant", "name")
+      .sort({ createdAt: -1 })
+      .limit(8);
+
+    const data = reviews.map(r => ({
+      _id: r._id,
+      user: r.user ? r.user.name : "Người dùng ẩn danh",
+      userAvatar: r.user?.avatar_url,
+      restaurant: r.restaurant?._id,
+      restaurant_name: r.restaurant?.name || "Nhà hàng",
+      rating: r.rating,
+      comment: r.content,
+      images: r.images,
+      date: r.createdAt
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Get community reviews error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
 // POST /api/reviews/:id/like - Like/unlike review
 // ========================
 router.post("/:id/like", async (req, res) => {
