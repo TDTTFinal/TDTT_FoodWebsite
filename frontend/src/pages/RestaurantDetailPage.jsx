@@ -3,6 +3,43 @@ import { useParams, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import api from "../config/api";
+import { MapPin, Clock, DollarSign, Star, ChevronRight, Utensils, MessageSquare, TrendingUp, Heart, Share2, ExternalLink } from "lucide-react";
+import ReviewSection from "../components/review/ReviewSection";
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet marker icon
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
+
+// Custom restaurant marker
+const restaurantIcon = L.divIcon({
+  className: 'restaurant-marker',
+  html: `
+    <div style="
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #f97316, #fbbf24);
+      border: 3px solid white;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <span style="transform: rotate(45deg); font-size: 18px;">🍽️</span>
+    </div>
+  `,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  popupAnchor: [0, -40]
+});
 
 const RestaurantDetailPage = () => {
   const { id } = useParams();
@@ -15,7 +52,6 @@ const RestaurantDetailPage = () => {
     fetchRestaurantDetail();
   }, [id]);
 
-  // 🆕 THÊM: Hàm gọi API lấy chi tiết nhà hàng
   const fetchRestaurantDetail = async () => {
     try {
       setLoading(true);
@@ -23,9 +59,7 @@ const RestaurantDetailPage = () => {
 
       const result = await api.get(`/restaurants/${id}`);
 
-      // Parse response từ backend: { success: true, data: {...} }
       if (result.success && result.data) {
-        // Map dữ liệu từ API sang format hiển thị
         const data = result.data;
         setRestaurant({
           id: data._id,
@@ -40,7 +74,7 @@ const RestaurantDetailPage = () => {
             "https://placehold.co/800x400/FFF3E0/E65100?text=Restaurant",
           description:
             data.reviews?.[0]?.comment ||
-            "Nhà hàng với nhiều món ăn ngon, không gian thoáng mát...",
+            "Nhà hàng với nhiều món ăn ngon, không gian thoáng mát, phục vụ chuyên nghiệp và tận tình.",
           category: data.category || "Khác",
           scores: data.scores || {},
           menu:
@@ -61,6 +95,12 @@ const RestaurantDetailPage = () => {
               content: review.comment || "Đánh giá tốt",
               date: formatDate(review.date),
             })) || [],
+          // Add coordinates for map
+          coordinates: data.location?.coordinates 
+            ? [data.location.coordinates[1], data.location.coordinates[0]] // [lat, lon]
+            : data.lat && data.lon 
+              ? [data.lat, data.lon]
+              : null,
         });
       } else {
         throw new Error("Không tìm thấy nhà hàng");
@@ -74,7 +114,6 @@ const RestaurantDetailPage = () => {
     }
   };
 
-  // Helper: Format giá tiền
   const formatPrice = (price) => {
     if (!price) return "Liên hệ";
     if (typeof price === "number") {
@@ -83,124 +122,55 @@ const RestaurantDetailPage = () => {
     return price;
   };
 
-  // Helper: Format ngày
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
     const date = new Date(dateStr);
     return date.toLocaleDateString("vi-VN");
   };
 
-  // Helper: Lấy emoji cho menu
   const getMenuEmoji = (name) => {
     const nameLower = (name || "").toLowerCase();
-    if (
-      nameLower.includes("phở") ||
-      nameLower.includes("mì") ||
-      nameLower.includes("bún")
-    )
-      return "🍜";
+    if (nameLower.includes("phở") || nameLower.includes("mì") || nameLower.includes("bún")) return "🍜";
     if (nameLower.includes("cơm")) return "🍚";
     if (nameLower.includes("gà")) return "🍗";
     if (nameLower.includes("bò") || nameLower.includes("thịt")) return "🥩";
-    if (
-      nameLower.includes("tôm") ||
-      nameLower.includes("cua") ||
-      nameLower.includes("hải sản")
-    )
-      return "🦐";
+    if (nameLower.includes("tôm") || nameLower.includes("cua") || nameLower.includes("hải sản")) return "🦐";
     if (nameLower.includes("lẩu")) return "🍲";
     if (nameLower.includes("trà") || nameLower.includes("nước")) return "🧋";
     if (nameLower.includes("bánh")) return "🥮";
     return "🍽️";
   };
 
-  // Fallback mock data
-  const loadMockData = () => {
-    setRestaurant({
-      id: id,
-      name: "Hải sản Trần Long",
-      address: "Số 888, Bến Nghé, Quận 1, TP.HCM",
-      rating: 9.5,
-      reviews_count: 128,
-      open_time: "10:00 - 23:00",
-      price_range: "50.000đ - 500.000đ",
-      img: "https://placehold.co/800x400/FFF3E0/E65100?text=Hai+San+Tran+Long",
-      description:
-        "Nhà hàng hải sản tươi sống bậc nhất Sài Gòn với không gian thoáng mát...",
-      menu: [
-        { name: "Tôm hùm", price: "150k", img: "🦞" },
-        { name: "Cua rang me", price: "200k", img: "🦀" },
-        { name: "Lẩu Thái", price: "350k", img: "🍲" },
-        { name: "Hàu nướng", price: "20k", img: "🦪" },
-      ],
-      reviews: [
-        {
-          user: "Nguyễn Văn A",
-          rating: 10,
-          content: "Hải sản tươi, nước chấm ngon!",
-          date: "20/11/2025",
-        },
-      ],
-    });
-  };
-
   // Loading state
   if (loading) {
     return (
-      <div className="page-wrapper">
+      <div className="min-h-screen bg-gray-50">
         <Header />
-        <div style={{ textAlign: "center", padding: "100px 20px" }}>
-          <div
-            style={{
-              width: "60px",
-              height: "60px",
-              border: "6px solid #f3f3f3",
-              borderTop: "6px solid #E65100",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 20px",
-            }}
-          ></div>
-          <p style={{ fontSize: "18px", color: "#666" }}>
-            Đang tải thông tin nhà hàng...
-          </p>
+        <div className="flex flex-col items-center justify-center py-32">
+          <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-6"></div>
+          <p className="text-lg text-gray-600 font-medium">Đang tải thông tin nhà hàng...</p>
         </div>
         <Footer />
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
 
-  // Error state (nhưng vẫn hiển thị mock data)
+  // Error state
   if (!restaurant) {
     return (
-      <div className="page-wrapper">
+      <div className="min-h-screen bg-gray-50">
         <Header />
-        <div style={{ textAlign: "center", padding: "100px 20px" }}>
-          <p style={{ fontSize: "60px", marginBottom: "20px" }}>😢</p>
-          <h2 style={{ color: "#E65100", marginBottom: "15px" }}>
-            Không tìm thấy nhà hàng
-          </h2>
-          <p style={{ color: "#666", marginBottom: "30px" }}>
-            Nhà hàng này có thể đã bị xóa hoặc không tồn tại.
+        <div className="flex flex-col items-center justify-center py-32 px-4">
+          <div className="text-7xl mb-6">😢</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Không tìm thấy nhà hàng</h2>
+          <p className="text-gray-500 mb-8 text-center max-w-md">
+            Nhà hàng này có thể đã bị xóa hoặc không tồn tại trong hệ thống.
           </p>
           <Link
             to="/explore"
-            style={{
-              padding: "12px 30px",
-              background: "#E65100",
-              color: "#fff",
-              textDecoration: "none",
-              borderRadius: "30px",
-              fontWeight: "600",
-            }}
+            className="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-full hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl"
           >
-            Khám phá nhà hàng khác
+            🍽️ Khám phá nhà hàng khác
           </Link>
         </div>
         <Footer />
@@ -209,281 +179,239 @@ const RestaurantDetailPage = () => {
   }
 
   return (
-    <div className="page-wrapper">
+    <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <div
-        className="container"
-        style={{ marginTop: "30px", marginBottom: "50px" }}
-      >
-        {/* Breadcrumb */}
-        <div style={{ marginBottom: "20px", fontSize: "14px", color: "#666" }}>
-          <Link to="/" style={{ color: "#E65100", textDecoration: "none" }}>
-            Trang chủ
-          </Link>
-          <span style={{ margin: "0 10px" }}>/</span>
-          <Link
-            to="/explore"
-            style={{ color: "#E65100", textDecoration: "none" }}
-          >
-            Khám phá
-          </Link>
-          <span style={{ margin: "0 10px" }}>/</span>
-          <span>{restaurant.name}</span>
-        </div>
-
-        {/* Main Image */}
-        <div
-          style={{
-            borderRadius: "20px",
-            overflow: "hidden",
-            marginBottom: "30px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+      {/* Hero Section with Image */}
+      <div className="relative h-[400px] md:h-[500px] overflow-hidden">
+        <img
+          src={restaurant.img}
+          alt={restaurant.name}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.src = "https://placehold.co/800x400/FFF3E0/E65100?text=Restaurant";
           }}
-        >
-          <img
-            src={restaurant.img}
-            alt={restaurant.name}
-            style={{ width: "100%", height: "350px", objectFit: "cover" }}
-            onError={(e) => {
-              e.target.src =
-                "https://placehold.co/800x400/FFF3E0/E65100?text=Restaurant";
-            }}
-          />
+        />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+        
+        {/* Breadcrumb */}
+        <div className="absolute top-6 left-0 right-0">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center gap-2 text-sm text-white/80">
+              <Link to="/" className="hover:text-white transition-colors">Trang chủ</Link>
+              <ChevronRight size={14} />
+              <Link to="/explore" className="hover:text-white transition-colors">Khám phá</Link>
+              <ChevronRight size={14} />
+              <span className="text-white font-medium truncate max-w-[200px]">{restaurant.name}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Info Section */}
-        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-          <div style={{ flex: 2, minWidth: "300px" }}>
-            {/* Category Badge */}
+        {/* Action Buttons */}
+        <div className="absolute top-6 right-6 flex gap-2">
+          <button className="p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all text-white">
+            <Heart size={20} />
+          </button>
+          <button className="p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all text-white">
+            <Share2 size={20} />
+          </button>
+        </div>
+
+        {/* Restaurant Name Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+          <div className="container mx-auto">
             {restaurant.category && (
-              <span
-                style={{
-                  display: "inline-block",
-                  background: "#FFF3E0",
-                  color: "#E65100",
-                  padding: "5px 15px",
-                  borderRadius: "20px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  marginBottom: "15px",
-                }}
-              >
+              <span className="inline-block px-4 py-1.5 bg-orange-500 text-white text-xs font-bold uppercase tracking-wide rounded-full mb-4">
                 {restaurant.category}
               </span>
             )}
-
-            <h1
-              style={{
-                color: "#E65100",
-                fontSize: "32px",
-                fontWeight: "800",
-                marginBottom: "10px",
-              }}
-            >
+            <h1 className="text-3xl md:text-5xl font-black text-white mb-2 drop-shadow-lg">
               {restaurant.name}
             </h1>
-            <p style={{ fontSize: "16px", color: "#555", marginBottom: "8px" }}>
-              <b>Địa chỉ:</b> {restaurant.address}
-            </p>
-            <p
-              style={{ fontSize: "16px", color: "#555", marginBottom: "20px" }}
-            >
-              <b>Giờ mở:</b> {restaurant.open_time} | <b>Giá:</b> {" "}
-              {restaurant.price_range}
-            </p>
-
-            {/* Description */}
-            <div
-              style={{
-                background: "#FFF3E0",
-                padding: "20px",
-                borderRadius: "12px",
-                borderLeft: "5px solid #E65100",
-              }}
-            >
-              <p>{restaurant.description}</p>
+            <div className="flex items-center gap-2 text-white/90">
+              <MapPin size={18} />
+              <span className="text-sm md:text-base">{restaurant.address}</span>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Scores */}
-            {restaurant.scores && Object.keys(restaurant.scores).length > 0 && (
-              <div style={{ marginTop: "25px" }}>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    marginBottom: "15px",
-                    color: "#333",
-                  }}
-                >
-                  Điểm chi tiết
-                </h3>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                  {Object.entries(restaurant.scores).map(
-                    ([key, value]) =>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 -mt-6 relative z-10">
+        {/* Info Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Rating Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
+              <Star className="text-white" size={28} fill="white" />
+            </div>
+            <div>
+              <div className="text-3xl font-black text-gray-800">
+                {restaurant.rating > 5 ? restaurant.rating : (restaurant.rating * 2).toFixed(1)}
+              </div>
+              <div className="text-sm text-gray-500">
+                {restaurant.reviews_count} đánh giá
+              </div>
+            </div>
+          </div>
+
+          {/* Opening Hours Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+              <Clock className="text-white" size={28} />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-gray-800">{restaurant.open_time}</div>
+              <div className="text-sm text-gray-500">Giờ mở cửa</div>
+            </div>
+          </div>
+
+          {/* Price Range Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border border-gray-100">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+              <DollarSign className="text-white" size={28} />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-gray-800">{restaurant.price_range}</div>
+              <div className="text-sm text-gray-500">Khoảng giá</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          {/* Left Column - Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Description */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Utensils size={22} className="text-orange-500" />
+                Giới thiệu
+              </h2>
+              <p className="text-gray-600 leading-relaxed">{restaurant.description}</p>
+              
+              {/* Scores */}
+              {restaurant.scores && Object.keys(restaurant.scores).length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                    <TrendingUp size={16} />
+                    Điểm chi tiết
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(restaurant.scores).map(([key, value]) =>
                       value > 0 && (
                         <div
                           key={key}
-                          style={{
-                            background: "#f8f9fa",
-                            padding: "10px 15px",
-                            borderRadius: "8px",
-                            fontSize: "14px",
-                          }}
+                          className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-100"
                         >
-                          <span style={{ color: "#666" }}>{key}: </span>
-                          <span style={{ color: "#E65100", fontWeight: "700" }}>
-                            {value}/5
-                          </span>
+                          <span className="text-gray-500 text-sm">{key}: </span>
+                          <span className="text-orange-600 font-bold">{value}/5</span>
                         </div>
                       )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Rating Card */}
-          <div
-            style={{
-              flex: 1,
-              background: "#fff",
-              padding: "30px",
-              borderRadius: "20px",
-              boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
-              textAlign: "center",
-              height: "fit-content",
-            }}
-          >
-            <div
-              style={{ fontSize: "48px", fontWeight: "900", color: "#E65100" }}
-            >
-              {restaurant.rating > 5
-                ? restaurant.rating
-                : (restaurant.rating * 2).toFixed(1)}
-            </div>
-            <div
-              style={{ fontSize: "14px", color: "#888", marginBottom: "10px" }}
-            >
-              {restaurant.rating > 5 ? "trên 10 điểm" : "trên 5 sao"}
-            </div>
-            <div
-              style={{ fontSize: "13px", color: "#666", marginBottom: "20px" }}
-            >
-              {restaurant.reviews_count} đánh giá
-            </div>
-            <button
-              className="btn-sm register"
-              style={{ width: "100%", padding: "12px", fontSize: "16px" }}
-            >
-              Viết đánh giá
-            </button>
-          </div>
-        </div>
-
-        {/* Menu Section */}
-        <div style={{ marginTop: "50px" }}>
-          <h2 className="section-title">THỰC ĐƠN NỔI BẬT</h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-              gap: "20px",
-            }}
-          >
-            {restaurant.menu.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: "#fff",
-                  padding: "15px",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "40px", marginBottom: "10px" }}>
-                  {item.img}
-                </div>
-                <h4 style={{ fontSize: "16px", marginBottom: "5px" }}>
-                  {item.name}
-                </h4>
-                <p style={{ color: "#E65100", fontWeight: "bold" }}>
-                  {item.price}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Reviews Section */}
-        {restaurant.reviews && restaurant.reviews.length > 0 && (
-          <div style={{ marginTop: "50px" }}>
-            <h2 className="section-title">ĐÁNH GIÁ GẦN ĐÂY</h2>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "15px" }}
-            >
-              {restaurant.reviews.map((review, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: "#fff",
-                    padding: "20px",
-                    borderRadius: "12px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <span style={{ fontWeight: "700", color: "#333" }}>
-                      {review.user}
-                    </span>
-                    <span style={{ color: "#E65100", fontWeight: "600" }}>
-                      ⭐ {review.rating}
-                    </span>
+                    )}
                   </div>
-                  <p style={{ color: "#555", marginBottom: "8px" }}>
-                    {review.content}
-                  </p>
-                  <span style={{ fontSize: "12px", color: "#999" }}>
-                    {review.date}
-                  </span>
                 </div>
-              ))}
+              )}
+            </div>
+
+            {/* Menu Section */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Utensils size={22} className="text-orange-500" />
+                Thực đơn nổi bật
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {restaurant.menu.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="group bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 text-center hover:shadow-md transition-all border border-orange-100 hover:border-orange-200"
+                  >
+                    <div className="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Utensils size={20} className="text-orange-500" />
+                    </div>
+                    <h4 className="font-semibold text-gray-800 text-sm mb-1 line-clamp-2">{item.name}</h4>
+                    <p className="text-orange-600 font-bold text-lg">{item.price}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reviews Section */}
+            {/* Reviews Section - New Component */}
+            <ReviewSection 
+              restaurantId={restaurant.id} 
+              restaurantName={restaurant.name} 
+            />
+          </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="space-y-6">
+
+
+
+            {/* Map Section */}
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+              <div className="h-48">
+                {restaurant.coordinates ? (
+                  <MapContainer 
+                    center={restaurant.coordinates} 
+                    zoom={16} 
+                    style={{ height: '100%', width: '100%' }}
+                    scrollWheelZoom={false}
+                    zoomControl={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={restaurant.coordinates} icon={restaurantIcon}>
+                      <Popup>
+                        <div className="font-sans text-center p-1">
+                          <strong className="text-orange-600">{restaurant.name}</strong>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                ) : (
+                  <div className="h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin size={32} className="text-gray-400 mx-auto mb-2" />
+                      <span className="text-sm text-gray-500">Chưa có tọa độ</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-100">
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{restaurant.address}</p>
+                {restaurant.coordinates && (
+                  <a 
+                    href={`https://www.google.com/maps?q=${restaurant.coordinates[0]},${restaurant.coordinates[1]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2 bg-blue-50 text-blue-600 font-semibold text-sm rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                    Mở trong Google Maps
+                  </a>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Related Restaurants */}
-        <div
-          style={{
-            marginTop: "50px",
-            textAlign: "center",
-            padding: "40px",
-            background: "#FFF3E0",
-            borderRadius: "20px",
-          }}
-        >
-          <h3 style={{ color: "#E65100", marginBottom: "15px" }}>
-            Bạn có thể thích
-          </h3>
-          <p style={{ marginBottom: "20px", color: "#555" }}>
-            Khám phá thêm nhiều nhà hàng ngon khác tại Chewz!
+        {/* Related Section */}
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl p-8 md:p-12 text-center text-white mb-12">
+          <h3 className="text-2xl md:text-3xl font-bold mb-3">Khám phá thêm</h3>
+          <p className="text-white/80 mb-8 max-w-md mx-auto">
+            Còn rất nhiều nhà hàng ngon đang chờ bạn khám phá tại Chewz!
           </p>
           <Link
             to="/explore"
-            className="btn-sm register"
-            style={{
-              padding: "12px 30px",
-              fontSize: "16px",
-              textDecoration: "none",
-            }}
+            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 font-bold rounded-full hover:bg-orange-50 transition-all shadow-lg hover:shadow-xl"
           >
-            🍽️ Xem thêm nhà hàng
+            <Utensils size={20} />
+            Xem thêm nhà hàng
           </Link>
         </div>
       </div>

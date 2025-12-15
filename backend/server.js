@@ -54,5 +54,13 @@ app.use("/api/weather", weatherRoutes);
 // -> /api/weather/forecast
 // -> /api/weather/check-slot
 
+// ⭐ Review API
+const reviewRoutes = require("./routes/reviewRoutes");
+app.use("/api/reviews", reviewRoutes);
+// -> /api/reviews/restaurant/:id
+// -> /api/reviews (POST)
+// -> /api/reviews/:id/like
+// -> /api/reviews/upload
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));

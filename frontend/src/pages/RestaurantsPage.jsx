@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
+import { Search, ChevronLeft, ChevronRight, X, Utensils, Coffee, Pizza, Cherry, Beef, Soup, Fish, Beer } from "lucide-react";
 
 const RestaurantsPage = () => {
   // ===== STATE MANAGEMENT =====
@@ -17,22 +18,22 @@ const RestaurantsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
 
-  // ===== DANH SÁCH CATEGORY =====
+  // ===== DANH SÁCH CATEGORY (matching HomePage style) =====
   const categories = [
-    { id: "all", name: "Tất cả", icon: "🍽️", color: "#FF6B6B" },
-    { id: "lau", name: "Lẩu", icon: "🍲", color: "#4ECDC4" },
-    { id: "bbq", name: "BBQ", icon: "🥩", color: "#FFE66D" },
-    { id: "com", name: "Cơm", icon: "🍚", color: "#95E1D3" },
-    { id: "pho", name: "Phở", icon: "🍜", color: "#F38181" },
-    { id: "bun", name: "Bún", icon: "🥢", color: "#AA96DA" },
-    { id: "banh-mi", name: "Bánh mì", icon: "🥖", color: "#FCBAD3" },
-    { id: "tra-sua", name: "Trà sữa", icon: "🧋", color: "#A8D8EA" },
-    { id: "hai-san", name: "Hải sản", icon: "🦞", color: "#FFA07A" },
-    { id: "pizza", name: "Pizza", icon: "🍕", color: "#FFD93D" },
-    { id: "chay", name: "Chay", icon: "🥗", color: "#6BCB77" },
+    { id: "all", name: "Tất cả", icon: <Utensils size={20}/>, color: "bg-gray-100 text-gray-600" },
+    { id: "lau", name: "Lẩu", icon: <Soup size={20}/>, color: "bg-red-100 text-red-600" },
+    { id: "bbq", name: "BBQ", icon: <Beef size={20}/>, color: "bg-orange-100 text-orange-600" },
+    { id: "com", name: "Cơm", icon: <Utensils size={20}/>, color: "bg-yellow-100 text-yellow-600" },
+    { id: "tra-sua", name: "Trà sữa", icon: <Coffee size={20}/>, color: "bg-blue-100 text-blue-600" },
+    { id: "cafe", name: "Cafe", icon: <Coffee size={20}/>, color: "bg-amber-100 text-amber-700" },
+    { id: "hai-san", name: "Hải sản", icon: <Fish size={20}/>, color: "bg-cyan-100 text-cyan-600" },
+    { id: "buffet", name: "Buffet", icon: <Utensils size={20}/>, color: "bg-emerald-100 text-emerald-600" },
+    { id: "pizza", name: "Pizza", icon: <Pizza size={20}/>, color: "bg-rose-100 text-rose-600" },
+    { id: "an-vat", name: "Ăn vặt", icon: <Cherry size={20}/>, color: "bg-pink-100 text-pink-600" },
+    { id: "nhau", name: "Quán nhậu", icon: <Beer size={20}/>, color: "bg-purple-100 text-purple-600" },
   ];
 
-  // ===== FETCH DATA TỪ API (backend phân trang + filter) =====
+  // ===== FETCH DATA TỪ API =====
   useEffect(() => {
     fetchRestaurants();
   }, [currentPage, activeCategory, searchTerm]);
@@ -74,164 +75,93 @@ const RestaurantsPage = () => {
     }
   };
 
-  // ===== HANDLE CATEGORY CLICK =====
   const handleCategoryClick = (categoryName) => {
     setActiveCategory(categoryName);
     setCurrentPage(1);
     window.scrollTo({ top: 300, behavior: "smooth" });
   };
 
-  // ===== TÍNH RANGE PHÂN TRANG (1 ... 5 6 7 ... 24) =====
   const getPaginationRange = () => {
     const range = [];
     const total = totalPages;
     const current = currentPage;
 
     if (total <= 7) {
-      // Ít trang thì show hết
       for (let i = 1; i <= total; i++) range.push(i);
       return range;
     }
 
-    // luôn có trang 1
     range.push(1);
-
     const left = Math.max(2, current - 1);
     const right = Math.min(total - 1, current + 1);
 
-    // Ellipsis bên trái
-    if (left > 2) {
-      range.push("left-ellipsis");
-    }
-
-    // Các trang ở giữa (gần current)
-    for (let i = left; i <= right; i++) {
-      range.push(i);
-    }
-
-    // Ellipsis bên phải
-    if (right < total - 1) {
-      range.push("right-ellipsis");
-    }
-
-    // luôn có trang cuối
+    if (left > 2) range.push("left-ellipsis");
+    for (let i = left; i <= right; i++) range.push(i);
+    if (right < total - 1) range.push("right-ellipsis");
     range.push(total);
 
     return range;
   };
 
-  // ===== RENDER =====
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* ===== BANNER SECTION ===== */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          padding: "60px 0",
-          color: "#fff",
-        }}
-      >
-        <div className="container" style={{ textAlign: "center" }}>
-          <h1
-            style={{
-              fontSize: "42px",
-              fontWeight: "800",
-              marginBottom: "15px",
-            }}
-          >
-            Khám phá Nhà hàng 🍽️
+      {/* ===== HERO BANNER ===== */}
+      <div className="relative bg-gradient-to-r from-orange-500 via-amber-500 to-orange-400 py-16 md:py-24 overflow-hidden">
+        {/* Decorative Circles - subtle pattern */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
+        <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-white/5 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+        
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg">
+            Khám phá Nhà hàng
           </h1>
-          <p style={{ fontSize: "18px", opacity: 0.95, marginBottom: "30px" }}>
+          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Tìm kiếm và trải nghiệm hàng nghìn quán ăn ngon tại TP.HCM
           </p>
 
           {/* Search bar */}
-          <div
-            style={{
-              maxWidth: "600px",
-              margin: "0 auto",
-              position: "relative",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Tìm kiếm nhà hàng, món ăn..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: "100%",
-                padding: "18px 25px",
-                paddingRight: "60px",
-                borderRadius: "50px",
-                border: "none",
-                fontSize: "16px",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                outline: "none",
-              }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                right: "25px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: "24px",
-                cursor: "pointer",
-              }}
-            >
-              🔍
-            </span>
+          <div className="max-w-2xl mx-auto relative">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Tìm kiếm nhà hàng, món ăn..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full py-4 px-6 pr-14 rounded-full border-none text-lg shadow-2xl focus:outline-none focus:ring-4 focus:ring-orange-300/50 transition-all"
+              />
+              <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                <Search size={24} className="text-orange-500" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ===== CATEGORY FILTER SECTION ===== */}
-      <div
-        style={{
-          background: "#fff",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          padding: "20px 0",
-        }}
-      >
-        <div className="container">
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              overflowX: "auto",
-              padding: "10px 0",
-              scrollbarWidth: "none",
-            }}
-          >
+      {/* ===== CATEGORY FILTER ===== */}
+      <div className="sticky top-0 z-40 bg-white shadow-md">
+        <div className="container mx-auto px-4">
+          <div className="flex gap-3 py-4 overflow-x-auto scrollbar-hide">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.name)}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: "25px",
-                  border:
-                    activeCategory === cat.name
-                      ? `3px solid ${cat.color}`
-                      : "2px solid #eee",
-                  background: activeCategory === cat.name ? cat.color : "#fff",
-                  color: activeCategory === cat.name ? "#fff" : "#333",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  whiteSpace: "nowrap",
-                  transition: "all 0.3s ease",
-                }}
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all border-2 ${
+                  activeCategory === cat.name
+                    ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-200"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50"
+                }`}
               >
-                <span style={{ fontSize: "20px" }}>{cat.icon}</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  activeCategory === cat.name ? "bg-white/20" : cat.color
+                }`}>
+                  {cat.icon}
+                </div>
                 {cat.name}
               </button>
             ))}
@@ -240,28 +170,20 @@ const RestaurantsPage = () => {
       </div>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="container" style={{ padding: "40px 20px" }}>
+      <main className="container mx-auto px-4 py-8">
         {/* Info bar */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "30px",
-            padding: "15px 20px",
-            background: "#f8f9fa",
-            borderRadius: "10px",
-          }}
-        >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 p-5 bg-white rounded-2xl shadow-sm border border-gray-100">
           <div>
-            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#333" }}>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Utensils size={20} className="text-orange-500" />
               {activeCategory === "Tất cả"
                 ? "Tất cả nhà hàng"
                 : `Danh mục: ${activeCategory}`}
             </h2>
-            <p style={{ color: "#666", fontSize: "14px" }}>
-              Tìm thấy <strong>{totalResults}</strong> kết quả — Trang{" "}
-              <strong>{currentPage}</strong> / {totalPages}
+            <p className="text-gray-500 text-sm mt-1">
+              Tìm thấy <strong className="text-orange-600">{totalResults}</strong> kết quả 
+              <span className="mx-2">•</span>
+              Trang <strong>{currentPage}</strong> / {totalPages}
             </p>
           </div>
 
@@ -271,36 +193,19 @@ const RestaurantsPage = () => {
                 setSearchTerm("");
                 setCurrentPage(1);
               }}
-              style={{
-                padding: "8px 16px",
-                background: "#667eea",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "14px",
-              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
             >
-              ✕ Xóa tìm kiếm
+              <X size={16} />
+              Xóa tìm kiếm "{searchTerm}"
             </button>
           )}
         </div>
 
         {/* ===== LOADING ===== */}
         {loading && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div
-              style={{
-                width: "60px",
-                height: "60px",
-                border: "6px solid #f3f3f3",
-                borderTop: "6px solid #667eea",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-                margin: "0 auto 20px",
-              }}
-            ></div>
-            <p style={{ fontSize: "18px", color: "#666" }}>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-6"></div>
+            <p className="text-lg text-gray-600 font-medium">
               Đang tải danh sách nhà hàng...
             </p>
           </div>
@@ -308,121 +213,83 @@ const RestaurantsPage = () => {
 
         {/* ===== ERROR ===== */}
         {error && !loading && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "40px 20px",
-              background: "#fff3cd",
-              borderRadius: "10px",
-              border: "2px solid #ffc107",
-            }}
-          >
-            <p style={{ fontSize: "24px" }}>⚠️</p>
-            <p style={{ fontSize: "16px", color: "#856404" }}>
-              Không thể tải dữ liệu từ server
-            </p>
-            <p style={{ fontSize: "14px", color: "#856404" }}>{error}</p>
+          <div className="text-center py-16 px-6 bg-amber-50 rounded-2xl border-2 border-amber-200">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-amber-800 mb-2">Không thể tải dữ liệu</h3>
+            <p className="text-amber-700">{error}</p>
+            <button 
+              onClick={fetchRestaurants}
+              className="mt-6 px-6 py-2 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition-colors"
+            >
+              Thử lại
+            </button>
           </div>
         )}
 
         {/* ===== RESTAURANTS GRID ===== */}
         {!loading && restaurants.length > 0 && (
           <>
-            <div
-              className="card-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: "25px",
-                marginTop: "20px",
-              }}
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {restaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant._id} restaurant={restaurant} />
               ))}
             </div>
 
             {/* Pagination */}
-            <div
-              style={{
-                marginTop: "30px",
-                display: "flex",
-                justifyContent: "center",
-                gap: "8px",
-                flexWrap: "wrap",
-              }}
-            >
-              {/* Nút Trước */}
+            <div className="mt-12 flex justify-center items-center gap-2 flex-wrap">
+              {/* Previous Button */}
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  background: currentPage === 1 ? "#eee" : "#fff",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                }}
+                className={`flex items-center gap-1 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border border-gray-200 hover:bg-orange-50 hover:border-orange-300"
+                }`}
               >
-                ⬅ Trước
+                <ChevronLeft size={18} />
+                Trước
               </button>
 
-              {/* Các số trang + '...' */}
-              {getPaginationRange().map((item, index) => {
-                if (typeof item === "string") {
+              {/* Page Numbers */}
+              <div className="flex gap-1">
+                {getPaginationRange().map((item, index) => {
+                  if (typeof item === "string") {
+                    return (
+                      <span key={item + index} className="px-3 py-2 text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+
                   return (
-                    <span
-                      key={item + index}
-                      style={{
-                        padding: "8px 10px",
-                        borderRadius: "6px",
-                        color: "#666",
-                      }}
+                    <button
+                      key={item}
+                      onClick={() => setCurrentPage(item)}
+                      className={`min-w-[40px] h-10 rounded-lg font-semibold transition-all ${
+                        currentPage === item
+                          ? "bg-orange-500 text-white shadow-lg shadow-orange-200"
+                          : "bg-white text-gray-700 border border-gray-200 hover:bg-orange-50 hover:border-orange-300"
+                      }`}
                     >
-                      ...
-                    </span>
+                      {item}
+                    </button>
                   );
-                }
+                })}
+              </div>
 
-                const page = item;
-                return (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border:
-                        currentPage === page
-                          ? "2px solid #667eea"
-                          : "1px solid #ddd",
-                      background: currentPage === page ? "#667eea" : "#fff",
-                      color: currentPage === page ? "#fff" : "#333",
-                      cursor: "pointer",
-                      minWidth: "36px",
-                    }}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-
-              {/* Nút Sau */}
+              {/* Next Button */}
               <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  background: currentPage === totalPages ? "#eee" : "#fff",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                }}
+                className={`flex items-center gap-1 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentPage === totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border border-gray-200 hover:bg-orange-50 hover:border-orange-300"
+                }`}
               >
-                Sau ➡
+                Sau
+                <ChevronRight size={18} />
               </button>
             </div>
           </>
@@ -430,22 +297,21 @@ const RestaurantsPage = () => {
 
         {/* ===== NO RESULTS ===== */}
         {!loading && restaurants.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <p style={{ fontSize: "60px" }}>🔍</p>
-            <h3 style={{ fontSize: "24px" }}>Không tìm thấy kết quả</h3>
+          <div className="text-center py-20">
+            <div className="text-7xl mb-6">🔍</div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Không tìm thấy kết quả</h3>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Thử tìm kiếm với từ khóa khác hoặc xem tất cả nhà hàng
+            </p>
             <button
               onClick={() => {
                 setActiveCategory("Tất cả");
                 setSearchTerm("");
                 setCurrentPage(1);
               }}
-              style={{
-                padding: "12px 24px",
-                background: "#667eea",
-                color: "#fff",
-                borderRadius: "8px",
-              }}
+              className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-full hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg"
             >
+              <Utensils size={20} />
               Xem tất cả nhà hàng
             </button>
           </div>
@@ -453,13 +319,6 @@ const RestaurantsPage = () => {
       </main>
 
       <Footer />
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
