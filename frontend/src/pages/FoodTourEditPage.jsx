@@ -1,8 +1,7 @@
-// src/pages/FoodTourPage.jsx
-// Trang tạo Food Tour mới - UI giống FoodTourEditPage
+// src/pages/FoodTourEditPage.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Save, MapPin, Search } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Plus, Save, Trash2, RefreshCw, MapPin } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -10,11 +9,13 @@ import TourBuilder from "../components/foodtour/TourBuilder";
 import api from "../config/api";
 import { useAuth } from "../context/AuthContext";
 
-const FoodTourPage = () => {
+const FoodTourEditPage = () => {
+  const { tourId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
   // Tour data states
+  const [tour, setTour] = useState(null);
   const [tourName, setTourName] = useState("");
   const [tourItems, setTourItems] = useState({
     unsorted: [],
@@ -25,15 +26,55 @@ const FoodTourPage = () => {
   });
 
   // UI states
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Load tour on mount
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    loadTour();
+    // Check for pending items from AdvancedSearchPage
+    loadPendingItems();
+  }, [tourId, user]);
+
+  const loadTour = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const res = await api.get(`/food-tours/${tourId}`);
+      
+      if (res.success && res.tour) {
+        setTour(res.tour);
+        setTourName(res.tour.name || "");
+        
+        // Map tourItems from API - handle both old and new formats
+        const items = res.tour.tourItems || {};
+        setTourItems({
+          unsorted: items.unsorted || [],
+          morning: items.morning || [],
+          lunch: items.lunch || items.noon || [], // Support 'noon' from old FoodTourPage
+          afternoon: items.afternoon || [],
+          dinner: items.dinner || items.evening || [], // Support 'evening' from old format
+        });
+      } else {
+        setError("Không tìm thấy tour");
+      }
+    } catch (err) {
+      console.error("Load tour error:", err);
+      setError("Lỗi tải tour: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load pending items from localStorage (from AdvancedSearchPage)
-  useEffect(() => {
-    loadPendingItems();
-  }, []);
-
   const loadPendingItems = () => {
     try {
       const pendingData = localStorage.getItem("pendingTourItems");
@@ -51,8 +92,9 @@ const FoodTourPage = () => {
             unsorted: [...prev.unsorted, ...itemsWithIds]
           }));
           
+          setHasChanges(true);
           setMessage(`✅ Đã thêm ${pendingItems.length} quán mới vào tour`);
-          setTimeout(() => setMessage(""), 5000);
+          setTimeout(() => setMessage(""), 3000);
           
           // Clear pending items
           localStorage.removeItem("pendingTourItems");
@@ -76,7 +118,7 @@ const FoodTourPage = () => {
 
   // Drag handlers
   const handleDragStart = (event) => {
-    // Nothing special needed for create mode
+    setHasChanges(true);
   };
 
   const handleDragOver = (event) => {
@@ -157,6 +199,7 @@ const FoodTourPage = () => {
       });
       return next;
     });
+    setHasChanges(true);
   };
 
   // Calculate total restaurants
@@ -170,21 +213,10 @@ const FoodTourPage = () => {
     );
   };
 
-  // Save new tour
+  // Save tour changes
   const handleSave = async () => {
-    if (!user) {
-      setError("Vui lòng đăng nhập để lưu tour");
-      navigate("/login");
-      return;
-    }
-
     if (!tourName.trim()) {
       setError("Vui lòng nhập tên tour");
-      return;
-    }
-
-    if (calculateTotal() === 0) {
-      setError("Tour chưa có địa điểm nào! Hãy thêm quán từ trang tìm kiếm.");
       return;
     }
 
@@ -199,14 +231,12 @@ const FoodTourPage = () => {
         totalRestaurants: calculateTotal()
       };
 
-      const res = await api.post("/food-tours", payload);
+      const res = await api.put(`/food-tours/${tourId}`, payload);
 
       if (res.success) {
-        setMessage("✅ Đã lưu Food Tour thành công!");
-        // Navigate to edit page for the new tour
-        setTimeout(() => {
-          navigate(`/food-tour/${res.tour._id}`);
-        }, 1500);
+        setMessage("✅ Đã lưu thay đổi thành công!");
+        setHasChanges(false);
+        setTimeout(() => setMessage(""), 3000);
       } else {
         setError(res.message || "Lưu thất bại");
       }
@@ -218,10 +248,70 @@ const FoodTourPage = () => {
     }
   };
 
-  // Navigate to AdvancedSearchPage to add restaurants
-  const handleAddRestaurants = () => {
-    navigate("/search-advanced?addToTour=new");
+  // Delete tour
+  const handleDelete = async () => {
+    if (!window.confirm("Bạn có chắc muốn xóa tour này? Hành động này không thể hoàn tác.")) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/food-tours/${tourId}`);
+      if (res.success) {
+        navigate("/profile", { state: { message: "Đã xóa tour thành công" } });
+      } else {
+        setError("Xóa tour thất bại");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError("Lỗi khi xóa tour");
+    }
   };
+
+  // Navigate to AdvancedSearchPage to add more restaurants
+  const handleAddRestaurants = () => {
+    // Save current state to localStorage if there are changes
+    if (hasChanges) {
+      if (!window.confirm("Bạn có thay đổi chưa lưu. Tiếp tục sẽ mất các thay đổi. Lưu trước?")) {
+        handleSave();
+      }
+    }
+    navigate(`/search-advanced?addToTour=${tourId}`);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Đang tải tour...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !tour) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <p className="text-red-500 text-lg mb-4">{error}</p>
+          <button
+            onClick={() => navigate("/profile")}
+            className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            Quay về Profile
+          </button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -233,28 +323,42 @@ const FoodTourPage = () => {
           {/* Back Button + Title */}
           <div>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/profile")}
               className="flex items-center gap-2 text-gray-600 hover:text-orange-600 mb-2 transition-colors"
             >
               <ArrowLeft size={20} />
-              <span className="font-semibold">Quay về Trang chủ</span>
+              <span className="font-semibold">Quay về Profile</span>
             </button>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-              🗺️ Tạo Food Tour mới
+              Chỉnh sửa Food Tour
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Thêm nhà hàng từ trang tìm kiếm, sau đó kéo thả để sắp xếp theo các buổi trong ngày
+              Kéo thả để sắp xếp, thêm hoặc xóa nhà hàng trong tour
             </p>
           </div>
 
-          {/* Action Button */}
+          {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleAddRestaurants}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
             >
-              <Search size={18} />
-              Tìm quán để thêm
+              <Plus size={18} />
+              Thêm quán mới
+            </button>
+            <button
+              onClick={loadTour}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              title="Tải lại dữ liệu gốc"
+            >
+              <RefreshCw size={18} />
+            </button>
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 size={18} />
+              Xóa tour
             </button>
           </div>
         </div>
@@ -287,72 +391,67 @@ const FoodTourPage = () => {
           ))}
         </div>
 
-        {/* Empty State - Guide user to add restaurants */}
-        {calculateTotal() === 0 && (
-          <div className="mb-6 p-8 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-center">
-            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus size={40} className="text-orange-500" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Bắt đầu tạo Food Tour</h3>
-            <p className="text-gray-500 mb-4 max-w-md mx-auto">
-              Click nút bên dưới để tìm kiếm và thêm các nhà hàng vào tour của bạn.
-              Sau đó kéo thả để sắp xếp theo buổi sáng, trưa, chiều, tối.
-            </p>
+        {/* Unsaved Changes Warning */}
+        {hasChanges && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl flex items-center justify-between">
+            <span>⚠️ Bạn có thay đổi chưa lưu</span>
             <button
-              onClick={handleAddRestaurants}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-semibold disabled:opacity-50"
             >
-              <Search size={20} />
-              Tìm nhà hàng để thêm
+              {saving ? "Đang lưu..." : "Lưu ngay"}
             </button>
           </div>
         )}
 
-        {/* TourBuilder Component - Only show when there are items */}
-        {calculateTotal() > 0 && (
-          <TourBuilder
-            tourItems={tourItems}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            onRemove={handleRemove}
-            tourName={tourName}
-            setTourName={setTourName}
-            onSave={handleSave}
-            isSaving={saving}
-          />
-        )}
+        {/* TourBuilder Component */}
+        <TourBuilder
+          tourItems={tourItems}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onRemove={handleRemove}
+          tourName={tourName}
+          setTourName={(name) => {
+            setTourName(name);
+            setHasChanges(true);
+          }}
+          onSave={handleSave}
+          isSaving={saving}
+        />
 
-        {/* Bottom Save Bar (Fixed) - Only show when there are items */}
-        {calculateTotal() > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
-            <div className="container mx-auto flex justify-between items-center">
-              <div className="flex items-center gap-2 text-gray-600">
-                <MapPin size={18} className="text-orange-500" />
-                <span className="font-semibold">{calculateTotal()} địa điểm</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate("/")}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !user}
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg disabled:opacity-50"
-                >
-                  <Save size={18} />
-                  {saving ? "Đang lưu..." : "Lưu Food Tour"}
-                </button>
-              </div>
+        {/* Bottom Save Bar (Fixed) */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
+          <div className="container mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-2 text-gray-600">
+              <MapPin size={18} className="text-orange-500" />
+              <span className="font-semibold">{calculateTotal()} địa điểm</span>
+              {hasChanges && (
+                <span className="text-amber-500 text-sm">(chưa lưu)</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate("/profile")}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg disabled:opacity-50"
+              >
+                <Save size={18} />
+                {saving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Spacer for fixed bottom bar */}
-        {calculateTotal() > 0 && <div className="h-24"></div>}
+        <div className="h-24"></div>
       </div>
 
       <Footer />
@@ -360,4 +459,4 @@ const FoodTourPage = () => {
   );
 };
 
-export default FoodTourPage;
+export default FoodTourEditPage;

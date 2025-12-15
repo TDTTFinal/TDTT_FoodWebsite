@@ -5,6 +5,8 @@ import { useAuth } from "./context/AuthContext";
 import "leaflet/dist/leaflet.css";
 import "./map/leafletFix";
 import FoodTourPage from "./pages/FoodTourPage";
+import FoodTourEditPage from "./pages/FoodTourEditPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import "./App.css";
 import HomePage from "./pages/HomePage"; // 🔁 Dùng làm trang chủ duy nhất
@@ -70,7 +72,12 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/search-advanced" element={<AdvancedSearchPage />} />
 
-      <Route path="/food-tour" element={<FoodTourPage />} />
+      <Route path="/food-tour" element={<ErrorBoundary><FoodTourPage /></ErrorBoundary>} />
+      <Route path="/food-tour/:tourId" element={
+        <ErrorBoundary>
+          <FoodTourEditPage />
+        </ErrorBoundary>
+      } />
 
       {/* Route 404 (Nếu người dùng gõ link bậy bạ) */}
       <Route path="*" element={<Navigate to="/" />} />

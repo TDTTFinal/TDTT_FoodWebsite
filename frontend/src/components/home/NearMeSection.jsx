@@ -11,23 +11,50 @@ const NearMeSection = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Set timeout for geolocation - if takes too long, use default HCM location
+    const geoTimeout = setTimeout(() => {
+      console.log("Geolocation timeout - using default HCM location");
+      const defaultLat = 10.762622;
+      const defaultLon = 106.660172;
+      setLocation({ lat: defaultLat, lon: defaultLon });
+      fetchNearby(defaultLat, defaultLon);
+    }, 5000); // 5 second timeout
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          clearTimeout(geoTimeout);
           const { latitude, longitude } = position.coords;
+          console.log("Got user location:", latitude, longitude);
           setLocation({ lat: latitude, lon: longitude });
           fetchNearby(latitude, longitude);
         },
         (err) => {
+          clearTimeout(geoTimeout);
           console.error("Geo error:", err);
-          setError("Không thể lấy vị trí của bạn.");
-          setLoading(false);
+          // Use default HCM center as fallback
+          console.log("Using fallback HCM location");
+          const defaultLat = 10.762622;
+          const defaultLon = 106.660172;
+          setLocation({ lat: defaultLat, lon: defaultLon });
+          fetchNearby(defaultLat, defaultLon);
+        },
+        {
+          timeout: 5000,
+          maximumAge: 300000, // 5 minutes cache
+          enableHighAccuracy: false
         }
       );
     } else {
-      setError("Trình duyệt không hỗ trợ Geolocation.");
-      setLoading(false);
+      clearTimeout(geoTimeout);
+      // Fallback to HCM center
+      const defaultLat = 10.762622;
+      const defaultLon = 106.660172;
+      setLocation({ lat: defaultLat, lon: defaultLon });
+      fetchNearby(defaultLat, defaultLon);
     }
+
+    return () => clearTimeout(geoTimeout);
   }, []);
 
   const fetchNearby = async (lat, lon) => {
