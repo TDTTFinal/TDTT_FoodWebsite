@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Sparkles, Hand } from "lucide-react";
+import { Search, Filter, MapPin, RotateCcw, ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Sparkles, Hand, Save } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
@@ -47,6 +47,10 @@ const AdvancedSearchPage = () => {
   const [nlRoutes, setNlRoutes] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  
+  // External Tour Edit Mode (from /food-tour/:tourId)
+  const [addingToTourId, setAddingToTourId] = useState(null);
+  const [pendingAddItems, setPendingAddItems] = useState([]);
 
   // Filter States
   const [filters, setFilters] = useState({
@@ -88,12 +92,18 @@ const AdvancedSearchPage = () => {
 
   const generateId = () => "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
 
-  // Check if restaurant is already in tour
+  // Check if restaurant is already in tour (local or pending)
   const isInTour = (restaurantId) => {
+    // Check local tourItems
     const allSlots = Object.values(tourItems);
-    return allSlots.some(slot => 
+    const inLocalTour = allSlots.some(slot => 
       slot.some(item => item._id === restaurantId)
     );
+    
+    // Also check pending items (for external tour mode)
+    const inPending = pendingAddItems.some(item => item._id === restaurantId);
+    
+    return inLocalTour || inPending;
   };
 
   const handleAddToTour = (restaurant) => {
@@ -102,6 +112,17 @@ const AdvancedSearchPage = () => {
       return;
     }
     
+    // If in external tour edit mode, add to pending list
+    if (addingToTourId) {
+      // Check if already pending
+      const alreadyPending = pendingAddItems.some(item => item._id === restaurant._id);
+      if (alreadyPending) return;
+      
+      setPendingAddItems(prev => [...prev, restaurant]);
+      return;
+    }
+    
+    // Normal mode - add to local tourItems
     setTourItems((prev) => {
       const newItem = { ...restaurant, cartId: generateId() };
       return {
@@ -109,6 +130,35 @@ const AdvancedSearchPage = () => {
         unsorted: [...prev.unsorted, newItem],
       };
     });
+  };
+  
+  // Handle confirming and returning to tour edit page
+  const handleConfirmAndReturn = () => {
+    if (pendingAddItems.length === 0) {
+      alert('Chưa chọn quán nào!');
+      return;
+    }
+    
+    // Save to localStorage for FoodTourPage/FoodTourEditPage to pick up
+    localStorage.setItem('pendingTourItems', JSON.stringify(pendingAddItems));
+    
+    // Navigate back - handle "new" case (creating new tour)
+    if (addingToTourId === 'new') {
+      navigate('/food-tour');
+    } else {
+      navigate(`/food-tour/${addingToTourId}`);
+    }
+  };
+  
+  // Cancel and return without adding
+  const handleCancelReturn = () => {
+    setPendingAddItems([]);
+    // Navigate back - handle "new" case
+    if (addingToTourId === 'new') {
+      navigate('/food-tour');
+    } else {
+      navigate(`/food-tour/${addingToTourId}`);
+    }
   };
 
   const handleRemoveFromTour = (itemId) => {
@@ -977,7 +1027,13 @@ const AdvancedSearchPage = () => {
         const filtered = applyFilters(response.data);
         setFilteredRestaurants(filtered);
 
-        setSearchParams({ q: trimmedKeyword });
+        // Preserve addToTour param when updating URL
+        const newParams = { q: trimmedKeyword };
+        const addToTourParam = searchParams.get("addToTour");
+        if (addToTourParam) {
+          newParams.addToTour = addToTourParam;
+        }
+        setSearchParams(newParams);
       } else {
         throw new Error("Invalid response format");
       }
@@ -1077,6 +1133,17 @@ const AdvancedSearchPage = () => {
   // ==========================================
   // EFFECTS
   // ==========================================
+
+  // Check if coming from tour edit page
+  useEffect(() => {
+    const tourIdParam = searchParams.get("addToTour");
+    if (tourIdParam) {
+      setAddingToTourId(tourIdParam);
+    } else {
+      setAddingToTourId(null);
+      setPendingAddItems([]);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const queryParam = searchParams.get("q");
@@ -1472,6 +1539,47 @@ const AdvancedSearchPage = () => {
         weather={weatherWarning.weather}
         message={weatherWarning.message}
       />
+
+      {/* Floating Action Bar when adding to external tour */}
+      {addingToTourId && (
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-2xl z-50">
+          <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <Plus size={20} />
+              </div>
+              <div>
+                <p className="font-bold">Đang thêm quán vào Tour</p>
+                <p className="text-sm text-white/80">
+                  {pendingAddItems.length > 0 
+                    ? `Đã chọn ${pendingAddItems.length} quán: ${pendingAddItems.map(r => r.name).join(', ').slice(0, 50)}${pendingAddItems.map(r => r.name).join(', ').length > 50 ? '...' : ''}`
+                    : 'Chọn quán bằng cách click "Thêm vào Tour"'
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancelReturn}
+                className="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmAndReturn}
+                disabled={pendingAddItems.length === 0}
+                className="px-6 py-2 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Save size={18} />
+                Xác nhận ({pendingAddItems.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Spacer for floating bar */}
+      {addingToTourId && <div className="h-20"></div>}
 
       <Footer />
     </div>

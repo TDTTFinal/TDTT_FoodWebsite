@@ -592,10 +592,16 @@ const ProfilePage = () => {
                   ) : (
                     <div className="grid grid-cols-1 gap-6">
                       {foodTours.map((tour) => (
-                        <div key={tour._id} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all bg-white">
+                        <div 
+                          key={tour._id} 
+                          className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-orange-200 transition-all bg-white cursor-pointer group"
+                          onClick={() => navigate(`/food-tour/${tour._id}`)}
+                        >
                           <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">{tour.name}</h4>
+                            <div className="flex-1">
+                              <h4 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">
+                                {tour.name}
+                              </h4>
                               <p className="text-sm text-gray-500 mb-3">{tour.description}</p>
                               <div className="flex gap-4 text-sm text-gray-600">
                                 <span className="flex items-center gap-1">
@@ -608,7 +614,16 @@ const ProfilePage = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                              {/* Nút Xem/Sửa */}
+                              <button 
+                                onClick={() => navigate(`/food-tour/${tour._id}`)}
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Xem/Chỉnh sửa tour"
+                              >
+                                <Edit size={20} />
+                              </button>
+                              {/* Nút Xóa */}
                               <button 
                                 onClick={async () => {
                                   if(!window.confirm('Bạn có chắc muốn xóa tour này?')) return;
@@ -627,9 +642,14 @@ const ProfilePage = () => {
                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Xóa tour"
                               >
-                                <LogOut size={20} /> {/* Using LogOut icon as delete/remove icon temporary or import Trash */}
+                                <LogOut size={20} />
                               </button>
                             </div>
+                          </div>
+                          {/* Click hint */}
+                          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronRight size={14} />
+                            Click để xem và chỉnh sửa tour
                           </div>
                         </div>
                       ))}

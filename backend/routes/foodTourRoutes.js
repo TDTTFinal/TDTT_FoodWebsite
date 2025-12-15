@@ -65,4 +65,39 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/food-tours/:id (Cập nhật tour)
+router.put("/:id", authMiddleware, async (req, res) => {
+  try {
+    const { name, description, tourItems, totalRestaurants } = req.body;
+    
+    const tour = await FoodTour.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
+      { 
+        name, 
+        description, 
+        tourItems, 
+        totalRestaurants,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!tour) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy tour để cập nhật" 
+      });
+    }
+    
+    console.log("✅ Updated tour:", tour._id);
+    res.json({ success: true, tour });
+  } catch (err) {
+    console.error("Lỗi cập nhật tour:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi khi cập nhật tour" 
+    });
+  }
+});
+
 module.exports = router;
