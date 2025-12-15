@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, TrendingUp, Navigation } from 'lucide-react';
+import { MapPin, TrendingUp, Navigation, Clock } from 'lucide-react';
 
 const RoutesDisplay = ({ routes, onApplyRoute }) => {
   if (!routes || routes.length === 0) {
@@ -22,10 +22,17 @@ const RoutesDisplay = ({ routes, onApplyRoute }) => {
             {/* Route Header */}
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-bold text-gray-800">{route.route_id.replace('_', ' ').toUpperCase()}</h4>
-              <div className="flex gap-2">
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full">
-                  {route.total_distance?.toFixed(2) || 0} km
+              <div className="flex gap-2 flex-wrap">
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full flex items-center gap-1">
+                  <Navigation size={10} />
+                  {route.total_distance?.toFixed(1) || 0} km
                 </span>
+                {route.total_duration && (
+                  <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-xs font-semibold rounded-full flex items-center gap-1">
+                    <Clock size={10} />
+                    {Math.round(route.total_duration)} phút
+                  </span>
+                )}
                 {route.total_score !== undefined && (
                   <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs font-semibold rounded-full flex items-center gap-1">
                     <TrendingUp size={10} />

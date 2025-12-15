@@ -2,13 +2,16 @@ import React, { useState, useEffect } from "react";
 import api from "../../config/api";
 import RestaurantCard from "../RestaurantCard";
 import SkeletonCard from "../SkeletonCard";
-import { MapPin } from "lucide-react";
+import { MapPin, Navigation } from "lucide-react";
+import { getDistanceMatrix, getHaversineDistance } from "../../services/osrmService";
 
 const NearMeSection = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
+  const [roadDistances, setRoadDistances] = useState({});
+  const [useRoadDistance, setUseRoadDistance] = useState(true); // Toggle for distance type
 
   useEffect(() => {
     // Set timeout for geolocation - if takes too long, use default HCM location
@@ -62,7 +65,13 @@ const NearMeSection = () => {
       const res = await api.get("/restaurants/nearby", {
         params: { lat, lon, radius: 5000 },
       });
-      setRestaurants(res.data || []);
+      const fetchedRestaurants = res.data || [];
+      setRestaurants(fetchedRestaurants);
+      
+      // Fetch road distances asynchronously
+      if (fetchedRestaurants.length > 0) {
+        fetchRoadDistances({ lat, lon }, fetchedRestaurants);
+      }
     } catch (err) {
       console.error("Fetch nearby error:", err);
     } finally {
@@ -70,20 +79,51 @@ const NearMeSection = () => {
     }
   };
 
-  // Haversine formula
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  // Fetch road distances using OSRM
+  const fetchRoadDistances = async (origin, restaurantList) => {
+    try {
+      const destinations = restaurantList.map(r => ({
+        lat: r.location?.coordinates?.[1] || r.lat,
+        lon: r.location?.coordinates?.[0] || r.lon,
+      }));
+
+      const distances = await getDistanceMatrix(origin, destinations);
+      
+      const distanceMap = {};
+      restaurantList.forEach((r, i) => {
+        if (distances[i]?.distance !== null) {
+          distanceMap[r._id] = {
+            distance: distances[i].distance,
+            duration: distances[i].duration
+          };
+        }
+      });
+      
+      setRoadDistances(distanceMap);
+    } catch (err) {
+      console.error("Road distance fetch error:", err);
+    }
+  };
+
+  // Haversine formula (fallback)
+  const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return (R * c).toFixed(1); // Return string "1.5"
+    return getHaversineDistance(lat1, lon1, lat2, lon2).toFixed(1);
+  };
+
+  // Get distance for a restaurant
+  const getDistance = (restaurant) => {
+    if (!location) return null;
+    
+    // Use road distance if available and enabled
+    if (useRoadDistance && roadDistances[restaurant._id]) {
+      return roadDistances[restaurant._id].distance.toFixed(1);
+    }
+    
+    // Fallback to Haversine
+    const lat = restaurant.location?.coordinates?.[1];
+    const lon = restaurant.location?.coordinates?.[0];
+    return calculateHaversineDistance(location.lat, location.lon, lat, lon);
   };
 
   if (error) {
@@ -104,14 +144,30 @@ const NearMeSection = () => {
   return (
     <section className="py-8 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="flex items-center gap-2 mb-6">
-          <MapPin className="text-red-500" />
-          <h2 className="text-2xl font-bold text-gray-800">Gần bạn nhất</h2>
-          {location && (
-            <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded shadow-sm">
-              Trong bán kính 5km
-            </span>
-          )}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <MapPin className="text-red-500" />
+            <h2 className="text-2xl font-bold text-gray-800">Gần bạn nhất</h2>
+            {location && (
+              <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded shadow-sm">
+                Trong bán kính 5km
+              </span>
+            )}
+          </div>
+          
+          {/* Distance type toggle */}
+          <button
+            onClick={() => setUseRoadDistance(!useRoadDistance)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
+              useRoadDistance 
+                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                : 'bg-gray-100 text-gray-600 border border-gray-200'
+            }`}
+            title={useRoadDistance ? "Đang hiển thị khoảng cách đường đi" : "Đang hiển thị đường chim bay"}
+          >
+            <Navigation size={12} className={useRoadDistance ? 'text-blue-500' : 'text-gray-400'} />
+            {useRoadDistance ? 'Đường đi' : 'Đường thẳng'}
+          </button>
         </div>
 
         <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
@@ -122,19 +178,16 @@ const NearMeSection = () => {
                 </div>
               ))
             : restaurants.map((res) => {
-                const dist =
-                  location &&
-                  res.location?.coordinates
-                    ? calculateDistance(
-                        location.lat,
-                        location.lon,
-                        res.location.coordinates[1], // Mongo: [lon, lat] -> [1] is lat
-                        res.location.coordinates[0]
-                      )
-                    : null;
+                const dist = getDistance(res);
+                const roadData = roadDistances[res._id];
                 
                 // Clone object to inject distance without mutating state deeply
-                const resWithDistance = { ...res, distance: dist };
+                const resWithDistance = { 
+                  ...res, 
+                  distance: dist,
+                  // Add road duration if available
+                  roadDuration: roadData?.duration 
+                };
 
                 return (
                   <div key={res._id} className="min-w-[280px] w-[280px] snap-center">
