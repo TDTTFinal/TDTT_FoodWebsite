@@ -11,6 +11,7 @@ npm install lucide-react
 npm run dev
 
 cd backend
+npm install mongodb
 npm install
 npm run dev
 

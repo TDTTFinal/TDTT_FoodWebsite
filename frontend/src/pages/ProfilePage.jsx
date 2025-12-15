@@ -93,7 +93,7 @@ const ProfilePage = () => {
       };
       fetchTours();
     }
-  }, [user]);
+  }, [user, user?.avatar]); // Added user?.avatar dependency for avatar updates
 
   // Avatar upload handlers
   const handleAvatarChange = (e) => {
@@ -138,6 +138,9 @@ const ProfilePage = () => {
         setProfile({ ...profile, avatar_url: response.url });
         // Cập nhật vào AuthContext và localStorage
         updateUser({ avatar: response.url });
+        // Debug logging
+        console.log('✅ Avatar updated in profile:', response.url);
+        console.log('👤 User object after update:', user);
         // Tự động ẩn message sau 3s
         setTimeout(() => setMessage(''), 3000);
       } else {

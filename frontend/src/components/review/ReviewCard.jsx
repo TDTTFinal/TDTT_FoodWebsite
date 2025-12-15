@@ -18,9 +18,13 @@ const ReviewCard = ({ review, currentUserId, onLike, onDelete, onEdit }) => {
   
   const avatarUrl = review.isAnonymous 
     ? null 
-    : review.user?.avatar;
+    : (review.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=FF6B35&color=fff&size=200`);
 
   const avatarInitial = userName.charAt(0).toUpperCase();
+
+  // Debug logging
+  console.log('👤 Review user data:', review.user);
+  console.log('🖼️ Avatar URL:', avatarUrl);
 
   // Handle like
   const handleLike = async () => {

@@ -7,19 +7,58 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedAuth = localStorage.getItem("auth");
-    if (storedAuth) {
-      try {
-        const parsedData = JSON.parse(storedAuth);
-        if (parsedData.user && parsedData.token) {
-          setUser(parsedData.user);
+    const initAuth = async () => {
+      const storedAuth = localStorage.getItem("auth");
+      if (storedAuth) {
+        try {
+          const parsedData = JSON.parse(storedAuth);
+          if (parsedData.user && parsedData.token) {
+            // ✅ Fetch fresh user data from MongoDB
+            try {
+              const response = await fetch('http://localhost:5000/api/users/profile', {
+                headers: {
+                  'Authorization': `Bearer ${parsedData.token}`
+                }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.user) {
+                  // Update localStorage with fresh data including avatar
+                  const newAuth = {
+                    user: {
+                      ...parsedData.user,
+                      ...data.user,
+                      _id: data.user._id || parsedData.user.id || parsedData.user._id,
+                      id: data.user._id || parsedData.user.id || parsedData.user._id
+                    },
+                    token: parsedData.token
+                  };
+                  localStorage.setItem("auth", JSON.stringify(newAuth));
+                  setUser(newAuth.user);
+                  console.log('✅ Fresh user data loaded from MongoDB, avatar:', data.user.avatar);
+                } else {
+                  // Fallback to localStorage if API fails
+                  setUser(parsedData.user);
+                }
+              } else {
+                // If token expired or server error, use localStorage data
+                setUser(parsedData.user);
+              }
+            } catch (apiError) {
+              console.warn('⚠️ Failed to fetch fresh user data, using localStorage:', apiError);
+              setUser(parsedData.user);
+            }
+          }
+        } catch (error) {
+          console.error("Lỗi parse auth:", error);
+          localStorage.removeItem("auth");
         }
-      } catch (error) {
-        console.error("Lỗi parse auth:", error);
-        localStorage.removeItem("auth");
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = (userData, token) => {
