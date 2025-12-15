@@ -18,7 +18,7 @@ const ReviewCard = ({ review, currentUserId, onLike, onDelete, onEdit }) => {
   
   const avatarUrl = review.isAnonymous 
     ? null 
-    : review.user?.avatar_url;
+    : review.user?.avatar;
 
   const avatarInitial = userName.charAt(0).toUpperCase();
 

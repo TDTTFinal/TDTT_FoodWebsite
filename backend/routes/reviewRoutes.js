@@ -52,7 +52,7 @@ router.get("/restaurant/:id", async (req, res) => {
       restaurant: id,
       status: "active"
     })
-      .populate("user", "name avatar_url")
+      .populate("user", "name avatar")
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -160,7 +160,7 @@ router.post("/", async (req, res) => {
     }
 
     // Populate user info
-    await review.populate("user", "name avatar_url");
+    await review.populate("user", "name avatar");
 
     res.status(201).json({ success: true, data: review });
   } catch (error) {
@@ -192,7 +192,7 @@ router.put("/:id", async (req, res) => {
     review.isEdited = true;
 
     await review.save();
-    await review.populate("user", "name avatar_url");
+    await review.populate("user", "name avatar");
 
     // Update restaurant avg_rating
     const avgResult = await Review.aggregate([
@@ -255,7 +255,7 @@ router.get("/community", async (req, res) => {
       // rating: { $gte: 7 },
       // images: { $ne: [] }
     })
-      .populate("user", "name avatar_url")
+      .populate("user", "name avatar")
       .populate("restaurant", "name")
       .sort({ createdAt: -1 })
       .limit(8);
@@ -263,7 +263,7 @@ router.get("/community", async (req, res) => {
     const data = reviews.map(r => ({
       _id: r._id,
       user: r.user ? r.user.name : "Người dùng ẩn danh",
-      userAvatar: r.user?.avatar_url,
+      userAvatar: r.user?.avatar,
       restaurant: r.restaurant?._id,
       restaurant_name: r.restaurant?.name || "Nhà hàng",
       rating: r.rating,
