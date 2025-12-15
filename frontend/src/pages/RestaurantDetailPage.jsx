@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import api from "../config/api";
 import { MapPin, Clock, DollarSign, Star, ChevronRight, Utensils, MessageSquare, TrendingUp, Heart, Share2, ExternalLink } from "lucide-react";
+import ReviewSection from "../components/review/ReviewSection";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -337,53 +338,17 @@ const RestaurantDetailPage = () => {
             </div>
 
             {/* Reviews Section */}
-            {restaurant.reviews && restaurant.reviews.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                  <MessageSquare size={22} className="text-orange-500" />
-                  Đánh giá gần đây
-                </h2>
-                <div className="space-y-4">
-                  {restaurant.reviews.map((review, idx) => (
-                    <div
-                      key={idx}
-                      className="p-5 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                            {review.user.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-semibold text-gray-800">{review.user}</span>
-                            <div className="text-xs text-gray-400">{review.date}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 px-3 py-1 bg-orange-100 rounded-full">
-                          <Star size={14} className="text-orange-500" fill="#f97316" />
-                          <span className="font-bold text-orange-600 text-sm">{review.rating}</span>
-                        </div>
-                      </div>
-                      <p className="text-gray-600 text-sm leading-relaxed">{review.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Reviews Section - New Component */}
+            <ReviewSection 
+              restaurantId={restaurant.id} 
+              restaurantName={restaurant.name} 
+            />
           </div>
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
 
-            {/* Write Review Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-2">Chia sẻ trải nghiệm</h3>
-              <p className="text-gray-500 text-sm mb-4">Đánh giá của bạn sẽ giúp ích cho người khác</p>
-              <button className="w-full py-3 border-2 border-orange-500 text-orange-600 font-bold rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2">
-                <MessageSquare size={18} />
-                Viết đánh giá
-              </button>
-            </div>
+
 
             {/* Map Section */}
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
