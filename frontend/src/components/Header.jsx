@@ -34,9 +34,9 @@ const Header = () => {
           <Link to="/search-advanced" className={isActive("/search")}>
             TÌM KIẾM NÂNG CAO
           </Link>
-          {/* <Link to="/explore" className={isActive("/explore")}>
+          <Link to="/explore" className={isActive("/explore")}>
             KHÁM PHÁ
-          </Link> */}
+          </Link>
           <Link to="/history" className={isActive("/history")}>
             LỊCH SỬ
           </Link>
