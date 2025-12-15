@@ -19,7 +19,7 @@ const Footer = () => {
             📞 Hotline: <b style={{color:'#fff'}}>0981 669 020</b>
           </p>
           <p style={{ fontSize: "14px", color: "#ddd" }}>
-            📧 Email: <b style={{color:'#fff'}}>contact@chewz.vn</b>
+            📧 Email: <b style={{color:'#fff'}}>ntson2434@clc.fitus.edu.vn</b>
           </p>
         </div>
       </div>

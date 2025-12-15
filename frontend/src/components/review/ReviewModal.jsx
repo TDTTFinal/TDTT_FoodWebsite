@@ -12,7 +12,10 @@ const QUICK_TAGS = [
   "Giao hàng nhanh",
 ];
 
+import { useAuth } from "../../context/AuthContext";
+
 const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess }) => {
+  const { user } = useAuth(); // Get user from context
   const [title, setTitle] = useState("");
   const [rating, setRating] = useState(7);
   const [content, setContent] = useState("");
@@ -60,10 +63,14 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
   const uploadImages = async () => {
     if (imageFiles.length === 0) return [];
     
+    // Use configured API URL if possible, otherwise assume port 5000 or relative path
+    // Better to use the configured api instance or relative path if proxy is set up
+    // But since we are using fetch here, let's keep it robust
     const formData = new FormData();
     imageFiles.forEach(file => formData.append("images", file));
 
-    const response = await fetch("http://localhost:5000/api/reviews/upload", {
+    // Fix: Use API_URL from config or relative path
+    const response = await fetch(`${api.defaults.baseURL.replace('/api', '')}/api/reviews/upload`, {
       method: "POST",
       body: formData,
     });
@@ -98,13 +105,10 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
         setUploading(false);
       }
 
-      // Get user from localStorage
-      const user = JSON.parse(localStorage.getItem("user") || "null");
-
       // Create review
       const reviewData = {
         restaurant: restaurantId,
-        userId: user?._id || null,
+        userId: user?._id || user?.id || null, // Handle both _id (Google) and id (Normal)
         title: title.trim() || null,
         rating,
         content: content.trim(),

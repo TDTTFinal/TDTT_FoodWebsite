@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Star, MapPin, Clock, DollarSign } from "lucide-react";
+import { getOpenStatus, getStatusBadgeClasses } from "../utils/openingHoursUtils";
 
 const RestaurantCard = ({ restaurant, action }) => {
   const {
@@ -16,6 +17,9 @@ const RestaurantCard = ({ restaurant, action }) => {
     menu,
     distance, // Add distance here
   } = restaurant;
+
+  // Get open status
+  const openStatus = getOpenStatus(opening_hours);
 
   // Format rating
   const formatRating = (rating) =>
@@ -95,14 +99,23 @@ const RestaurantCard = ({ restaurant, action }) => {
             <span className="line-clamp-1">{address || "Chưa có địa chỉ"}</span>
           </div>
 
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-               {opening_hours && (
-                <div className="flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>{opening_hours}</span>
+          {/* Spacer to push content below to bottom */}
+          <div className="flex-1" />
+
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2 text-xs">
+              {/* Open Status Badge */}
+              {openStatus.status !== 'unknown' && (
+                <span className={`px-2 py-1 rounded-full font-semibold border ${getStatusBadgeClasses(openStatus.statusColor)}`}>
+                  {openStatus.statusText}
+                </span>
+              )}
+              {openStatus.status === 'unknown' && opening_hours && (
+                <div className="flex items-center gap-1 text-gray-500 font-medium">
+                  <Clock size={12} />
+                  <span>{opening_hours}</span>
                 </div>
-               )}
+              )}
             </div>
             
             {price_range && price_range !== "Đang cập nhật" && (
@@ -113,7 +126,7 @@ const RestaurantCard = ({ restaurant, action }) => {
             )}
           </div>
           
-           {/* Custom Action (e.g. Add to Tour) */}
+           {/* Custom Action (e.g. Add to Tour) - Always at bottom */}
            {action && (
               <div className="mt-3 pt-2 border-t border-gray-50 flex justify-end">
                   {action}
