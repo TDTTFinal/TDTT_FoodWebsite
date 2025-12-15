@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Review = require("../models/Review");
 const Restaurant = require("../models/Restaurant");
 const cloudinary = require("../config/cloudinary");
@@ -60,7 +61,7 @@ router.get("/restaurant/:id", async (req, res) => {
 
     // Calculate stats
     const stats = await Review.aggregate([
-      { $match: { restaurant: require("mongoose").Types.ObjectId(id), status: "active" } },
+      { $match: { restaurant: new mongoose.Types.ObjectId(id), status: "active" } },
       {
         $group: {
           _id: null,
@@ -150,7 +151,7 @@ router.post("/", async (req, res) => {
 
     // Update restaurant avg_rating
     const avgResult = await Review.aggregate([
-      { $match: { restaurant: require("mongoose").Types.ObjectId(restaurant), status: "active" } },
+      { $match: { restaurant: new mongoose.Types.ObjectId(restaurant), status: "active" } },
       { $group: { _id: null, avg: { $avg: "$rating" } } }
     ]);
     
@@ -260,7 +261,7 @@ router.post("/:id/like", async (req, res) => {
       return res.status(404).json({ success: false, error: "Review not found" });
     }
 
-    const userObjectId = require("mongoose").Types.ObjectId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
     const likeIndex = review.likes.findIndex(l => l.equals(userObjectId));
 
     if (likeIndex > -1) {

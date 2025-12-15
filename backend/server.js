@@ -62,5 +62,12 @@ app.use("/api/reviews", reviewRoutes);
 // -> /api/reviews/:id/like
 // -> /api/reviews/upload
 
+// 🕒 History API
+const historyRoutes = require("./routes/historyRoutes");
+app.use("/api/history", historyRoutes);
+// -> /api/history/views (GET/POST/DELETE)
+// -> /api/history/reviews (GET)
+// -> /api/history/sync (POST)
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));

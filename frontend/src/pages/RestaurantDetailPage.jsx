@@ -9,6 +9,8 @@ import ReviewSection from "../components/review/ReviewSection";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { historyService } from "../services/historyService"; // Import service
+import { useAuth } from "../context/AuthContext"; // Import auth
 
 // Fix Leaflet marker icon
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -44,6 +46,7 @@ const restaurantIcon = L.divIcon({
 
 const RestaurantDetailPage = () => {
   const { id } = useParams();
+  const { user } = useAuth(); // Get user status
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,7 +65,7 @@ const RestaurantDetailPage = () => {
 
       if (result.success && result.data) {
         const data = result.data;
-        setRestaurant({
+        const restaurantData = {
           id: data._id,
           name: data.name,
           address: data.address || "Chưa cập nhật địa chỉ",
@@ -102,10 +105,23 @@ const RestaurantDetailPage = () => {
             : data.lat && data.lon 
               ? [data.lat, data.lon]
               : null,
-        });
+        };
+
+        setRestaurant(restaurantData);
+
+        // 🕒 Save to History
+        // 1. Always save to local storage
+        historyService.addToLocalHistory(restaurantData);
+
+        // 2. If logged in, save to backend
+        if (user) {
+          historyService.saveViewHistory(restaurantData.id);
+        }
+
       } else {
         throw new Error("Không tìm thấy nhà hàng");
       }
+
     } catch (err) {
       console.error("Error fetching restaurant:", err);
       setError(err.message || "Không thể tải thông tin nhà hàng");

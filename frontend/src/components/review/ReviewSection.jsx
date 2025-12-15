@@ -3,6 +3,7 @@ import { Star, MessageSquare, ChevronDown, Plus } from "lucide-react";
 import ReviewCard from "./ReviewCard";
 import ReviewModal from "./ReviewModal";
 import api from "../../config/api";
+import { useAuth } from "../../context/AuthContext";
 
 const ReviewSection = ({ restaurantId, restaurantName }) => {
   const [reviews, setReviews] = useState([]);
@@ -14,9 +15,9 @@ const ReviewSection = ({ restaurantId, restaurantName }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
 
-  // Get current user
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-  const currentUserId = user?._id;
+  // Get current user from AuthContext
+  const { user } = useAuth();
+  const currentUserId = user?._id || user?.id;
 
   // Fetch reviews
   const fetchReviews = async (pageNum = 1, sort = sortBy) => {
