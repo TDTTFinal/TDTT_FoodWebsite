@@ -339,7 +339,7 @@ const RestaurantDetailPage = () => {
                           className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-100"
                         >
                           <span className="text-gray-500 text-sm">{key}: </span>
-                          <span className="text-orange-600 font-bold">{value}/5</span>
+                          <span className="text-orange-600 font-bold">{value}/10</span>
                         </div>
                       )
                     )}
