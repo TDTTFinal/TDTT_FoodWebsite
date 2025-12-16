@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RestaurantCard from "../components/RestaurantCard";
-import { Search, ChevronLeft, ChevronRight, X, Utensils, Coffee, Pizza, Cherry, Beef, Soup, Fish, Beer } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Utensils, Coffee, Pizza, Cherry, Beef, Soup, Fish, Beer, Leaf } from "lucide-react";
 
 const RestaurantsPage = () => {
   // ===== STATE MANAGEMENT =====
@@ -21,16 +21,12 @@ const RestaurantsPage = () => {
   // ===== DANH SÁCH CATEGORY (matching HomePage style) =====
   const categories = [
     { id: "all", name: "Tất cả", icon: <Utensils size={20}/>, color: "bg-gray-100 text-gray-600" },
-    { id: "lau", name: "Lẩu", icon: <Soup size={20}/>, color: "bg-red-100 text-red-600" },
-    { id: "bbq", name: "BBQ", icon: <Beef size={20}/>, color: "bg-orange-100 text-orange-600" },
-    { id: "com", name: "Cơm", icon: <Utensils size={20}/>, color: "bg-yellow-100 text-yellow-600" },
-    { id: "tra-sua", name: "Trà sữa", icon: <Coffee size={20}/>, color: "bg-blue-100 text-blue-600" },
-    { id: "cafe", name: "Cafe", icon: <Coffee size={20}/>, color: "bg-amber-100 text-amber-700" },
-    { id: "hai-san", name: "Hải sản", icon: <Fish size={20}/>, color: "bg-cyan-100 text-cyan-600" },
-    { id: "buffet", name: "Buffet", icon: <Utensils size={20}/>, color: "bg-emerald-100 text-emerald-600" },
-    { id: "pizza", name: "Pizza", icon: <Pizza size={20}/>, color: "bg-rose-100 text-rose-600" },
-    { id: "an-vat", name: "Ăn vặt", icon: <Cherry size={20}/>, color: "bg-pink-100 text-pink-600" },
-    { id: "nhau", name: "Quán nhậu", icon: <Beer size={20}/>, color: "bg-purple-100 text-purple-600" },
+    { id: "com", name: "Cơm & Món Mặn", icon: <Utensils size={20}/>, color: "bg-orange-100 text-orange-600" },
+    { id: "nuoc", name: "Món Nước & Sợi", icon: <Soup size={20}/>, color: "bg-yellow-100 text-yellow-600" },
+    { id: "drinks", name: "Cafe & Trà Sữa", icon: <Coffee size={20}/>, color: "bg-green-100 text-green-600" },
+    { id: "snack", name: "Ăn Vặt & Bánh", icon: <Pizza size={20}/>, color: "bg-pink-100 text-pink-600" },
+    { id: "party", name: "Lẩu - Nướng & Nhậu", icon: <Beer size={20}/>, color: "bg-red-100 text-red-600" },
+    { id: "healthy", name: "Healthy & Khác", icon: <Leaf size={20}/>, color: "bg-emerald-100 text-emerald-600" },
   ];
 
   // ===== FETCH DATA TỪ API =====
@@ -146,23 +142,25 @@ const RestaurantsPage = () => {
       {/* ===== CATEGORY FILTER ===== */}
       <div className="sticky top-0 z-40 bg-white shadow-md">
         <div className="container mx-auto px-4">
-          <div className="flex gap-3 py-4 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-4 md:justify-between items-start py-4 overflow-x-auto scrollbar-hide w-full">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.name)}
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all border-2 ${
-                  activeCategory === cat.name
-                    ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-200"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50"
-                }`}
+                className="flex flex-col items-center gap-2 group min-w-[100px] p-2"
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  activeCategory === cat.name ? "bg-white/20" : cat.color
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-md ${
+                  activeCategory === cat.name 
+                    ? `${cat.color} ring-2 ring-offset-2 ring-orange-500 shadow-md scale-105` 
+                    : `${cat.color} opacity-90 group-hover:opacity-100`
                 }`}>
                   {cat.icon}
                 </div>
-                {cat.name}
+                <span className={`text-xs font-medium text-center w-full px-1 ${
+                  activeCategory === cat.name ? "text-orange-600 font-bold" : "text-gray-700"
+                }`}>
+                  {cat.name}
+                </span>
               </button>
             ))}
           </div>

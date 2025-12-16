@@ -1,18 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Utensils, Coffee, Pizza, Cherry, Beef, Soup, Fish, Beer } from "lucide-react";
+import { Utensils, Coffee, Pizza, Cherry, Beef, Soup, Fish, Beer, Leaf, Flame } from "lucide-react";
 
 const categories = [
-  { id: "Lẩu", name: "Lẩu", icon: <Soup size={24}/>, color: "bg-red-100 text-red-600" },
-  { id: "BBQ", name: "BBQ", icon: <Beef size={24}/>, color: "bg-orange-100 text-orange-600" },
-  { id: "Cơm", name: "Cơm", icon: <Utensils size={24}/>, color: "bg-yellow-100 text-yellow-600" },
-  { id: "Trà sữa", name: "Trà sữa", icon: <Coffee size={24}/>, color: "bg-blue-100 text-blue-600" },
-  { id: "Cafe", name: "Cafe", icon: <Coffee size={24}/>, color: "bg-amber-100 text-amber-700" },
-  { id: "Hải sản", name: "Hải sản", icon: <Fish size={24}/>, color: "bg-cyan-100 text-cyan-600" },
-  { id: "Buffet", name: "Buffet", icon: <Utensils size={24}/>, color: "bg-emerald-100 text-emerald-600" },
-  { id: "Pizza", name: "Pizza", icon: <Pizza size={24}/>, color: "bg-rose-100 text-rose-600" },
-  { id: "Ăn vặt", name: "Ăn vặt", icon: <Cherry size={24}/>, color: "bg-pink-100 text-pink-600" },
-  { id: "Nhậu", name: "Quán nhậu", icon: <Beer size={24}/>, color: "bg-purple-100 text-purple-600" },
+  { id: "com", name: "Cơm & Món Mặn", icon: <Utensils size={24}/>, color: "bg-orange-100 text-orange-600" },
+  { id: "nuoc", name: "Món Nước & Sợi", icon: <Soup size={24}/>, color: "bg-yellow-100 text-yellow-600" },
+  { id: "drinks", name: "Cafe & Trà Sữa", icon: <Coffee size={24}/>, color: "bg-green-100 text-green-600" },
+  { id: "snack", name: "Ăn Vặt & Bánh", icon: <Pizza size={24}/>, color: "bg-pink-100 text-pink-600" },
+  { id: "party", name: "Lẩu - Nướng & Nhậu", icon: <Beer size={24}/>, color: "bg-red-100 text-red-600" },
+  { id: "healthy", name: "Healthy & Khác", icon: <Leaf size={24}/>, color: "bg-emerald-100 text-emerald-600" },
 ];
 
 const CategorySection = () => {
@@ -20,7 +16,7 @@ const CategorySection = () => {
     <section className="py-6">
       <div className="container mx-auto px-4">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Danh mục món ăn</h2>
-        <div className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-4">
           {categories.map((cat) => (
             <Link
               key={cat.id}

@@ -543,16 +543,12 @@ const AdvancedSearchPage = () => {
   // Categories
   const categories = [
     "Tất cả",
-    "Lẩu",
-    "BBQ",
-    "Cơm",
-    "Phở",
-    "Bún",
-    "Trà sữa",
-    "Cafe",
-    "Hải sản",
-    "Buffet",
-    "Khác",
+    "Cơm & Món Mặn",
+    "Món Nước & Sợi",
+    "Cafe & Trà Sữa",
+    "Ăn Vặt & Bánh",
+    "Lẩu - Nướng & Nhậu",
+    "Healthy & Khác",
   ];
 
   const priceRanges = [
