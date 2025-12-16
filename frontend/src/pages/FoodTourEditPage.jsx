@@ -39,11 +39,25 @@ const FoodTourEditPage = () => {
       return;
     }
     loadTour();
-    // Check for pending items from AdvancedSearchPage
-    loadPendingItems();
   }, [tourId, user]);
 
   const loadTour = async () => {
+    // READ LOCAL STORAGE SYNCHRONOUSLY
+    // Capture pending items immediately before any async await to prevent race conditions in Strict Mode
+    let pendingItemsMerge = [];
+    try {
+      const pendingData = localStorage.getItem("pendingTourItems");
+      if (pendingData) {
+        const parsed = JSON.parse(pendingData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          pendingItemsMerge = parsed;
+          console.log("📥 Captured pending items (Sync):", pendingItemsMerge.length);
+        }
+      }
+    } catch (e) {
+      console.error("Error reading pending items:", e);
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -56,13 +70,36 @@ const FoodTourEditPage = () => {
         
         // Map tourItems from API - handle both old and new formats
         const items = res.tour.tourItems || {};
-        setTourItems({
+        let newTourItems = {
           unsorted: items.unsorted || [],
           morning: items.morning || [],
           lunch: items.lunch || items.noon || [], // Support 'noon' from old FoodTourPage
           afternoon: items.afternoon || [],
           dinner: items.dinner || items.evening || [], // Support 'evening' from old format
-        });
+        };
+
+        // MERGE PENDING ITEMS
+        if (pendingItemsMerge.length > 0) {
+           console.log("📥 Merging pending items into tour:", pendingItemsMerge.length);
+           
+           // Add cartId to each pending item
+           const itemsWithIds = pendingItemsMerge.map(item => ({
+             ...item,
+             cartId: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9)
+           }));
+           
+           // Add to unsorted
+           newTourItems.unsorted = [...newTourItems.unsorted, ...itemsWithIds];
+           
+           setHasChanges(true);
+           setMessage(`✅ Đã thêm ${pendingItemsMerge.length} quán mới vào tour`);
+           setTimeout(() => setMessage(""), 3000);
+           
+           // Clear pending items from storage
+           localStorage.removeItem("pendingTourItems");
+        }
+
+        setTourItems(newTourItems);
       } else {
         setError("Không tìm thấy tour");
       }
@@ -71,37 +108,6 @@ const FoodTourEditPage = () => {
       setError("Lỗi tải tour: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Load pending items from localStorage (from AdvancedSearchPage)
-  const loadPendingItems = () => {
-    try {
-      const pendingData = localStorage.getItem("pendingTourItems");
-      if (pendingData) {
-        const pendingItems = JSON.parse(pendingData);
-        if (pendingItems.length > 0) {
-          // Add cartId to each pending item and add to unsorted
-          const itemsWithIds = pendingItems.map(item => ({
-            ...item,
-            cartId: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9)
-          }));
-          
-          setTourItems(prev => ({
-            ...prev,
-            unsorted: [...prev.unsorted, ...itemsWithIds]
-          }));
-          
-          setHasChanges(true);
-          setMessage(`✅ Đã thêm ${pendingItems.length} quán mới vào tour`);
-          setTimeout(() => setMessage(""), 3000);
-          
-          // Clear pending items
-          localStorage.removeItem("pendingTourItems");
-        }
-      }
-    } catch (err) {
-      console.error("Load pending items error:", err);
     }
   };
 

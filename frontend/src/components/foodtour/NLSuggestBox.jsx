@@ -209,4 +209,4 @@ const NLSuggestBox = ({ onResults, onError }) => {
   );
 };
 
-export default NLSuggestBox;
+export default NLSuggestBox;  
