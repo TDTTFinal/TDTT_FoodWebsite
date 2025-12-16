@@ -481,4 +481,28 @@ router.post("/:id/comments", async (req, res) => {
   }
 });
 
+// ========================
+// GET /api/reviews/:id - Get single review by ID
+// IMPORTANT: This route MUST be at the end to not block /feed, /community, etc.
+// ========================
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const review = await Review.findById(id)
+      .populate("user", "name avatar")
+      .populate("restaurant", "name address avatar_url")
+      .populate("comments.user", "name avatar");
+
+    if (!review) {
+      return res.status(404).json({ success: false, error: "Review not found" });
+    }
+
+    res.json({ success: true, data: review });
+  } catch (error) {
+    console.error("Get review by ID error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
