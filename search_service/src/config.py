@@ -4,10 +4,14 @@ from dotenv import load_dotenv
 load_dotenv() # Load biến từ file .env
 
 class Settings:
-    MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://lnqhoc2407_db_user:admin123456@cluster0.zh3u1zk.mongodb.net/?appName=Cluster0") # Nên để link thật vào đây hoặc file .env
+    MONGO_URI = os.getenv("MONGO_URI")
     DB_NAME = "tdtt"
-    COLLECTION_NAME = "restaurants"
+    COLLECTION_NAME = "test"
     MODEL_NAME = "BAAI/bge-m3"
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyC71hWgGFDRiKARJw2pXGAo3nqBX5lLkiM")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+    def __init__(self):
+        if not self.MONGO_URI:
+            print("⚠️ WARNING: MONGO_URI is not set in .env file.")
 
 settings = Settings()

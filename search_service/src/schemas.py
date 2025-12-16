@@ -31,9 +31,11 @@ class RestaurantResult(BaseModel):
     avatar_url: Optional[str] = None
     
     # Điểm số thuật toán (Quan trọng để debug xem tại sao quán này lên top)
-    score: float = 0.0       # Điểm tổng hợp (Hybrid)
+    final_score: float = 0.0
+    hybird_score: float = 0.0       # Điểm tổng hợp (Hybrid)
     semantic_score: float = 0.0
-    tfidf_score: float = 0.0
+    keyword_score: float = 0.0
+    distance_score: float = 0.0
     
     # Tọa độ (để vẽ bản đồ)
     lat: float = 0.0

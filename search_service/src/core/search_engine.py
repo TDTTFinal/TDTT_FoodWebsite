@@ -1,252 +1,227 @@
-# search_engine.py
-from pathlib import Path
-import pandas as pd
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from geopy.distance import geodesic
-
 from src.database import get_collection
 from src.config import settings
 from src.core.embedder import RestaurantEmbedder
 
-
 class HybridFoodFinder:
-    """
-    Search engine kết hợp:
-    - Dense semantic (BGE-m3)
-    - TF-IDF keyword
-    - Lọc theo bán kính
-    """
-
     def __init__(self):
-
-        # 1. Load & chuẩn hoá dữ liệu
-        self.df = self._load_data_from_mongo()
-
-        if self.df.empty:
-            print("⚠️ Warning: Database is empty!")
-            return
-        # 2. Khởi tạo embedder (BGE-m3)
+        print("🚀 Initializing Hybrid Search (BM25 + Vector)...")
         self.embedder = RestaurantEmbedder()
+        print("✅ Ready!")
 
-        # 3. Tạo semantic embeddings (dense)
-        self.semantic_matrix = self.embedder.embeddings(self.df)
-
-        # 4. Tạo TF-IDF model (sparse)
-        self.vectorizer, self.tfidf_matrix = self._create_tfidf_model()
-
-    def _load_data_from_mongo(self) -> pd.DataFrame:
-        """Lấy dữ liệu từ Mongo và chuyển thành DataFrame"""
-        col = get_collection(settings.COLLECTION_NAME)
-        # Lấy tất cả, giữ _id để làm khớp cache
-        cursor = col.find({})
-        data_list = list(cursor)
-        if not data_list:
-            return pd.DataFrame()
+    def _normalize_scores(self, docs, score_field='score'):
+        """Chuẩn hóa điểm số về thang 0-1 (Max Scaling)"""
+        if not docs:
+            return docs
         
-        '''
-        Flatten DATA
-        '''
-        flattened_data = []
-        for item in data_list:
-            # 1. Cơ bản
-            row = {
-                '_id': str(item.get('_id')),
-                'name': item.get('name', ''),
-                'address': item.get('address', ''),
-                'source_url': item.get('source_url', ''),
-                'avg_rating': item.get('avg_rating', 0.0),
-            }
-
-            # 2. Xử lý MENU
-            menu_items = item.get('menu', [])
-            row['menu'] = menu_items # Giữ nguyên list object để trả về API (Frontend cần cái này)
-            
-            if isinstance(menu_items, list):
-                # 👇 FIX BUG: Lọc lấy tên món ra danh sách riêng
-                menu_names = []
-                for m in menu_items:
-                    if isinstance(m, dict):
-                        # Nếu là object {name: "Cơm", price: 30k} -> Lấy "Cơm"
-                        name = m.get('name', '')
-                        if name: menu_names.append(str(name))
-                    elif isinstance(m, str):
-                        # Nếu là string "Cơm" (data cũ) -> Lấy luôn
-                        menu_names.append(m)
-                
-                # Giờ thì join thoải mái vì toàn là string
-                row['menu_flat'] = ", ".join(menu_names) 
-            else:
-                row['menu_flat'] = ""
-
-            # 3. Xử lý REVIEWS (List of Dicts -> String)
-            # Gom tất cả nội dung comment lại thành 1 đoạn văn dài
-            reviews = item.get('reviews', [])
-            if isinstance(reviews, list):
-                # Chỉ lấy phần content, bỏ qua user_name hay rating
-                comments = [r.get('content', '') for r in reviews if isinstance(r, dict)]
-                row['reviews_flat'] = " ".join(comments)
-            else:
-                row['reviews_flat'] = ""
-
-            # 4. Xử lý SCORES (Dict -> Columns)
-            # Tách scores.space thành cột scores_space
-            scores = item.get('scores', {})
-            if isinstance(scores, dict):
-                row['score_space'] = scores.get('space', 0.0)
-                row['score_service'] = scores.get('service', 0.0)
-                row['score_price'] = scores.get('price', 0.0)
-                row['score_position'] = scores.get('position', 0.0)
-                row['score_quality'] = scores.get('quality', 0.0)
-                
-            
-            # 5. Xử lý LOCATION (GeoJSON -> Lat/Lon riêng biệt)
-            # Mongo lưu: [Lon, Lat] -> Ta tách ra thành 2 cột
-            loc = item.get('location', {})
-            if isinstance(loc, dict) and 'coordinates' in loc:
-                coords = loc['coordinates']
-                if isinstance(coords, list) and len(coords) == 2:
-                    row['lon'] = coords[0]
-                    row['lat'] = coords[1]
-                else:
-                    row['lon'], row['lat'] = 0.0, 0.0
-            else:
-                row['lon'], row['lat'] = 0.0, 0.0
-
-            flattened_data.append(row)
-
-        # --- BƯỚC 2: TẠO DATAFRAME ---
-        df = pd.DataFrame(flattened_data)
+        scores = [doc.get(score_field, 0) for doc in docs]
+        max_score = max(scores) if scores else 1.0
         
-        # --- BƯỚC 3: TẠO CỘT SEARCH TEXT (Quan trọng cho AI) ---
-        # Bây giờ các cột đã phẳng, ta cộng chuỗi rất dễ dàng
-        df['search_text'] = (
-            df['name'] + ". " + 
-            df['menu_flat'] + ". " + 
-            df['reviews_flat'] + ". " +
-            df['address']
-        ).str.lower() # Chuyển thành chữ thường luôn
+        # Tránh chia cho 0
+        if max_score == 0:
+            max_score = 1.0
 
-        # Xóa các dòng rác (nếu không có tên hoặc lat/lon lỗi)
-        df = df.dropna(subset=['lat', 'lon'])
+        for doc in docs:
+            original = doc.get(score_field, 0)
+            # Max scaling: Giữ nguyên tỷ lệ, không ép min về 0
+            doc[f'{score_field}_normalized'] = original / max_score
         
-        print(f"✅ Loaded & Flattened {len(df)} restaurants.")
-        return df
+        return docs
 
-    def _create_tfidf_model(self):
+    def _merge_by_scores(self, vector_results, keyword_results, alpha=0.7):
         """
-        Chuẩn bị dữ liệu text cho TF-IDF.
-        Phải xử lý các trường List/Object thành chuỗi đơn giản.
+        Trộn kết quả dựa trên điểm số thực (không dùng RRF)
+        alpha: trọng số cho semantic (0-1), keyword sẽ là (1-alpha)
         """
-        search_corpus = self.df['search_text'].fillna("").tolist()
-
-        # Cấu hình TF-IDF (Bắt từ đơn và từ ghép 2 chữ)
-        vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
-        matrix = vectorizer.fit_transform(search_corpus)
+        # Chuẩn hóa điểm số về cùng thang 0-1
+        vector_results = self._normalize_scores(vector_results, 'score')
+        keyword_results = self._normalize_scores(keyword_results, 'score')
         
-        return vectorizer, matrix
+        # Ghép kết quả
+        merged = {}
+        
+        # Thêm kết quả vector
+        for doc in vector_results:
+            doc_id = str(doc['_id'])
+            merged[doc_id] = doc.copy()
+            merged[doc_id]['semantic_score'] = doc.get('score_normalized', 0)
+            merged[doc_id]['keyword_score'] = 0.0
+        
+        # Thêm/cập nhật kết quả keyword
+        for doc in keyword_results:
+            doc_id = str(doc['_id'])
+            if doc_id in merged:
+                merged[doc_id]['keyword_score'] = doc.get('score_normalized', 0)
+            else:
+                merged[doc_id] = doc.copy()
+                merged[doc_id]['semantic_score'] = 0.0
+                merged[doc_id]['keyword_score'] = doc.get('score_normalized', 0)
+        
+        # Tính điểm tổng hợp
+        results = []
+        for doc in merged.values():
+            # Điểm hybrid = alpha * semantic + (1-alpha) * keyword
+            doc['hybrid_score'] = (
+                alpha * doc['semantic_score'] + 
+                (1 - alpha) * doc['keyword_score']
+            )
+            results.append(doc)
+        
+        # Sắp xếp theo điểm hybrid
+        results.sort(key=lambda x: x['hybrid_score'], reverse=True)
+        return results
 
     def search(
         self,
         query: str,
         district: str = None,
         top_k: int = 15,
-        alpha: float = 0.6,
         center: tuple = None,
-        radius_km: float = 0,
-        
-        # 👇 THAM SỐ MỚI: Trọng số (Mặc định nếu không truyền)
-        weight_sim: float = 0.7,       # Mặc định ưu tiên nội dung (0.7)
-        weight_dist: float = 0.3       # Mặc định ưu tiên khoảng cách (0.3)
+        radius_km: float = 5.0,
+        alpha: float = 0.7,  # Trọng số semantic (0.7 = 70% semantic, 30% keyword)
+        weight_dist_pref: float = 0.2,  # Trọng số khoảng cách
+        max_price_filter: float = None
     ):
-        if self.df.empty: return []
-        if not query.strip(): return self.df.head(top_k).to_dict('records')
+        col = get_collection(settings.COLLECTION_NAME)
+        if not query.strip(): 
+            return []
 
-        # ---------------------------------------------------------
-        # BƯỚC 1: TÍNH ĐIỂM RELEVANCE (NỘI DUNG)
-        # ---------------------------------------------------------
-        query_emb = self.embedder.embed_query(query)
-        sem_scores = np.dot(self.semantic_matrix, query_emb)
-
-        query_tfidf = self.vectorizer.transform([query.lower()])
-        tfidf_scores = cosine_similarity(query_tfidf, self.tfidf_matrix).flatten()
-
-        # Điểm nội dung (0 -> 1)
-        relevance_scores = (alpha * sem_scores) + ((1 - alpha) * tfidf_scores)
-
-        # ---------------------------------------------------------
-        # BƯỚC 2: TẠO BẢNG TẠM
-        # ---------------------------------------------------------
-        results = self.df.copy()
-        results['relevance_score'] = relevance_scores
-        results['semantic_score'] = sem_scores
-        results['tfidf_score'] = tfidf_scores
+        # --- LUỒNG 1: VECTOR SEARCH (Semantic) ---
+        query_vector = self.embedder.embed_query(query).tolist()
+        vector_pipeline = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "embedding",
+                    "queryVector": query_vector,
+                    "numCandidates": top_k * 5,
+                    "limit": top_k * 3
+                }
+            },
+            {
+                "$addFields": {
+                    "score": {"$meta": "vectorSearchScore"}
+                }
+            },
+            {"$project": {"embedding": 0}}
+        ]
         
-        # Khởi tạo điểm khoảng cách mặc định là 0
-        results['distance_score'] = 0.0
-        results['distance_km'] = 0.0
+        # --- LUỒNG 2: KEYWORD SEARCH (Đã sửa - Bỏ minimumShouldMatch) ---
+        keyword_pipeline = [
+            {
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            # 1. Match chính xác trong name và menu
+                            {
+                                "text": {
+                                    "query": query,
+                                    "path": ["name", "menu.name"],
+                                    "score": {"boost": {"value": 3}}
+                                }
+                            },
+                            # 2. Match với fuzzy (chấp nhận lỗi chính tả)
+                            {
+                                "text": {
+                                    "query": query,
+                                    "path": ["name", "menu.name", "address"],
+                                    "fuzzy": {
+                                        "maxEdits": 2,
+                                        "prefixLength": 0
+                                    },
+                                    "score": {"boost": {"value": 1.5}}
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "$addFields": {
+                    "score": {"$meta": "searchScore"}
+                }
+            },
+            {"$limit": top_k * 3},
+            {"$project": {"embedding": 0}}
+        ]
 
-        # ---------------------------------------------------------
-        # BƯỚC 3: LỌC QUẬN (Hard Filter)
-        # ---------------------------------------------------------
-        if district:
-            mask_district = results['address'].str.contains(district, case=False, na=False)
-            if mask_district.any():
-                results = results[mask_district]
-            # Nếu lọc quận xong mà rỗng thì có thể return [] hoặc bỏ qua lọc tùy logic bạn muốn
-
-        # ---------------------------------------------------------
-        # BƯỚC 4: TÍNH ĐIỂM KHOẢNG CÁCH & LỌC BÁN KÍNH
-        # ---------------------------------------------------------
-        if center and radius_km > 0 and not results.empty:
-            lat_center, lon_center = center
+        # --- THỰC THI TÌM KIẾM ---
+        try:
+            vector_results = list(col.aggregate(vector_pipeline))
+            keyword_results = list(col.aggregate(keyword_pipeline))
             
-            # Tính khoảng cách thực tế (km)
-            results['distance_km'] = results.apply(
-                lambda row: geodesic((row['lat'], row['lon']), (lat_center, lon_center)).km, 
-                axis=1
-            )
+            print(f"📊 Vector: {len(vector_results)} | Keyword: {len(keyword_results)}")
             
-            # Lọc cứng: Loại bỏ quán ngoài bán kính
-            results = results[results['distance_km'] <= radius_km]
+        except Exception as e:
+            print(f"❌ Search Error: {e}")
+            return []
+
+        # --- TRỘN KẾT QUẢ THEO ĐIỂM SỐ ---
+        merged_results = self._merge_by_scores(vector_results, keyword_results, alpha)
+
+        # --- POST-PROCESSING: Lọc và tính điểm cuối cùng ---
+        final_results = []
+        
+        for doc in merged_results:
+            # 1. Lọc Quận
+            if district:
+                if district.lower() not in str(doc.get('address', '')).lower():
+                    continue
+
+            # 2. Lọc Giá
+            if max_price_filter:
+                if doc.get('menu_min_price', 0) > max_price_filter:
+                    continue
+
+            # 3. Tính Khoảng cách
+            dist_km = 0.0
+            dist_score = 0.0
             
-            if results.empty: return []
+            if center:
+                loc = doc.get('location')
+                if loc and 'coordinates' in loc:
+                    coord = (loc['coordinates'][1], loc['coordinates'][0])
+                    dist_km = geodesic(center, coord).km
+                    doc['lat'] = loc['coordinates'][1]
+                    doc['lon'] = loc['coordinates'][0]
+                
+                # Lọc bán kính
+                if radius_km > 0 and dist_km > radius_km:
+                    continue
 
-            # 👇 TÍNH ĐIỂM KHOẢNG CÁCH (0 -> 1)
-            # Công thức: 1 - (Khoảng cách / Bán kính max)
-            # Càng gần càng cao (1.0), càng xa càng thấp (0.0)
-            results['distance_score'] = 1 - (results['distance_km'] / radius_km)
+                # Tính điểm khoảng cách (gần hơn = điểm cao hơn)
+                if radius_km > 0:
+                    dist_score = max(0, 1 - (dist_km / radius_km))
+
+            # 4. Tính điểm cuối cùng
+            # Công thức: Final = Hybrid_Score + (Distance_Weight * Distance_Score)
+            final_score = doc['hybrid_score'] + (weight_dist_pref * dist_score)
             
-            # Đảm bảo không âm (phòng trường hợp sai số nhỏ)
-            results['distance_score'] = results['distance_score'].clip(lower=0)
-        
-        elif center:
-             # Nếu có center nhưng không lọc bán kính (radius_km=0),
-             # ta vẫn có thể tính khoảng cách để sort, nhưng không lọc bỏ.
-             # Tuy nhiên để đơn giản, nếu radius=0 ta coi như distance_score = 0.5 (trung lập)
-             results['distance_score'] = 0.5
+            # Chuẩn bị output
+            doc['final_score'] = round(final_score, 4)
+            doc['distance_km'] = round(dist_km, 2)
+            doc['distance_score'] = round(dist_score, 4)
+            doc['semantic_score'] = round(doc['semantic_score'], 4)
+            doc['keyword_score'] = round(doc['keyword_score'], 4)
+            doc['hybird_score'] = round(doc['hybrid_score'], 4)
+            doc['_id'] = str(doc['_id'])
+            
+            # Xóa các field tạm
+            doc.pop('score_normalized', None)
+            
+            final_results.append(doc)
 
-        # ---------------------------------------------------------
-        # BƯỚC 5: TÍNH ĐIỂM TỔNG HỢP (FINAL SCORE)
-        # ---------------------------------------------------------
+        # Sort theo điểm cuối cùng
+        final_results.sort(key=lambda x: x['final_score'], reverse=True)
         
-        # Chuẩn hóa tổng trọng số về 1 (để tránh điểm bị lố)
-        total_w = weight_sim + weight_dist
-        if total_w == 0: total_w = 1 # Tránh chia cho 0
+        # Thêm thông tin debug
+        for i, doc in enumerate(final_results[:top_k], 1):
+            doc['rank'] = i
+            print(f"#{i} {doc.get('name', 'N/A')[:40]:<40} | "
+                  f"Final: {doc['final_score']:.3f} | "
+                  f"Sem: {doc['semantic_score']:.3f} | "
+                  f"Key: {doc['keyword_score']:.3f} | "
+                  f"Dist: {doc['distance_km']:.1f}km")
         
-        w_s = weight_sim / total_w
-        w_d = weight_dist / total_w
-
-        # Công thức: Final = (w_s * Relevance) + (w_d * Distance)
-        # Nếu không có tính khoảng cách (distance_score=0), điểm sẽ phụ thuộc hoàn toàn vào relevance
-        results['final_score'] = (w_s * results['relevance_score']) + (w_d * results['distance_score'])
-
-        # ---------------------------------------------------------
-        # BƯỚC 6: SẮP XẾP & TRẢ VỀ
-        # ---------------------------------------------------------
-        results = results.sort_values('final_score', ascending=False).head(top_k)
-        
-        results['_id'] = results['_id'].astype(str)
-        
-        return results.to_dict('records')
+        return final_results[:top_k]

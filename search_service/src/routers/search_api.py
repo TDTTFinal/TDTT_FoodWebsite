@@ -6,6 +6,7 @@ import traceback
 from src.core.search_engine import HybridFoodFinder
 from src.core.nlp_parser import IntentParser
 from src.core.route_optimizer import RouteOptimizer
+from src.core.location_resolver import LocationResolver
 from src.schemas import RestaurantResult, RouteStep, MultiStepSearchResponse
 
 # Tạo Router
@@ -20,6 +21,7 @@ try:
     engine = HybridFoodFinder() # Tự động load từ MongoDB
     nlp = IntentParser()
     optimizer = RouteOptimizer()
+    resolver = LocationResolver()  # Geocoding cho location_query
 except Exception as e:
     print(f"❌ Lỗi khởi tạo Search Engine: {e}")
     traceback.print_exc()
@@ -37,7 +39,7 @@ def search_restaurants(
     lat: Optional[float] = Query(10.7769, description="Vĩ độ hiện tại của User"),
     lon: Optional[float] = Query(106.7009, description="Kinh độ hiện tại của User"),
     radius: float = Query(0, description="Bán kính tìm kiếm (km)"),
-    alpha: float = Query(0.6, description="Trọng số AI (0.0 -> 1.0)"),
+    # alpha: float = Query(0.6, description="Trọng số AI (0.0 -> 1.0)"),
     top_k: int = 20
 ):
     """
@@ -54,7 +56,7 @@ def search_restaurants(
     results = engine.search(
         query=q,
         district=district,
-        alpha=alpha,
+        # alpha=alpha,
         top_k=top_k,
         center=center,
         radius_km=radius
@@ -88,20 +90,28 @@ def search_restaurants_v2(
         keyword = intent.get("keyword", "")
         district = intent.get("district")
         
-        # Lấy trọng số từ NLP (nếu có)
-        w_sim = intent.get("weight_sim", 0.6)
-        w_dist = intent.get("weight_dist", 0.2)
+        # --- XỬ LÝ ĐỊA ĐIỂM ĐỘNG (DYNAMIC GEOCODING) ---
+        step_center = (lat, lon)  # Mặc định là vị trí user
+        step_radius = radius
+
+        location_query = intent.get("location_query")
+        if location_query:
+            print(f"📍 Đang tìm tọa độ cho: {location_query}...")
+            resolved_loc = resolver.resolve(location_query)
+            if resolved_loc:
+                step_center = resolved_loc
+                step_radius = 2.0  # Tìm trong 2km quanh landmark
+                print(f"   -> Tìm thấy: {step_center}")
+            else:
+                print(f"   -> Không tìm thấy '{location_query}', dùng vị trí user.")
 
         candidates = engine.search(
             query=keyword,
             district=district,
             top_k=top_k, 
-            center=(lat, lon),
-            radius_km=radius,
-            alpha=alpha,
-            # Truyền trọng số vào search engine để lọc candidate tốt nhất
-            weight_sim=w_sim,
-            weight_dist=w_dist
+            center=step_center,
+            radius_km=step_radius,
+            alpha=alpha
         )
 
         step_data = RouteStep(

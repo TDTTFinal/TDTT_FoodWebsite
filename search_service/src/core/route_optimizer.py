@@ -11,13 +11,16 @@ class RouteOptimizer:
         Input: Danh sách các bước, mỗi bước có top 5-10 quán ứng viên.
         Output: Top 3 lộ trình (kết hợp) tốt nhất.
         """
+        if not steps_data:
+            return []
+
         # Nếu chỉ có 1 bước (Ăn phở), không cần tính đường đi, trả về top quán theo điểm cao nhất
         if len(steps_data) == 1:
-            top_candidates = sorted(steps_data[0].candidates, key=lambda x: x.score, reverse=True)[:3]
+            top_candidates = sorted(steps_data[0].candidates, key=lambda x: x.final_score, reverse=True)[:3]
             return [
                 RoutePlan(
                     route_id=f"opt_{i}",
-                    total_score=c.score,
+                    total_score=c.final_score,
                     total_distance=0.0,
                     stops=[c]
                 ) for i, c in enumerate(top_candidates)
@@ -48,7 +51,7 @@ class RouteOptimizer:
             
             # 2. Tính tổng điểm và khoảng cách
             # Điểm cơ bản = Trung bình cộng điểm AI của các quán
-            avg_rating_score = sum([p.score for p in combo]) / len(combo)
+            avg_rating_score = sum([p.final_score for p in combo]) / len(combo)
 
             # Tính khoảng cách tuần tự: User -> Quán 1 -> Quán 2 ...
             current_loc = user_location
