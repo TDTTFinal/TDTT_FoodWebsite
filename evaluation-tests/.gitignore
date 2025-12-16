@@ -1,0 +1,37 @@
+# Results and outputs
+*/results/*.json
+*/results/*.txt
+*/results/*.csv
+*/results/*.png
+EVALUATION_REPORT.txt
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Keep structure files
+!.gitkeep
+!queries.csv
+!routes_sample.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*

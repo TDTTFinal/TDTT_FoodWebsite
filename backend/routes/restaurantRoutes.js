@@ -7,6 +7,7 @@ router.get("/", restaurantController.getAllRestaurants);
 router.get("/featured", restaurantController.getFeaturedRestaurants);
 
 // New Routes for Homepage (Place BEFORE /:id)
+router.get("/trending", restaurantController.getTrendingRestaurants);
 router.get("/reviews/latest", restaurantController.getLatestReviews);
 router.get("/nearby", restaurantController.getNearbyRestaurants);
 router.get("/contextual", restaurantController.getContextualRestaurants);

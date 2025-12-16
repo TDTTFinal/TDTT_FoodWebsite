@@ -99,6 +99,32 @@ exports.getRestaurantById = async (req, res) => {
 // @desc    Lấy các nhà hàng nổi bật (top rated)
 // @route   GET /api/restaurants/featured
 // @access  Public
+// @desc    Lấy danh sách nhà hàng đang thịnh hành (Trending)
+// @route   GET /api/restaurants/trending
+// @access  Public
+exports.getTrendingRestaurants = async (req, res) => {
+  try {
+    // Logic: Tạm thời lấy top rating giảm dần. Sau này có thể tính theo số lượng review trong tuần.
+    const restaurants = await Restaurant.find({ avg_rating: { $gte: 7.0 } })
+      .sort({ avg_rating: -1 })
+      .limit(5)
+      .select("name address avg_rating images avatar_url");
+
+    res.status(200).json({
+      success: true,
+      count: restaurants.length,
+      data: restaurants,
+    });
+  } catch (error) {
+    console.error("Error in getTrendingRestaurants:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy trending",
+      error: error.message,
+    });
+  }
+};
+
 // @desc    Lấy các nhà hàng nổi bật (top rated)
 // @route   GET /api/restaurants/featured
 // @access  Public
