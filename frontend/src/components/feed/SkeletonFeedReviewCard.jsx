@@ -2,37 +2,57 @@ import React from 'react';
 
 const SkeletonFeedReviewCard = () => {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-pulse">
+    <article className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4 animate-pulse">
+      
       {/* Header Skeleton */}
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 w-full">
-          <div className="w-10 h-10 rounded-full bg-gray-200"></div>
-          <div className="flex-1">
-             <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-             <div className="h-3 bg-gray-100 rounded w-1/4"></div>
+      <div className="px-3 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* Avatar skeleton with ring effect */}
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300" />
+          <div className="flex flex-col gap-1.5">
+            <div className="h-3 bg-gray-200 rounded-full w-24" />
+            <div className="h-2.5 bg-gray-100 rounded-full w-32" />
           </div>
+        </div>
+        <div className="w-5 h-5 rounded-full bg-gray-100" />
+      </div>
+
+      {/* Image Skeleton - Instagram aspect-square */}
+      <div className="aspect-square bg-gradient-to-br from-gray-100 via-gray-200 to-gray-100 relative overflow-hidden">
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+      </div>
+
+      {/* Actions Skeleton */}
+      <div className="px-3 py-2 flex items-center justify-between">
+        <div className="flex gap-4">
+          <div className="w-6 h-6 rounded-full bg-gray-200" />
+          <div className="w-6 h-6 rounded-full bg-gray-200" />
+          <div className="w-6 h-6 rounded-full bg-gray-200" />
+        </div>
+        <div className="w-6 h-6 rounded-full bg-gray-200" />
+      </div>
+
+      {/* Likes Skeleton */}
+      <div className="px-4 pb-1">
+        <div className="h-3 bg-gray-200 rounded-full w-20" />
+      </div>
+
+      {/* Caption Skeleton */}
+      <div className="px-4 pb-2 space-y-2">
+        <div className="h-3 bg-gray-100 rounded-full w-full" />
+        <div className="h-3 bg-gray-100 rounded-full w-3/4" />
+        <div className="flex gap-2 mt-2">
+          <div className="h-5 bg-gray-100 rounded-full w-16" />
+          <div className="h-5 bg-gray-100 rounded-full w-20" />
         </div>
       </div>
 
-      {/* Content Skeleton */}
-      <div className="px-4 pb-2">
-         <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-         <div className="h-3 bg-gray-100 rounded w-full mb-1"></div>
-         <div className="h-3 bg-gray-100 rounded w-5/6"></div>
+      {/* Timestamp Skeleton */}
+      <div className="px-4 pb-3">
+        <div className="h-2 bg-gray-100 rounded-full w-16" />
       </div>
-
-      {/* Image Skeleton */}
-      <div className="mt-3 w-full h-64 bg-gray-200"></div>
-
-      {/* Actions Skeleton */}
-      <div className="px-4 py-3 flex items-center justify-between border-t border-gray-50 mt-2">
-         <div className="flex gap-4">
-             <div className="w-8 h-8 rounded-full bg-gray-100"></div>
-             <div className="w-20 h-8 rounded-full bg-gray-100"></div>
-         </div>
-         <div className="w-8 h-8 rounded-full bg-gray-100"></div>
-      </div>
-    </div>
+    </article>
   );
 };
 
