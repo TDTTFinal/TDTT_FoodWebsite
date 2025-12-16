@@ -6,12 +6,12 @@ import logoImg from "../../assets/logo.svg";
 // ✅ Import useAuth
 import { useAuth } from "../../context/AuthContext";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // ✅ Hàm kiểm tra backend health
 const checkBackendHealth = async () => {
   try {
-    const response = await fetch(`http://localhost:5000/api/health`, {
+    const response = await fetch(`${API_BASE_URL}/health`, {
       method: "GET",
     });
 

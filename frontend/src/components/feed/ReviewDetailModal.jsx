@@ -4,6 +4,8 @@ import { X, Heart, MessageCircle, Share2, Send, ChevronLeft, ChevronRight, MoreH
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onReviewUpdate }) => {
   const [review, setReview] = useState(initialReview); // Local review state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -22,7 +24,7 @@ const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onRevi
   useEffect(() => {
     const fetchReviewDetail = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/reviews/${initialReview._id}`);
+            const res = await fetch(`${API_BASE_URL}/reviews/${initialReview._id}`);
             const data = await res.json();
             if (data.success) {
                 setReview(data.data);
@@ -63,7 +65,7 @@ const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onRevi
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/reviews/${review._id}/comments`, {
+      const res = await fetch(`${API_BASE_URL}/reviews/${review._id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: currentUser._id, content: commentText })
@@ -102,7 +104,7 @@ const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onRevi
     setLikesCount(prev => newLiked ? prev + 1 : prev - 1);
 
     try {
-        const res = await fetch(`http://localhost:5000/api/reviews/${review._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/reviews/${review._id}/like`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: currentUser._id })

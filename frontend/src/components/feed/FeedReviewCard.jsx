@@ -5,6 +5,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
   const { user } = useAuth();
   const isLikedInitially = user && review.likes?.some(id => id.toString() === user._id.toString());
@@ -55,7 +57,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
     setLikeCount(prev => newLiked ? prev + 1 : prev - 1);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/reviews/${review._id}/like`, {
+      const res = await fetch(`${API_BASE_URL}/reviews/${review._id}/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user._id })

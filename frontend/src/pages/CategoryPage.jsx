@@ -5,6 +5,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 // CONFIGURATION MAP
 const categoryConfig = {
   "com": { 
@@ -88,7 +90,7 @@ const CategoryPage = () => {
       params.append("category", categoryName);
 
       const response = await fetch(
-        `http://localhost:5000/api/restaurants?${params.toString()}`
+        `${API_BASE_URL}/restaurants?${params.toString()}`
       );
 
       if (!response.ok) throw new Error("Failed to fetch data");

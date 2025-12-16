@@ -9,6 +9,8 @@ import ReviewDetailModal from "../components/feed/ReviewDetailModal";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const FoodFeedPage = () => {
   const navigate = useNavigate();
   const [reviews, setReviews] = useState([]);
@@ -30,7 +32,7 @@ const FoodFeedPage = () => {
           if (existing) {
             setSelectedReview(existing);
           } else {
-            const res = await fetch(`http://localhost:5000/api/reviews/${reviewIdFromUrl}`);
+            const res = await fetch(`${API_BASE_URL}/reviews/${reviewIdFromUrl}`);
             const data = await res.json();
             if (data.success) setSelectedReview(data.data);
           }
@@ -97,8 +99,8 @@ const FoodFeedPage = () => {
       try {
         setLoadingSidebar(true);
         const [trendingRes, usersRes] = await Promise.all([
-          fetch('http://localhost:5000/api/restaurants/trending').then(r => r.json()),
-          fetch('http://localhost:5000/api/reviews/top-users').then(r => r.json())
+          fetch(`${API_BASE_URL}/restaurants/trending`).then(r => r.json()),
+          fetch(`${API_BASE_URL}/reviews/top-users`).then(r => r.json())
         ]);
 
         if (trendingRes.success) setTrending(trendingRes.data);
@@ -130,7 +132,7 @@ const FoodFeedPage = () => {
       if (pageNum === 1) setLoading(true);
       else setLoadingMore(true);
 
-      const res = await fetch(`http://localhost:5000/api/reviews/feed?page=${pageNum}&limit=5&sort=${sort}`);
+      const res = await fetch(`${API_BASE_URL}/reviews/feed?page=${pageNum}&limit=5&sort=${sort}`);
       const data = await res.json();
 
       if (data.success) {

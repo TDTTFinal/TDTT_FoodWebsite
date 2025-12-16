@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,7 +17,7 @@ export const AuthProvider = ({ children }) => {
           if (parsedData.user && parsedData.token) {
             // ✅ Fetch fresh user data from MongoDB
             try {
-              const response = await fetch('http://localhost:5000/api/users/profile', {
+              const response = await fetch(`${API_BASE_URL}/users/profile`, {
                 headers: {
                   'Authorization': `Bearer ${parsedData.token}`
                 }
