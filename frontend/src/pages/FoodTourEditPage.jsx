@@ -32,16 +32,34 @@ const FoodTourEditPage = () => {
   const [message, setMessage] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Load tour on mount
+  // Load tour on mount or when tourId changes
   useEffect(() => {
     if (!user) {
       navigate("/login");
       return;
     }
     loadTour();
-    // Check for pending items from AdvancedSearchPage
-    loadPendingItems();
   }, [tourId, user]);
+
+  // Separate effect: Check for pending items ONLY when window regains focus
+  // AFTER tour data is already loaded (to avoid race conditions)
+  useEffect(() => {
+    // Only set up focus listener after tour is loaded
+    if (!tour) return;
+    
+    const checkPendingOnFocus = () => {
+      const pendingData = localStorage.getItem("pendingTourItems");
+      if (pendingData) {
+        console.log("[FoodTourEdit] Found pending items on window focus", pendingData);
+        // Use current tourItems state since tour is already loaded
+        loadPendingItems(null);
+      }
+    };
+    
+    // Add focus listener for when user switches back to this tab
+    window.addEventListener('focus', checkPendingOnFocus);
+    return () => window.removeEventListener('focus', checkPendingOnFocus);
+  }, [tour]); // Only after tour is loaded
 
   const loadTour = async () => {
     try {
@@ -54,15 +72,21 @@ const FoodTourEditPage = () => {
         setTour(res.tour);
         setTourName(res.tour.name || "");
         
-        // Map tourItems from API - handle both old and new formats
+        // Map tourItems from API
         const items = res.tour.tourItems || {};
-        setTourItems({
+        const loadedItems = {
           unsorted: items.unsorted || [],
           morning: items.morning || [],
-          lunch: items.lunch || items.noon || [], // Support 'noon' from old FoodTourPage
+          lunch: items.lunch || items.noon || [],
           afternoon: items.afternoon || [],
-          dinner: items.dinner || items.evening || [], // Support 'evening' from old format
-        });
+          dinner: items.dinner || items.evening || [],
+        };
+        
+        setTourItems(loadedItems);
+        
+        // Now check for pending items AFTER tour is loaded
+        // Pass loadedItems to ensure we merge with fresh data
+        setTimeout(() => loadPendingItems(loadedItems), 100);
       } else {
         setError("Không tìm thấy tour");
       }
@@ -75,22 +99,27 @@ const FoodTourEditPage = () => {
   };
 
   // Load pending items from localStorage (from AdvancedSearchPage)
-  const loadPendingItems = () => {
+  // Accepts loadedItems to merge with already-loaded tour data
+  const loadPendingItems = (loadedItems = null) => {
     try {
       const pendingData = localStorage.getItem("pendingTourItems");
       if (pendingData) {
         const pendingItems = JSON.parse(pendingData);
         if (pendingItems.length > 0) {
-          // Add cartId to each pending item and add to unsorted
+          // Add cartId to each pending item
           const itemsWithIds = pendingItems.map(item => ({
             ...item,
             cartId: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9)
           }));
           
-          setTourItems(prev => ({
-            ...prev,
-            unsorted: [...prev.unsorted, ...itemsWithIds]
-          }));
+          // Merge with existing data (use loadedItems if provided, else current state)
+          setTourItems(prev => {
+            const base = loadedItems || prev;
+            return {
+              ...base,
+              unsorted: [...(base.unsorted || []), ...itemsWithIds]
+            };
+          });
           
           setHasChanges(true);
           setMessage(`✅ Đã thêm ${pendingItems.length} quán mới vào tour`);

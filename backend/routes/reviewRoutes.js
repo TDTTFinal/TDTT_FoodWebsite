@@ -280,6 +280,86 @@ router.get("/community", async (req, res) => {
 });
 
 // ========================
+// GET /api/reviews/top-users - Get top reviewers
+// ========================
+router.get("/top-users", async (req, res) => {
+  try {
+    const topUsers = await Review.aggregate([
+      { $match: { status: "active" } },
+      { 
+        $group: { 
+          _id: "$user", 
+          reviewCount: { $sum: 1 },
+          lastActive: { $max: "$createdAt" }
+        } 
+      },
+      { $sort: { reviewCount: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $project: {
+          _id: 1,
+          name: "$userInfo.name",
+          avatar: "$userInfo.avatar",
+          reviewCount: 1,
+          lastActive: 1
+        }
+      }
+    ]);
+
+    res.json({ success: true, data: topUsers });
+  } catch (error) {
+    console.error("Get top users error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
+// GET /api/reviews/feed - Get global feed reviews
+// ========================
+router.get("/feed", async (req, res) => {
+  try {
+    const { page = 1, limit = 10, sort = 'latest' } = req.query;
+
+    let sortOption = { createdAt: -1 };
+    if (sort === 'trending') {
+        sortOption = { likesCount: -1, createdAt: -1 };
+    }
+
+    const reviews = await Review.find({ status: "active" })
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .populate("user", "name avatar")
+      .populate("restaurant", "name address images avg_rating");
+
+    const total = await Review.countDocuments({ status: "active" });
+
+    res.json({
+      success: true,
+      data: reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
+    });
+  } catch (error) {
+    console.error("Get feed error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
 // POST /api/reviews/:id/like - Like/unlike review
 // ========================
 router.post("/:id/like", async (req, res) => {
@@ -360,6 +440,43 @@ router.post("/:id/report", async (req, res) => {
     res.json({ success: true, message: "Report submitted" });
   } catch (error) {
     console.error("Report review error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
+// POST /api/reviews/:id/comments - Add comment
+// ========================
+router.post("/:id/comments", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, content } = req.body;
+
+    if (!userId || !content) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({ success: false, error: "Review not found" });
+    }
+
+    const newComment = {
+      user: userId,
+      content,
+      createdAt: new Date()
+    };
+
+    review.comments.push(newComment);
+    await review.save();
+
+    // Populate user info for the new comment to return immediately
+    const populatedReview = await Review.findById(id).populate("comments.user", "name avatar");
+    const addedComment = populatedReview.comments[populatedReview.comments.length - 1];
+
+    res.json({ success: true, data: addedComment });
+  } catch (error) {
+    console.error("Add comment error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
