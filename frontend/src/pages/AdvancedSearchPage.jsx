@@ -95,17 +95,6 @@ const AdvancedSearchPage = () => {
 
   const generateId = () => "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
 
-  // Read addToTour URL param to enable external tour edit mode
-  useEffect(() => {
-    const tourIdParam = searchParams.get("addToTour");
-    if (tourIdParam) {
-      setAddingToTourId(tourIdParam);
-      console.log("[AdvancedSearch] External tour mode enabled for tour:", tourIdParam);
-    } else {
-      setAddingToTourId(null);
-    }
-  }, [searchParams]);
-
   // Check if restaurant is already in tour (local or pending)
   const isInTour = (restaurantId) => {
     // Check local tourItems
@@ -554,12 +543,16 @@ const AdvancedSearchPage = () => {
   // Categories
   const categories = [
     "Tất cả",
-    "Cơm & Món Mặn",
-    "Món Nước & Sợi",
-    "Cafe & Trà Sữa",
-    "Ăn Vặt & Bánh",
-    "Lẩu - Nướng & Nhậu",
-    "Healthy & Khác",
+    "Lẩu",
+    "BBQ",
+    "Cơm",
+    "Phở",
+    "Bún",
+    "Trà sữa",
+    "Cafe",
+    "Hải sản",
+    "Buffet",
+    "Khác",
   ];
 
   const priceRanges = [

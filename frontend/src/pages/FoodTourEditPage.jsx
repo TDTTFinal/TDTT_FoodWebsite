@@ -32,7 +32,7 @@ const FoodTourEditPage = () => {
   const [message, setMessage] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Load tour on mount or when tourId changes
+  // Load tour on mount
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -41,27 +41,23 @@ const FoodTourEditPage = () => {
     loadTour();
   }, [tourId, user]);
 
-  // Separate effect: Check for pending items ONLY when window regains focus
-  // AFTER tour data is already loaded (to avoid race conditions)
-  useEffect(() => {
-    // Only set up focus listener after tour is loaded
-    if (!tour) return;
-    
-    const checkPendingOnFocus = () => {
+  const loadTour = async () => {
+    // READ LOCAL STORAGE SYNCHRONOUSLY
+    // Capture pending items immediately before any async await to prevent race conditions in Strict Mode
+    let pendingItemsMerge = [];
+    try {
       const pendingData = localStorage.getItem("pendingTourItems");
       if (pendingData) {
-        console.log("[FoodTourEdit] Found pending items on window focus", pendingData);
-        // Use current tourItems state since tour is already loaded
-        loadPendingItems(null);
+        const parsed = JSON.parse(pendingData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          pendingItemsMerge = parsed;
+          console.log("📥 Captured pending items (Sync):", pendingItemsMerge.length);
+        }
       }
-    };
-    
-    // Add focus listener for when user switches back to this tab
-    window.addEventListener('focus', checkPendingOnFocus);
-    return () => window.removeEventListener('focus', checkPendingOnFocus);
-  }, [tour]); // Only after tour is loaded
+    } catch (e) {
+      console.error("Error reading pending items:", e);
+    }
 
-  const loadTour = async () => {
     try {
       setLoading(true);
       setError("");
@@ -72,21 +68,38 @@ const FoodTourEditPage = () => {
         setTour(res.tour);
         setTourName(res.tour.name || "");
         
-        // Map tourItems from API
+        // Map tourItems from API - handle both old and new formats
         const items = res.tour.tourItems || {};
-        const loadedItems = {
+        let newTourItems = {
           unsorted: items.unsorted || [],
           morning: items.morning || [],
-          lunch: items.lunch || items.noon || [],
+          lunch: items.lunch || items.noon || [], // Support 'noon' from old FoodTourPage
           afternoon: items.afternoon || [],
-          dinner: items.dinner || items.evening || [],
+          dinner: items.dinner || items.evening || [], // Support 'evening' from old format
         };
-        
-        setTourItems(loadedItems);
-        
-        // Now check for pending items AFTER tour is loaded
-        // Pass loadedItems to ensure we merge with fresh data
-        setTimeout(() => loadPendingItems(loadedItems), 100);
+
+        // MERGE PENDING ITEMS
+        if (pendingItemsMerge.length > 0) {
+           console.log("📥 Merging pending items into tour:", pendingItemsMerge.length);
+           
+           // Add cartId to each pending item
+           const itemsWithIds = pendingItemsMerge.map(item => ({
+             ...item,
+             cartId: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9)
+           }));
+           
+           // Add to unsorted
+           newTourItems.unsorted = [...newTourItems.unsorted, ...itemsWithIds];
+           
+           setHasChanges(true);
+           setMessage(`✅ Đã thêm ${pendingItemsMerge.length} quán mới vào tour`);
+           setTimeout(() => setMessage(""), 3000);
+           
+           // Clear pending items from storage
+           localStorage.removeItem("pendingTourItems");
+        }
+
+        setTourItems(newTourItems);
       } else {
         setError("Không tìm thấy tour");
       }
@@ -95,42 +108,6 @@ const FoodTourEditPage = () => {
       setError("Lỗi tải tour: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Load pending items from localStorage (from AdvancedSearchPage)
-  // Accepts loadedItems to merge with already-loaded tour data
-  const loadPendingItems = (loadedItems = null) => {
-    try {
-      const pendingData = localStorage.getItem("pendingTourItems");
-      if (pendingData) {
-        const pendingItems = JSON.parse(pendingData);
-        if (pendingItems.length > 0) {
-          // Add cartId to each pending item
-          const itemsWithIds = pendingItems.map(item => ({
-            ...item,
-            cartId: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9)
-          }));
-          
-          // Merge with existing data (use loadedItems if provided, else current state)
-          setTourItems(prev => {
-            const base = loadedItems || prev;
-            return {
-              ...base,
-              unsorted: [...(base.unsorted || []), ...itemsWithIds]
-            };
-          });
-          
-          setHasChanges(true);
-          setMessage(`✅ Đã thêm ${pendingItems.length} quán mới vào tour`);
-          setTimeout(() => setMessage(""), 3000);
-          
-          // Clear pending items
-          localStorage.removeItem("pendingTourItems");
-        }
-      }
-    } catch (err) {
-      console.error("Load pending items error:", err);
     }
   };
 
