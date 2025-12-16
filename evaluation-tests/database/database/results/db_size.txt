@@ -1,0 +1,34 @@
+
+============================================================
+DATABASE SIZE REPORT
+Generated: 2025-12-16 15:11:58
+============================================================
+
+📊 MAIN METRICS
+--------------------------------------------------
+Total Restaurants:           1157
+Target:                      > 1000
+Status:                      ✅ PASSED
+
+📈 ADDITIONAL STATS
+--------------------------------------------------
+Average Rating:              nan / 10
+
+Top Categories:
+  - Unknown               1125 restaurants
+  - Khác                    32 restaurants
+
+============================================================
+
+⚠️  NOTE
+--------------------------------------------------
+Ensure MongoDB has at least 1000 restaurants for meaningful
+search and routing tests.
+
+If count < 1000, consider running seedData.js script.
+
+📁 OUTPUT
+--------------------------------------------------
+Report saved to: database/results/db_size.txt
+
+============================================================
