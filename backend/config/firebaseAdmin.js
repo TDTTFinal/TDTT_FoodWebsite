@@ -15,7 +15,8 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   // Fallback: đọc từ file JSON (cho local development)
   const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
   if (fs.existsSync(serviceAccountPath)) {
-    serviceAccount = require("./serviceAccountKey.json");
+    const fileContent = fs.readFileSync(serviceAccountPath, "utf8");
+    serviceAccount = JSON.parse(fileContent);
   }
 }
 
