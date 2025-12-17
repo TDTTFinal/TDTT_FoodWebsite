@@ -21,10 +21,10 @@ từ đó gợi ý những lựa chọn **phù hợp – nhanh chóng – khách
 ## 🚀 **Hướng phát triển dự án**
 
 ### 🔹 **Hướng 1 – Hệ thống Gợi ý Cơ bản (BASIC)**
-- ✅ Biểu diễn dữ liệu bằng TF-IDF / CountVectorizer  
-- ✅ Tính toán độ tương đồng bằng Cosine Similarity  
-- ✅ Giao diện web đơn giản: lọc theo tag, giá, loại món, vị trí  
-- ✅ Chức năng **Admin CRUD**: Quản lý nhà hàng và đặc trưng (tags)  
+-  Biểu diễn dữ liệu bằng TF-IDF / CountVectorizer  
+-  Tính toán độ tương đồng bằng Cosine Similarity  
+-  Giao diện web đơn giản: lọc theo tag, giá, loại món, vị trí  
+-  Chức năng **Admin CRUD**: Quản lý nhà hàng và đặc trưng (tags)  
 
 ### 🔸 **Hướng 2 – Hệ thống Gợi ý Tăng cường bằng Phân tích Cảm xúc (ADVANCED)**
 - 💬 Phân tích cảm xúc từ đánh giá người dùng bằng **TextBlob** hoặc **VADER**  

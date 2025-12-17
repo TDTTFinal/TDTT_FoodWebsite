@@ -43,7 +43,7 @@ exports.getAllRestaurants = async (req, res) => {
     // Query DB
     const restaurants = await Restaurant.find(filter)
       .sort(sortOptions)
-      .limit(parsedLimit) // limit=0 → lấy tất cả
+      .limit(parsedLimit) // limit=0 - l\u1ea5y t\u1ea5t c\u1ea3
       .skip(skip)
       .select("-__v");
 

@@ -3,12 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import "../../styles/auth.css";
 import logoImg from "../../assets/logo.svg";
 
-// ✅ Import useAuth
+// Import useAuth
 import { useAuth } from "../../context/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// ✅ Hàm kiểm tra backend health
+// Hàm kiểm tra backend health
 const checkBackendHealth = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
@@ -41,10 +41,10 @@ function SignUpPage() {
   const [checkingBackend, setCheckingBackend] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Lấy hàm login từ AuthContext
+  // Lấy hàm login từ AuthContext
   const { login } = useAuth();
 
-  // ✅ Kiểm tra backend status khi component mount
+  // Kiểm tra backend status khi component mount
   useEffect(() => {
     const checkHealth = async () => {
       const health = await checkBackendHealth();
@@ -70,7 +70,7 @@ function SignUpPage() {
     e.preventDefault();
     setError("");
 
-    // ✅ Validation đầy đủ
+    // Validation đầy đủ
     if (!form.name.trim()) {
       setError("Vui lòng nhập họ tên");
       return;
@@ -103,7 +103,7 @@ function SignUpPage() {
       return;
     }
 
-    // ✅ Kiểm tra backend trước khi gửi
+    // Kiểm tra backend trước khi gửi
     if (!backendStatus?.healthy) {
       setError("⚠️ Server hiện đang offline. Vui lòng thử lại sau.");
       return;
@@ -130,20 +130,20 @@ function SignUpPage() {
         throw new Error(data.message || "Đăng ký thất bại");
       }
 
-      // ✅ OPTION 1: AUTO-LOGIN (Khuyến nghị)
+      // OPTION 1: AUTO-LOGIN (Khuyến nghị)
       // Sau khi đăng ký thành công, tự động đăng nhập luôn
       login(data.user, data.token);
       alert("✅ Đăng ký thành công! Chào mừng bạn đến với Chewz.");
       navigate("/");
 
-      // ❌ OPTION 2: MANUAL LOGIN (Code cũ)
+      // OPTION 2: MANUAL LOGIN (Code cũ)
       // Uncomment code dưới và comment code trên nếu muốn user phải login thủ công
       // alert("✅ Đăng ký thành công! Hãy đăng nhập.");
       // navigate("/login");
     } catch (err) {
       console.error("Register error:", err);
 
-      // ✅ Xử lý các loại lỗi khác nhau một cách chi tiết
+      // Xử lý các loại lỗi khác nhau một cách chi tiết
       if (err.message === "Failed to fetch" || err.name === "TypeError") {
         setError(
           "❌ Không thể kết nối đến server.\n\n" +
@@ -198,7 +198,7 @@ function SignUpPage() {
             <div className="auth-form-shell">
               <h1 className="auth-title">ĐĂNG KÝ</h1>
 
-              {/* ✅ Hiển thị trạng thái backend */}
+              {/* Hiển thị trạng thái backend */}
               {checkingBackend && (
                 <div
                   style={{
@@ -258,7 +258,7 @@ function SignUpPage() {
                 </div>
               )}
 
-              {/* ✅ Hiển thị lỗi với format tốt hơn */}
+              {/* Hiển thị lỗi với format tốt hơn */}
               {error && (
                 <div
                   style={{

@@ -87,7 +87,7 @@ function formatDuration(minutes) {
 export function getOpenStatus(openingHours) {
   const parsed = parseOpeningHours(openingHours);
   
-  // Không parse được → trạng thái không xác định
+  // Kh\u00f4ng parse \u0111\u01b0\u1ee3c - tr\u1ea1ng th\u00e1i kh\u00f4ng x\u00e1c \u0111\u1ecbnh
   if (!parsed) {
     return {
       status: 'unknown',

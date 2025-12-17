@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ✅ POST /api/auth/register - Đã được cải thiện
+// POST /api/auth/register - Đã được cải thiện
 exports.registerUser = async (req, res) => {
   try {
     const {
@@ -30,7 +30,7 @@ exports.registerUser = async (req, res) => {
       topTags,
     } = req.body;
 
-    // ✅ Validation chi tiết hơn
+    // Validation chi tiết hơn
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Thiếu thông tin bắt buộc",
@@ -42,20 +42,20 @@ exports.registerUser = async (req, res) => {
       });
     }
 
-    // ✅ Validate email format
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Email không hợp lệ" });
     }
 
-    // ✅ Validate password length
+    // Validate password length
     if (password.length < 6) {
       return res.status(400).json({
         message: "Mật khẩu phải có ít nhất 6 ký tự",
       });
     }
 
-    // ✅ Kiểm tra email đã tồn tại
+    // Kiểm tra email đã tồn tại
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(409).json({
@@ -64,11 +64,11 @@ exports.registerUser = async (req, res) => {
       });
     }
 
-    // ✅ Hash password
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // ✅ Tạo user mới với default values
+    // Tạo user mới với default values
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -80,19 +80,19 @@ exports.registerUser = async (req, res) => {
       topTags: topTags || [],
     });
 
-    // ✅ Generate JWT token
+    // Generate JWT token
     const token = genToken(user._id);
 
-    // ✅ Log để debug (chỉ trong development)
+    // Log để debug (chỉ trong development)
     if (process.env.NODE_ENV === "development") {
-      console.log("✅ User registered successfully:", {
+      console.log("User registered successfully:", {
         id: user._id,
         email: user.email,
         name: user.name,
       });
     }
 
-    // ✅ Trả về response
+    // Trả về response
     res.status(201).json({
       message: "Đăng ký thành công",
       user: {
@@ -110,9 +110,9 @@ exports.registerUser = async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error("❌ Register error:", err);
+    console.error("Register error:", err);
 
-    // ✅ Xử lý các loại lỗi cụ thể
+    // Xử lý các loại lỗi cụ thể
     if (err.name === "ValidationError") {
       return res.status(400).json({
         message: "Dữ liệu không hợp lệ",
@@ -133,19 +133,19 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-// ✅ POST /api/auth/login - Đã được cải thiện
+// POST /api/auth/login - Đã được cải thiện
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ✅ Validation
+    // Validation
     if (!email || !password) {
       return res.status(400).json({
         message: "Vui lòng nhập đầy đủ email và mật khẩu",
       });
     }
 
-    // ✅ Tìm user (case-insensitive email)
+    // Tìm user (case-insensitive email)
     const user = await User.findOne({
       email: email.toLowerCase().trim(),
     });
@@ -161,7 +161,7 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // ✅ Verify password
+    // Verify password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({
@@ -169,18 +169,18 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // ✅ Generate token
+    // Generate token
     const token = genToken(user._id);
 
-    // ✅ Log để debug (chỉ trong development)
+    // Log để debug (chỉ trong development)
     if (process.env.NODE_ENV === "development") {
-      console.log("✅ User logged in:", {
+      console.log("User logged in:", {
         id: user._id,
         email: user.email,
       });
     }
 
-    // ✅ Trả về response
+    // Trả về response
     res.json({
       message: "Đăng nhập thành công",
       user: {
@@ -198,7 +198,7 @@ exports.loginUser = async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error("❌ Login error:", err);
+    console.error("Login error:", err);
     res.status(500).json({
       message: "Lỗi server khi đăng nhập",
       error: process.env.NODE_ENV === "development" ? err.message : undefined,
@@ -216,7 +216,7 @@ exports.forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
-    // ✅ Không lộ thông tin tồn tại hay không (best practice)
+    // Không lộ thông tin tồn tại hay không (best practice)
     if (!user) {
       return res.status(200).json({
         message:
@@ -259,7 +259,7 @@ exports.forgotPassword = async (req, res) => {
     const resetURL = `${frontendUrl}/reset-password/${resetToken}`;
 
     // Log ra console để dễ debug khi demo
-    console.log("🔗 Password reset link:", resetURL);
+    console.log("Password reset link:", resetURL);
 
     // Gửi email thật bằng nodemailer
     try {
@@ -320,9 +320,9 @@ exports.forgotPassword = async (req, res) => {
   `,
       });
 
-      console.log("✅ Reset email sent to:", user.email);
+      console.log("Reset email sent to:", user.email);
     } catch (mailError) {
-      console.error("❌ Error sending reset email:", mailError);
+      console.error("Error sending reset email:", mailError);
       return res.status(500).json({
         message: "Không gửi được email đặt lại mật khẩu. Vui lòng thử lại sau.",
       });
@@ -333,7 +333,7 @@ exports.forgotPassword = async (req, res) => {
         "Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi đến email của bạn.",
     });
   } catch (error) {
-    console.error("❌ Forgot password error:", error);
+    console.error("Forgot password error:", error);
     return res
       .status(500)
       .json({ message: "Lỗi server khi xử lý quên mật khẩu" });
@@ -349,7 +349,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Thiếu token hoặc mật khẩu mới" });
     }
 
-    // ✅ Validate password length
+    // Validate password length
     if (password.length < 6) {
       return res.status(400).json({
         message: "Mật khẩu phải có ít nhất 6 ký tự",
@@ -380,13 +380,13 @@ exports.resetPassword = async (req, res) => {
 
     await user.save();
 
-    console.log("✅ Password reset successful for:", user.email);
+    console.log("Password reset successful for:", user.email);
 
     return res.json({
       message: "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập lại.",
     });
   } catch (error) {
-    console.error("❌ Reset password error:", error);
+    console.error("Reset password error:", error);
     return res.status(500).json({ message: "Lỗi server khi đặt lại mật khẩu" });
   }
 };

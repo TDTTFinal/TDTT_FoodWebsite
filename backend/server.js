@@ -27,14 +27,14 @@ app.use("/api/auth", authRoutes);
 // -> /api/auth/login
 // -> /api/auth/google
 
-// 🆕 THÊM ĐOẠN NÀY VÀO ĐÂY
+// THÊM ĐOẠN NÀY VÀO ĐÂY
 const restaurantRoutes = require("./routes/restaurantRoutes");
 app.use("/api/restaurants", restaurantRoutes);
 // -> /api/restaurants
 // -> /api/restaurants/:id
 // -> /api/restaurants/featured
 // -> /api/restaurants/categories/stats
-// 🆕 KẾT THÚC ĐOẠN THÊM
+// KẾT THÚC ĐOẠN THÊM
 
 
 app.use("/api/search", searchRoutes); // dùng cho cả /api/search/advanced
@@ -48,13 +48,13 @@ app.use("/api/users", userRoutes);
 // -> /api/users/upload-avatar
 // -> /api/users/profile
 
-// 🌦️ Weather API for Food Tour
+// Weather API for Food Tour
 const weatherRoutes = require("./routes/weatherRoutes");
 app.use("/api/weather", weatherRoutes);
 // -> /api/weather/forecast
 // -> /api/weather/check-slot
 
-// ⭐ Review API
+// Review API
 const reviewRoutes = require("./routes/reviewRoutes");
 app.use("/api/reviews", reviewRoutes);
 // -> /api/reviews/restaurant/:id
@@ -62,7 +62,7 @@ app.use("/api/reviews", reviewRoutes);
 // -> /api/reviews/:id/like
 // -> /api/reviews/upload
 
-// 🕒 History API
+// History API
 const historyRoutes = require("./routes/historyRoutes");
 app.use("/api/history", historyRoutes);
 // -> /api/history/views (GET/POST/DELETE)
@@ -70,4 +70,4 @@ app.use("/api/history", historyRoutes);
 // -> /api/history/sync (POST)
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));
+app.listen(PORT, () => console.log(`Server chạy port ${PORT}`));

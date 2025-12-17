@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const parsedData = JSON.parse(storedAuth);
           if (parsedData.user && parsedData.token) {
-            // ✅ Fetch fresh user data from MongoDB
+            // Fetch fresh user data from MongoDB
             try {
               const response = await fetch(`${API_BASE_URL}/users/profile`, {
                 headers: {
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
                   };
                   localStorage.setItem("auth", JSON.stringify(newAuth));
                   setUser(newAuth.user);
-                  console.log('✅ Fresh user data loaded from MongoDB, avatar:', data.user.avatar);
+                  console.log('Fresh user data loaded from MongoDB, avatar:', data.user.avatar);
                 } else {
                   // Fallback to localStorage if API fails
                   setUser(parsedData.user);
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(parsedData.user);
               }
             } catch (apiError) {
-              console.warn('⚠️ Failed to fetch fresh user data, using localStorage:', apiError);
+              console.warn('Failed to fetch fresh user data, using localStorage:', apiError);
               setUser(parsedData.user);
             }
           }

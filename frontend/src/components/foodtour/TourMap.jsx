@@ -190,7 +190,7 @@ const TourMap = ({ tourItems }) => {
     });
 
     // Fetch OSRM route when polyline positions change
-    // Route order: User Location → Morning → Lunch → Afternoon → Dinner
+    // Route order: User Location -> Morning -> Lunch -> Afternoon -> Dinner
     useEffect(() => {
         const fetchRoute = async () => {
             // Need at least 1 restaurant position (user location will be prepended)
