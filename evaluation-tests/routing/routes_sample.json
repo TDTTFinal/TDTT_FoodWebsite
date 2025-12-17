@@ -1,0 +1,85 @@
+[
+  {
+    "tour_id": "tour_1",
+    "name": "Tour Quận 1 - Trung tâm",
+    "stops": [
+      {"name": "Cơm Tấm ABC", "lat": 10.7769, "lon": 106.7009},
+      {"name": "Cafe Landmark", "lat": 10.7724, "lon": 106.6988},
+      {"name": "Phở 24/7", "lat": 10.7800, "lon": 106.7050},
+      {"name": "Bánh Mì 37", "lat": 10.7750, "lon":106.7020},
+      {"name": "Chè Khánh Vân", "lat": 10.7780, "lon": 106.6980}
+    ]
+  },
+  {
+    "tour_id": "tour_2",
+    "name": "Tour Ăn Sáng",
+    "stops": [
+      {"name": "Bánh Mì Huỳnh Hoa", "lat": 10.7723, "lon": 106.6964},
+      {"name": "Phở Lệ", "lat": 10.7750, "lon": 106.6990},
+      {"name": "Cafe Runam", "lat": 10.7800, "lon": 106.7010},
+      {"name": "Bánh Cuốn Thanh Vân", "lat": 10.7730, "lon": 106.6950}
+    ]
+  },
+  {
+    "tour_id": "tour_3",
+    "name": "Tour Ăn Vặt Quận 3",
+    "stops": [
+      {"name": "Chè Thái Lan", "lat": 10.7723, "lon": 106.6842},
+      {"name": "Xôi Gà Thủy", "lat": 10.7750, "lon": 106.6870},
+      {"name": "Bánh Tráng Trộn", "lat": 10.7700, "lon": 106.6820},
+      {"name": "Kem Ốc Quế", "lat": 10.7780, "lon": 106.6890},
+      {"name": "Trà Sữa Gongcha", "lat": 10.7720, "lon": 106.6860}
+    ]
+  },
+  {
+    "tour_id": "tour_4",
+    "name": "Tour Ăn Tối Quận 5",
+    "stops": [
+      {"name": "Lẩu Thái Lạc Hoa Viên", "lat": 10.7550, "lon": 106.6750},
+      {"name": "Dimsum Hồng Kông", "lat": 10.7580, "lon": 106.6770},
+      {"name": "Vịt Quay Bắc Kinh", "lat": 10.7600, "lon": 106.6800},
+      {"name": "Cafe Ông Bầu", "lat": 10.7560, "lon": 106.6780}
+    ]
+  },
+  {
+    "tour_id": "tour_5",
+    "name": "Tour Bình Thạnh",
+    "stops": [
+      {"name": "Cơm Tấm Mộc", "lat": 10.8020, "lon": 106.7100},
+      {"name": "Bún Bò Huế 3A3", "lat": 10.8050, "lon": 106.7120},
+      {"name": "Cafe The Coffee House", "lat": 10.8000, "lon": 106.7090},
+      {"name": "Kem Swensen's", "lat": 10.8030, "lon": 106.7110},
+      {"name": "Trà Chanh Dĩ An", "lat": 10.8010, "lon": 106.7080}
+    ]
+  },
+  {
+    "tour_id": "tour_6",
+    "name": "Tour Nhậu Đêm",
+    "stops": [
+      {"name": "Quán Nhậu 3 Miền", "lat": 10.7650, "lon": 106.6900},
+      {"name": "Nướng BBQ Hàn Quốc", "lat": 10.7670, "lon": 106.6920},
+      {"name": "Ốc Oanh", "lat": 10.7690, "lon": 106.6940},
+      {"name": "Chè Đêm 24h", "lat": 10.7660, "lon": 106.6910}
+    ]
+  },
+  {
+    "tour_id": "tour_7",
+    "name": "Tour Buffet",
+    "stops": [
+      {"name": "Buffet Lẩu Kichi Kichi", "lat": 10.7820, "lon": 106.7030},
+      {"name": "Buffet Nướng Sumo", "lat": 10.7840, "lon": 106.7060},
+      {"name": "Cafe Highland Coffee", "lat": 10.7830, "lon": 106.7040}
+    ]
+  },
+  {
+    "tour_id": "tour_8",
+    "name": "Tour Món Ngoại",
+    "stops": [
+      {"name": "Pizza 4P's", "lat": 10.7710, "lon": 106.7000},
+      {"name": "Sushi Hokkaido", "lat": 10.7730, "lon": 106.7020},
+      {"name": "Pasta Fresca", "lat": 10.7750, "lon": 106.7040},
+      {"name": "Gelato Italiano", "lat": 10.7720, "lon": 106.7010},
+      {"name": "Starbucks Reserve", "lat": 10.7740, "lon": 106.7030}
+    ]
+  }
+]

@@ -1,467 +1,423 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Loader2, TrendingUp, Award, RefreshCw, Flame, Plus, Sparkles, Users } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import RestaurantCard from "../components/RestaurantCard";
+import FeedReviewCard from "../components/feed/FeedReviewCard";
+import StoriesSection from "../components/feed/StoriesSection";
+import SkeletonFeedReviewCard from "../components/feed/SkeletonFeedReviewCard";
+import ReviewDetailModal from "../components/feed/ReviewDetailModal";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const RestaurantsPage = () => {
-  // ===== STATE MANAGEMENT =====
-  const [restaurants, setRestaurants] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("Tất cả");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
+const FoodFeedPage = () => {
+  const navigate = useNavigate();
+  const [reviews, setReviews] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [topUsers, setTopUsers] = useState([]);
+  const [selectedReview, setSelectedReview] = useState(null);
+  const { user: currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reviewIdFromUrl = searchParams.get('review');
 
-  // ===== DANH SÁCH CATEGORY =====
-  const categories = [
-    { id: "all", name: "Tất cả", icon: "🍽️", color: "#FF6B6B" },
-    { id: "lau", name: "Lẩu", icon: "🍲", color: "#4ECDC4" },
-    { id: "bbq", name: "BBQ", icon: "🥩", color: "#FFE66D" },
-    { id: "com", name: "Cơm", icon: "🍚", color: "#95E1D3" },
-    { id: "pho", name: "Phở", icon: "🍜", color: "#F38181" },
-    { id: "bun", name: "Bún", icon: "🥢", color: "#AA96DA" },
-    { id: "banh-mi", name: "Bánh mì", icon: "🥖", color: "#FCBAD3" },
-    { id: "tra-sua", name: "Trà sữa", icon: "🧋", color: "#A8D8EA" },
-    { id: "hai-san", name: "Hải sản", icon: "🦞", color: "#FFA07A" },
-    { id: "pizza", name: "Pizza", icon: "🍕", color: "#FFD93D" },
-    { id: "chay", name: "Chay", icon: "🥗", color: "#6BCB77" },
-  ];
-
-  // ===== FETCH DATA TỪ API (backend phân trang + filter) =====
+  // === DEEP LINKING HANDLER ===
   useEffect(() => {
-    fetchRestaurants();
-  }, [currentPage, activeCategory, searchTerm]);
+    const syncModalWithUrl = async () => {
+      if (reviewIdFromUrl) {
+        if (selectedReview && selectedReview._id === reviewIdFromUrl) return;
 
-  const fetchRestaurants = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams();
-      params.append("page", currentPage);
-      params.append("limit", 50);
-
-      if (activeCategory !== "Tất cả")
-        params.append("category", activeCategory);
-      if (searchTerm.trim()) params.append("search", searchTerm.trim());
-
-      const response = await fetch(
-        `http://localhost:5000/api/restaurants?${params.toString()}`
-      );
-
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-
-      const result = await response.json();
-
-      let data = [];
-      if (result.success && result.data) {
-        data = result.data;
-        setTotalPages(result.totalPages || 1);
-        setTotalResults(result.total || data.length);
+        try {
+          const existing = reviews.find(r => r._id === reviewIdFromUrl);
+          if (existing) {
+            setSelectedReview(existing);
+          } else {
+            const res = await fetch(`${API_BASE_URL}/reviews/${reviewIdFromUrl}`);
+            const data = await res.json();
+            if (data.success) setSelectedReview(data.data);
+          }
+        } catch (e) {
+          console.error("Deep link fetch error:", e);
+        }
+      } else if (selectedReview) {
+        setSelectedReview(null);
       }
+    };
+    syncModalWithUrl();
+  }, [reviewIdFromUrl, reviews]);
 
-      setRestaurants(data);
-    } catch (err) {
-      console.error("Error fetching restaurants:", err);
-      setError(err.message);
+  const openReviewModal = (review) => {
+    setSearchParams(prev => {
+      prev.set('review', review._id);
+      return prev;
+    });
+    setSelectedReview(review);
+  };
+
+  const closeReviewModal = () => {
+    setSearchParams(prev => {
+      prev.delete('review');
+      return prev;
+    });
+    setSelectedReview(null);
+  };
+
+  const updateReviewInList = (updatedReview) => {
+    setReviews(prev => prev.map(r =>
+      r._id === updatedReview._id ? { ...r, ...updatedReview } : r
+    ));
+    if (selectedReview && selectedReview._id === updatedReview._id) {
+      setSelectedReview(prev => ({ ...prev, ...updatedReview }));
+    }
+  };
+
+  const [sortMode, setSortMode] = useState('latest');
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingSidebar, setLoadingSidebar] = useState(true);
+
+  // Sentinel for Infinite Scroll
+  const observer = useRef();
+  const lastReviewElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prev => prev + 1);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore]);
+
+  // === FETCH SIDEBAR DATA ===
+  useEffect(() => {
+    const fetchSidebarData = async () => {
+      try {
+        setLoadingSidebar(true);
+        const [trendingRes, usersRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/restaurants/trending`).then(r => r.json()),
+          fetch(`${API_BASE_URL}/reviews/top-users`).then(r => r.json())
+        ]);
+
+        if (trendingRes.success) setTrending(trendingRes.data);
+        if (usersRes.success) setTopUsers(usersRes.data);
+      } catch (err) {
+        console.error("Sidebar fetch error:", err);
+      } finally {
+        setLoadingSidebar(false);
+      }
+    };
+    fetchSidebarData();
+  }, []);
+
+  // === FETCH FEED ===
+  useEffect(() => {
+    fetchFeed(page, sortMode);
+  }, [page, sortMode]);
+
+  const handleSortChange = (mode) => {
+    if (mode === sortMode) return;
+    setSortMode(mode);
+    setPage(1);
+    setReviews([]);
+    setHasMore(true);
+  };
+
+  const fetchFeed = async (pageNum, sort) => {
+    try {
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const res = await fetch(`${API_BASE_URL}/reviews/feed?page=${pageNum}&limit=5&sort=${sort}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setReviews(prev => pageNum === 1 ? data.data : [...prev, ...data.data]);
+
+        if (data.data.length < 5 || (data.pagination && pageNum >= data.pagination.totalPages)) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
+      }
+    } catch (error) {
+      console.error("Feed error:", error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  // ===== HANDLE CATEGORY CLICK =====
-  const handleCategoryClick = (categoryName) => {
-    setActiveCategory(categoryName);
-    setCurrentPage(1);
-    window.scrollTo({ top: 300, behavior: "smooth" });
+  const handleRefresh = () => {
+    setPage(1);
+    setHasMore(true);
+    setReviews([]);
+    fetchFeed(1, sortMode);
   };
 
-  // ===== TÍNH RANGE PHÂN TRANG (1 ... 5 6 7 ... 24) =====
-  const getPaginationRange = () => {
-    const range = [];
-    const total = totalPages;
-    const current = currentPage;
-
-    if (total <= 7) {
-      // Ít trang thì show hết
-      for (let i = 1; i <= total; i++) range.push(i);
-      return range;
-    }
-
-    // luôn có trang 1
-    range.push(1);
-
-    const left = Math.max(2, current - 1);
-    const right = Math.min(total - 1, current + 1);
-
-    // Ellipsis bên trái
-    if (left > 2) {
-      range.push("left-ellipsis");
-    }
-
-    // Các trang ở giữa (gần current)
-    for (let i = left; i <= right; i++) {
-      range.push(i);
-    }
-
-    // Ellipsis bên phải
-    if (right < total - 1) {
-      range.push("right-ellipsis");
-    }
-
-    // luôn có trang cuối
-    range.push(total);
-
-    return range;
+  const handleCreatePost = () => {
+    // Navigate to restaurant page to write review, or show a modal
+    navigate('/search-advanced');
   };
 
-  // ===== RENDER =====
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
 
-      {/* ===== BANNER SECTION ===== */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          padding: "60px 0",
-          color: "#fff",
-        }}
-      >
-        <div className="container" style={{ textAlign: "center" }}>
-          <h1
-            style={{
-              fontSize: "42px",
-              fontWeight: "800",
-              marginBottom: "15px",
-            }}
-          >
-            Khám phá Nhà hàng 🍽️
-          </h1>
-          <p style={{ fontSize: "18px", opacity: 0.95, marginBottom: "30px" }}>
-            Tìm kiếm và trải nghiệm hàng nghìn quán ăn ngon tại TP.HCM
-          </p>
+      <main className="container mx-auto px-4 py-6 flex-grow">
+        <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto">
 
-          {/* Search bar */}
-          <div
-            style={{
-              maxWidth: "600px",
-              margin: "0 auto",
-              position: "relative",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Tìm kiếm nhà hàng, món ăn..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: "100%",
-                padding: "18px 25px",
-                paddingRight: "60px",
-                borderRadius: "50px",
-                border: "none",
-                fontSize: "16px",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                outline: "none",
-              }}
+          {/* === LEFT COLUMN: FEED === */}
+          <div className="w-full lg:w-[65%]">
+            
+            {/* Stories Section */}
+            <StoriesSection 
+              topUsers={topUsers}
+              currentUser={currentUser}
+              onCreateStory={handleCreatePost}
             />
-            <span
-              style={{
-                position: "absolute",
-                right: "25px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: "24px",
-                cursor: "pointer",
-              }}
-            >
-              🔍
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* ===== CATEGORY FILTER SECTION ===== */}
-      <div
-        style={{
-          background: "#fff",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          padding: "20px 0",
-        }}
-      >
-        <div className="container">
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              overflowX: "auto",
-              padding: "10px 0",
-              scrollbarWidth: "none",
-            }}
-          >
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.name)}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: "25px",
-                  border:
-                    activeCategory === cat.name
-                      ? `3px solid ${cat.color}`
-                      : "2px solid #eee",
-                  background: activeCategory === cat.name ? cat.color : "#fff",
-                  color: activeCategory === cat.name ? "#fff" : "#333",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  whiteSpace: "nowrap",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>{cat.icon}</span>
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="container" style={{ padding: "40px 20px" }}>
-        {/* Info bar */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "30px",
-            padding: "15px 20px",
-            background: "#f8f9fa",
-            borderRadius: "10px",
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#333" }}>
-              {activeCategory === "Tất cả"
-                ? "Tất cả nhà hàng"
-                : `Danh mục: ${activeCategory}`}
-            </h2>
-            <p style={{ color: "#666", fontSize: "14px" }}>
-              Tìm thấy <strong>{totalResults}</strong> kết quả — Trang{" "}
-              <strong>{currentPage}</strong> / {totalPages}
-            </p>
-          </div>
-
-          {searchTerm && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: "8px 16px",
-                background: "#667eea",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "14px",
-              }}
-            >
-              ✕ Xóa tìm kiếm
-            </button>
-          )}
-        </div>
-
-        {/* ===== LOADING ===== */}
-        {loading && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div
-              style={{
-                width: "60px",
-                height: "60px",
-                border: "6px solid #f3f3f3",
-                borderTop: "6px solid #667eea",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-                margin: "0 auto 20px",
-              }}
-            ></div>
-            <p style={{ fontSize: "18px", color: "#666" }}>
-              Đang tải danh sách nhà hàng...
-            </p>
-          </div>
-        )}
-
-        {/* ===== ERROR ===== */}
-        {error && !loading && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "40px 20px",
-              background: "#fff3cd",
-              borderRadius: "10px",
-              border: "2px solid #ffc107",
-            }}
-          >
-            <p style={{ fontSize: "24px" }}>⚠️</p>
-            <p style={{ fontSize: "16px", color: "#856404" }}>
-              Không thể tải dữ liệu từ server
-            </p>
-            <p style={{ fontSize: "14px", color: "#856404" }}>{error}</p>
-          </div>
-        )}
-
-        {/* ===== RESTAURANTS GRID ===== */}
-        {!loading && restaurants.length > 0 && (
-          <>
-            <div
-              className="card-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: "25px",
-                marginTop: "20px",
-              }}
-            >
-              {restaurants.map((restaurant) => (
-                <RestaurantCard key={restaurant._id} restaurant={restaurant} />
-              ))}
-            </div>
-
-            {/* Pagination */}
-            <div
-              style={{
-                marginTop: "30px",
-                display: "flex",
-                justifyContent: "center",
-                gap: "8px",
-                flexWrap: "wrap",
-              }}
-            >
-              {/* Nút Trước */}
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  background: currentPage === 1 ? "#eee" : "#fff",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                }}
-              >
-                ⬅ Trước
-              </button>
-
-              {/* Các số trang + '...' */}
-              {getPaginationRange().map((item, index) => {
-                if (typeof item === "string") {
-                  return (
-                    <span
-                      key={item + index}
-                      style={{
-                        padding: "8px 10px",
-                        borderRadius: "6px",
-                        color: "#666",
-                      }}
-                    >
-                      ...
-                    </span>
-                  );
-                }
-
-                const page = item;
-                return (
+            {/* Feed Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-gray-900">Bảng tin</h1>
+                <div className="flex bg-gray-100 p-1 rounded-full">
                   <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border:
-                        currentPage === page
-                          ? "2px solid #667eea"
-                          : "1px solid #ddd",
-                      background: currentPage === page ? "#667eea" : "#fff",
-                      color: currentPage === page ? "#fff" : "#333",
-                      cursor: "pointer",
-                      minWidth: "36px",
-                    }}
+                    onClick={() => handleSortChange('latest')}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                      sortMode === 'latest' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    {page}
+                    <Sparkles size={14} className="inline mr-1" />
+                    Mới
                   </button>
-                );
-              })}
-
-              {/* Nút Sau */}
+                  <button
+                    onClick={() => handleSortChange('trending')}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                      sortMode === 'trending' 
+                        ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Flame size={14} className="inline mr-1" />
+                    Hot
+                  </button>
+                </div>
+              </div>
               <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  background: currentPage === totalPages ? "#eee" : "#fff",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                }}
+                onClick={handleRefresh}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors group"
+                title="Làm mới"
               >
-                Sau ➡
+                <RefreshCw size={18} className="text-gray-500 group-hover:rotate-180 transition-transform duration-500" />
               </button>
             </div>
-          </>
-        )}
 
-        {/* ===== NO RESULTS ===== */}
-        {!loading && restaurants.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <p style={{ fontSize: "60px" }}>🔍</p>
-            <h3 style={{ fontSize: "24px" }}>Không tìm thấy kết quả</h3>
-            <button
-              onClick={() => {
-                setActiveCategory("Tất cả");
-                setSearchTerm("");
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: "12px 24px",
-                background: "#667eea",
-                color: "#fff",
-                borderRadius: "8px",
-              }}
-            >
-              Xem tất cả nhà hàng
-            </button>
+            {/* Feed Content */}
+            <div className="space-y-4">
+              {reviews.map((review, index) => (
+                <div key={review._id} ref={index === reviews.length - 1 ? lastReviewElementRef : null}>
+                  <FeedReviewCard
+                    review={review}
+                    onClick={() => openReviewModal(review)}
+                    onReviewUpdate={updateReviewInList}
+                  />
+                </div>
+              ))}
+
+              {/* Loading Skeleton */}
+              {(loading || loadingMore) && (
+                <>
+                  <SkeletonFeedReviewCard />
+                  <SkeletonFeedReviewCard />
+                  {loading && <SkeletonFeedReviewCard />}
+                </>
+              )}
+
+              {/* End of Feed */}
+              {!hasMore && reviews.length > 0 && !loading && (
+                <div className="text-center py-10">
+                  <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full border border-green-100">
+                    <span className="text-2xl">✨</span>
+                    <p className="text-green-700 font-medium">Bạn đã xem hết tất cả!</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!loading && reviews.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                  <div className="text-6xl mb-4">📸</div>
+                  <p className="text-gray-500 mb-4">Chưa có bài viết nào.</p>
+                  <button 
+                    onClick={handleRefresh} 
+                    className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-full hover:shadow-lg transition-all"
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* === RIGHT COLUMN: SIDEBAR (Desktop Only) === */}
+          <aside className="hidden lg:block w-[35%]">
+            <div className="sticky top-24 space-y-5">
+
+              {/* Suggestions For You - Current User */}
+              {currentUser && (
+                <div className="bg-white p-4 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}`}
+                      className="w-12 h-12 rounded-full object-cover border border-gray-100"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-gray-900">{currentUser.name}</p>
+                      <p className="text-xs text-gray-400">{currentUser.email}</p>
+                    </div>
+                    <Link to="/profile" className="text-xs font-semibold text-blue-500 hover:text-blue-600">
+                      Xem
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Top Restaurants */}
+              <div className="bg-white p-4 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-500 text-sm">Đề xuất cho bạn</h3>
+                  <Link to="/search-advanced" className="text-xs font-semibold text-gray-900 hover:text-gray-600">
+                    Xem tất cả
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {loadingSidebar ? (
+                    <div className="animate-pulse space-y-3">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex gap-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 bg-gray-200 w-3/4 rounded" />
+                            <div className="h-2 bg-gray-200 w-1/2 rounded" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : trending.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4 italic">Chưa có dữ liệu.</p>
+                  ) : (
+                    trending.slice(0, 5).map((res) => (
+                      <Link 
+                        to={`/restaurant/${res._id}`} 
+                        key={res._id} 
+                        className="flex items-center gap-3 group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                          <img 
+                            src={res.images?.[0] || res.avatar_url || "https://placehold.co/100"} 
+                            alt={res.name} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                            {res.name}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">{res.address?.split(',')[0]}</p>
+                        </div>
+                        <span className="text-xs font-semibold text-blue-500 hover:text-blue-700">
+                          Xem
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Top Reviewers */}
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users size={16} className="text-purple-600" />
+                  <h3 className="font-semibold text-purple-900 text-sm">Food Critics</h3>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {loadingSidebar ? (
+                    [1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="w-10 h-10 rounded-full bg-white/50 animate-pulse" />
+                    ))
+                  ) : topUsers.length === 0 ? (
+                    <p className="text-xs text-purple-400 italic w-full text-center py-2">
+                      Chưa có reviewer nổi bật.
+                    </p>
+                  ) : (
+                    topUsers.slice(0, 8).map((user, idx) => (
+                      <Link
+                        to={`/user/${user._id}`}
+                        key={user._id}
+                        className="relative group"
+                        title={`${user.name} (${user.reviewCount} reviews)`}
+                      >
+                        <img
+                          src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`}
+                          className="w-10 h-10 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition-transform object-cover"
+                          alt={user.name}
+                        />
+                        <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
+                          {user.reviewCount}
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Links */}
+              <div className="text-[11px] text-gray-400 space-y-2 px-1">
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <Link to="/about" className="hover:underline">Giới thiệu</Link>
+                  <span>·</span>
+                  <Link to="/privacy" className="hover:underline">Quyền riêng tư</Link>
+                  <span>·</span>
+                  <Link to="/terms" className="hover:underline">Điều khoản</Link>
+                </div>
+                <p>© 2024 CHEWZ FROM TDTT</p>
+              </div>
+            </div>
+          </aside>
+        </div>
       </main>
 
-      <Footer />
+      {/* Floating Action Button */}
+      <button
+        onClick={handleCreatePost}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 z-40 group"
+        title="Viết đánh giá"
+      >
+        <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-300" />
+      </button>
 
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Review Detail Modal */}
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUser={currentUser}
+          onClose={closeReviewModal}
+          onReviewUpdate={updateReviewInList}
+        />
+      )}
+
+      <Footer />
     </div>
   );
 };
 
-export default RestaurantsPage;
+export default FoodFeedPage;

@@ -1,0 +1,31 @@
+query_id,query,expected_category,notes
+1,cơm tấm sườn,Cơm,Món ăn cụ thể
+2,bún bò huế,Bún Bò,Món ăn cụ thể
+3,phở bò tái,Phở,Món ăn cụ thể
+ 4,bánh mì thịt,Bánh mì,Món ăn sáng
+5,cà phê sữa đá,Cafe,Đồ uống
+6,trà sữa trân châu,Trà sữa,Đồ uống
+7,lẩu thái hải sản,Lẩu,Món ăn nhóm
+8,buffet nướng hàn quốc,Buffet,Món ăn nhóm
+9,món ăn vặt,Ăn vặt,Đa dạng
+10,quán nhậu,Nhậu,Đa dạng
+11,ăn sáng gần bến thành,Quán ăn sáng,"Kết hợp vị trí"
+12,quán ăn quận 1,Quán ăn,"Khu vực"
+13,cơm tấm rồi cà phê,Combo,"Combo 2 món"
+14,bún bò sau đó ăn chè,Combo,"Combo 2 món"
+15,bánh mì rồi uống sinh tố,Combo,"Combo sáng"
+16,món ăn rẻ dưới 50k,Quán ăn,"Giá rẻ"
+17,nhà hàng sang trọng,Nhà hàng,"Cao cấp"
+18,quán ăn gia đình,Quán ăn,"Phong cách"
+19,đồ ăn chay,Đồ chay,"Đặc biệt"
+20,ăn tối lãng mạn,Nhà hàng,"Ngữ cảnh"
+21,quán ăn đêm,Quán nhậu,"Thời gian"
+22,món miền trung,Miền Trung,"Vùng miền"
+23,món miền bắc,Miền Bắc,"Vùng miền"
+24,hủ tiếu nam vang,Hủ tiếu,"Món ăn cụ thể"
+25,bò kho bánh mì,Bò kho,"Món ăn cụ thể"
+26,chè khúc bạch,Chè,"Tráng miệng"
+27,kem tươi,Kem,"Tráng miệng"
+28,sushi nhật bản,Sushi,"Món ngoại"
+29,pizza ý,Pizza,"Món ngoại"
+30,gà rán hàn quốc,Gà rán,"Món ngoại"

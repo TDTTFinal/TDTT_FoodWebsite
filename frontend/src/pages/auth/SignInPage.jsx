@@ -7,10 +7,10 @@ import { auth, googleProvider } from "../../firebaseConfig";
 
 import logoImg from "../../assets/logo.svg";
 
-// ✅ Import useAuth để sử dụng login từ AuthContext
+// Import useAuth để sử dụng login từ AuthContext
 import { useAuth } from "../../context/AuthContext";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 function SignInPage() {
   const [form, setForm] = useState({
@@ -25,7 +25,7 @@ function SignInPage() {
   const [pendingAuth, setPendingAuth] = useState(null); // Store auth data temporarily
   const navigate = useNavigate();
 
-  // ✅ Lấy hàm login từ AuthContext
+  // Lấy hàm login từ AuthContext
   const { login } = useAuth();
 
   const handleChange = (e) => {

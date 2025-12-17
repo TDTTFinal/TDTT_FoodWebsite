@@ -1,311 +1,810 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom'; // Import Link
-import '../App.css';
+import { useNavigate } from 'react-router-dom';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit } from 'lucide-react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import RestaurantCard from '../components/RestaurantCard';
+import api from '../config/api';
 
 const ProfilePage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
-  // --- STATE QUẢN LÝ TAB ---
-  const [activeTab, setActiveTab] = useState('info'); // 'info' hoặc 'password'
+  // State
+  const [activeTab, setActiveTab] = useState('info');
+  const [profile, setProfile] = useState(null);
+  const [foodTours, setFoodTours] = useState([]); // State cho food tours
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  // --- STATE FORM INFO ---
+  // Settings Form State
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', address: '',
-    budget: 50000, maxDistanceKm: 5, spiceLevel: 'Vừa',
-    favoriteCuisines: [], dietaryRestrictions: []
+    name: '',
+    phone: '',
+    address: ''
   });
-  
-  // --- STATE FORM ĐỔI PASS ---
-  const [passData, setPassData] = useState({
+
+  // Password Form State
+  const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
-  // State chung
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  // Mock Data
 
-  // Options (Giữ nguyên)
-  const CUISINE_OPTIONS = ["Việt Nam", "Hàn Quốc", "Nhật Bản", "Trung Quốc", "Thái Lan", "Âu Mỹ", "Fast Food"];
-  const DIETARY_OPTIONS = ["Ăn chay (Vegetarian)", "Thuần chay (Vegan)", "Halal", "Không Gluten", "Low Carb"];
+  const mockFavorites = [];
+
+  const mockReviews = [
+    {
+      id: 'REV-001',
+      restaurant: {
+        name: 'Quán Phở Hà Nội',
+        avatar_url: 'https://placehold.co/100x100/FF6B35/FFF?text=PHO'
+      },
+      rating: 5,
+      comment: 'Phở rất ngon, nước dùng đậm đà, thịt bò tươi. Sẽ quay lại!',
+      date: '2024-12-10'
+    },
+    {
+      id: 'REV-002',
+      restaurant: {
+        name: 'Cơm Tấm Sài Gòn',
+        avatar_url: 'https://placehold.co/100x100/4ECDC4/FFF?text=COM'
+      },
+      rating: 4,
+      comment: 'Cơm tấm ngon, sườn mềm. Giá cả hợp lý.',
+      date: '2024-12-08'
+    }
+  ];
 
   useEffect(() => {
     if (user) {
-      setFormData({
-        name: user.name || '', email: user.email || '', phone: user.phone || '',
-        address: user.address || '', budget: user.budget || 50000,
-        maxDistanceKm: user.maxDistanceKm || 5, spiceLevel: user.spiceLevel || 'Vừa',
-        favoriteCuisines: user.favoriteCuisines || [], dietaryRestrictions: user.dietaryRestrictions || []
+      setProfile({
+        ...user,
+        avatar_url: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=FF6B35&color=fff&size=200`,
+        joinedDate: '2024-01-15',
+        stats: {
+          favorites: mockFavorites.length,
+          reviews: mockReviews.length
+        }
       });
-      setAvatarPreview(user.avatar || "https://placehold.co/150");
+      // Initialize form data
+      setFormData({
+        name: user.name || '',
+        phone: user.phone || '',
+        address: user.address || ''
+      });
+      setLoading(false);
+
+      // Fetch Food Tours
+      const fetchTours = async () => {
+        try {
+          const res = await api.get('/food-tours');
+          if (res.success) {
+            setFoodTours(res.tours);
+          }
+        } catch (err) {
+          console.error("Lỗi lấy danh sách tour:", err);
+        }
+      };
+      fetchTours();
     }
-  }, [user]);
+  }, [user, user?.avatar]); // Added user?.avatar dependency for avatar updates
 
-  // --- XỬ LÝ ĐỔI TAB ---
-  const switchTab = (tab) => {
-    setActiveTab(tab);
-    setMessage('');
-    setError('');
-  };
-
-  // --- XỬ LÝ FORM INFO (Giữ nguyên logic cũ) ---
-  const handleFileChange = (e) => {
+  // Avatar upload handlers
+  const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      // Kiểm tra file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File quá lớn! Tối đa 5MB.');
+        return;
+      }
+      
+      // Kiểm tra file type
+      if (!file.type.startsWith('image/')) {
+        setError('Chỉ chấp nhận file ảnh!');
+        return;
+      }
+
+      // Preview ảnh ngay lập tức
+      const previewUrl = URL.createObjectURL(file);
+      setProfile({ ...profile, avatar_url: previewUrl });
+      
+      // Auto upload
+      handleUploadAvatar(file);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleUploadAvatar = async (file) => {
+    setUploading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await api.post('/users/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.success) {
+        setMessage('✅ Cập nhật ảnh đại diện thành công!');
+        setProfile({ ...profile, avatar_url: response.url });
+        // Cập nhật vào AuthContext và localStorage
+        updateUser({ avatar: response.url });
+        // Debug logging
+        console.log('✅ Avatar updated in profile:', response.url);
+        console.log('👤 User object after update:', user);
+        // Tự động ẩn message sau 3s
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setError(response.message || 'Upload thất bại');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.response?.data?.message || 'Lỗi khi upload ảnh');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleMultiSelect = (category, value) => {
-    setFormData(prev => {
-      const currentList = prev[category];
-      return currentList.includes(value) 
-        ? { ...prev, [category]: currentList.filter(item => item !== value) }
-        : { ...prev, [category]: [...currentList, value] };
+  const handleFormChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     });
   };
 
-  const handleUpdateInfo = async (e) => {
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    setLoading(true); setMessage(''); setError('');
-    try {
-      // Logic gửi API update info (dùng FormData như bài trước)
-      console.log("Update Info:", formData);
-      setTimeout(() => { setMessage('Cập nhật hồ sơ thành công!'); setLoading(false); }, 1000);
-    } catch (err) { setError('Lỗi rồi bà ơi'); setLoading(false); }
-  };
-
-  // --- XỬ LÝ FORM ĐỔI PASS (Mới) ---
-  const handlePassChange = (e) => setPassData({...passData, [e.target.name]: e.target.value});
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setMessage(''); setError('');
-
-    if (passData.newPassword !== passData.confirmPassword) {
-      setError('Mật khẩu mới không khớp!');
-      return;
-    }
-    if (passData.newPassword.length < 6) {
-      setError('Mật khẩu phải từ 6 ký tự trở lên.');
-      return;
-    }
-
     setLoading(true);
-    try {
-      // CALL API CHANGE PASSWORD
-      console.log("Đổi pass:", passData);
-      
-      // const res = await fetch('/api/auth/change-password', {
-      //   method: 'POST', body: JSON.stringify(passData) ...
-      // })
+    setError('');
+    setMessage('');
 
-      setTimeout(() => {
-        setMessage('Đổi mật khẩu thành công! Nhớ pass mới nha.');
-        setPassData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setLoading(false);
-      }, 1000);
+    console.log('📤 Sending profile update:', formData);
+
+    try {
+      const response = await api.put('/users/profile', formData);
+
+      console.log('📥 Backend response:', response);
+
+      if (response.success) {
+        setMessage('✅ Cập nhật thông tin thành công!');
+        // Update profile state
+        setProfile({ ...profile, ...formData });
+        // Update AuthContext
+        updateUser(formData);
+        // Auto hide message
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        console.error('❌ Update failed:', response.message);
+        setError(response.message || 'Cập nhật thất bại');
+      }
     } catch (err) {
-      setError(err.message || 'Mật khẩu cũ không đúng.');
+      console.error('❌ Update profile error:', err);
+      console.error('❌ Error response:', err.response?.data);
+      setError(err.response?.data?.message || 'Lỗi khi cập nhật thông tin');
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handlePasswordChange = (e) => {
+    setPasswordData({
+      ...passwordData,
+      [e.target.name]: e.target.value
+    });
+  };
 
-  if (!user) return <div className="text-center p-5">Đang tải...</div>;
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setError('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('Mật khẩu mới không khớp!');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await api.post('/users/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+
+      if (response.success) {
+        setMessage('✅ Đổi mật khẩu thành công!');
+        // Reset form
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setError(response.message || 'Đổi mật khẩu thất bại');
+      }
+    } catch (err) {
+      console.error('Change password error:', err);
+      setError(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Chờ xác nhận' },
+      confirmed: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Đã xác nhận' },
+      delivered: { bg: 'bg-green-100', text: 'text-green-700', label: 'Đã giao' },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' }
+    };
+    const badge = badges[status] || badges.pending;
+    return (
+      <span className={`px-3 py-1 ${badge.bg} ${badge.text} text-xs font-semibold rounded-full`}>
+        {badge.label}
+      </span>
+    );
+  };
+
+  if (loading || !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Đang tải...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
-    <div className="container" style={{ marginTop: '30px', marginBottom: '60px' }}>
-      
-      {/* === NÚT QUAY VỀ TRANG CHỦ === */}
-      <div style={{ marginBottom: '20px' }}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#666', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 500 }}>
-          <span>←</span> Quay về trang chủ
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
 
-      <div className="profile-wrapper">
-        
-        {/* === CỘT TRÁI: MENU === */}
-        <div className="profile-card sidebar">
-          <div className="avatar-section">
-            <div className="avatar-upload-container">
-              <img src={avatarPreview} alt="Avatar" className="profile-avatar" />
-              <label htmlFor="file-input" className="camera-btn"><i className="fas fa-camera"></i>📷</label>
-              <input id="file-input" type="file" accept="image/*" onChange={handleFileChange} style={{display: 'none'}} />
+      <div className="container mx-auto px-4 py-8">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-gray-600 hover:text-orange-600 mb-6 transition-colors"
+        >
+          <ArrowLeft size={20} />
+          <span className="font-semibold">Quay về trang chủ</span>
+        </button>
+
+        {/* Messages */}
+        {message && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl animate-in fade-in">
+            {message}
+          </div>
+        )}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl animate-in fade-in">
+            {error}
+          </div>
+        )}
+
+        {/* Main Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Sidebar */}
+          <div className="lg:col-span-4 xl:col-span-3">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sticky top-24">
+              
+              {/* Avatar Section */}
+              <div className="text-center mb-6">
+                <div className="relative inline-block">
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.name}
+                    className="w-32 h-32 rounded-full object-cover border-4 border-orange-100 shadow-lg"
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className={`absolute bottom-0 right-0 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg transition-all ${
+                      uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-600 cursor-pointer'
+                    }`}
+                  >
+                    {uploading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Camera size={18} />
+                    )}
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mt-4">{profile.name}</h2>
+                <p className="text-sm text-gray-500 flex items-center gap-1 justify-center mt-1">
+                  <Calendar size={14} />
+                  Tham gia: {new Date(profile.joinedDate).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="text-center p-3 bg-pink-50 rounded-lg">
+                  <div className="text-2xl font-bold text-pink-600">{profile.stats.favorites}</div>
+                  <div className="text-xs text-gray-600 mt-1">Yêu thích</div>
+                </div>
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{profile.stats.reviews}</div>
+                  <div className="text-xs text-gray-600 mt-1">Đánh giá</div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className="w-full flex items-center gap-3 p-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <Settings size={18} className="text-gray-400" />
+                  <span className="font-semibold">Cài đặt tài khoản</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 p-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <LogOut size={18} />
+                  <span className="font-semibold">Đăng xuất</span>
+                </button>
+              </div>
             </div>
-            <h3 className="profile-name">{user.name}</h3>
           </div>
-          
-          <div className="sidebar-menu">
-            <button 
-              className={`menu-item ${activeTab === 'info' ? 'active' : ''}`}
-              onClick={() => switchTab('info')}
-            >
-              📝 Hồ sơ ăn uống
-            </button>
+
+          {/* Main Content */}
+          <div className="lg:col-span-8 xl:col-span-9">
             
-            <button 
-              className={`menu-item ${activeTab === 'password' ? 'active' : ''}`}
-              onClick={() => switchTab('password')}
-            >
-              🔒 Đổi mật khẩu
-            </button>
+            {/* Tab Navigation */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6">
+              <div className="flex overflow-x-auto hide-scrollbar border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('info')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'info'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <User size={20} />
+                  Hồ sơ
+                </button>
+                <button
+                  onClick={() => setActiveTab('favorites')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'favorites'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Heart size={20} />
+                  Yêu thích
+                </button>
+                <button
+                  onClick={() => setActiveTab('reviews')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'reviews'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Star size={20} />
+                  Đánh giá
+                </button>
+                <button
+                  onClick={() => setActiveTab('tours')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'tours'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Map size={20} />
+                  Tour của tôi
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'settings'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Settings size={20} />
+                  Cài đặt
+                </button>
+              </div>
+            </div>
 
-            <button className="menu-item logout-btn" onClick={handleLogout}>
-              🚪 Đăng xuất
-            </button>
+            {/* Tab Content */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              
+              {/* Info Tab */}
+              {activeTab === 'info' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Thông tin cá nhân</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User size={24} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Tên</p>
+                        <p className="font-bold text-gray-800">{profile.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <Mail size={24} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Email</p>
+                        <p className="font-bold text-gray-800">{profile.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Phone size={24} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Số điện thoại</p>
+                        <p className="font-bold text-gray-800">{profile.phone || 'Chưa cập nhật'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <MapPin size={24} className="text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Địa chỉ</p>
+                        <p className="font-bold text-gray-800">{profile.address || 'Chưa cập nhật'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Favorites Tab */}
+              {activeTab === 'favorites' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Quán yêu thích</h3>
+                  {mockFavorites.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Heart size={64} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu quán nào</p>
+                      <button
+                        onClick={() => navigate('/search')}
+                        className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                      >
+                        Khám phá ngay
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                      {/* Will use RestaurantCard component */}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Reviews Tab */}
+              {activeTab === 'reviews' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Đánh giá của tôi</h3>
+                  {mockReviews.length === 0 ? (
+                    <div className="text-center py-16">
+                      <MessageSquare size={64} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-lg font-semibold text-gray-400">Bạn chưa có đánh giá nào</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {mockReviews.map((review) => (
+                        <div
+                          key={review.id}
+                          className="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow"
+                        >
+                          <div className="flex items-start gap-3 mb-3">
+                            <img
+                              src={review.restaurant.avatar_url}
+                              alt={review.restaurant.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://placehold.co/100x100/E0E0E0/999?text=No+Image';
+                              }}
+                            />
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-800">{review.restaurant.name}</p>
+                              <div className="flex items-center gap-1 mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={16}
+                                    className={i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString('vi-VN')}</p>
+                          </div>
+                          <p className="text-sm text-gray-700">{review.comment}</p>
+                          <div className="flex gap-2 mt-3">
+                            <button className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
+                              Sửa
+                            </button>
+                            <button className="text-sm text-red-600 hover:text-red-700 font-semibold">
+                              Xóa
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* My Tours Tab */}
+              {activeTab === 'tours' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Food Tour đã lưu</h3>
+                  {foodTours.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Map size={64} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu Food Tour nào</p>
+                      <button
+                        onClick={() => navigate('/food-tour')}
+                        className="mt-4 px-6 py-2 bg-orange-500 text-white font-bold rounded-full hover:bg-orange-600 transition-colors"
+                      >
+                        Tạo Tour ngay
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6">
+                      {foodTours.map((tour) => (
+                        <div 
+                          key={tour._id} 
+                          className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-orange-200 transition-all bg-white cursor-pointer group"
+                          onClick={() => navigate(`/food-tour/${tour._id}`)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">
+                                {tour.name}
+                              </h4>
+                              <p className="text-sm text-gray-500 mb-3">{tour.description}</p>
+                              <div className="flex gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <MapPin size={16} className="text-orange-500" />
+                                  {tour.totalRestaurants} địa điểm
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Package size={16} className="text-blue-500" />
+                                  {new Date(tour.createdAt).toLocaleDateString('vi-VN')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                              {/* Nút Xem/Sửa */}
+                              <button 
+                                onClick={() => navigate(`/food-tour/${tour._id}`)}
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Xem/Chỉnh sửa tour"
+                              >
+                                <Edit size={20} />
+                              </button>
+                              {/* Nút Xóa */}
+                              <button 
+                                onClick={async () => {
+                                  if(!window.confirm('Bạn có chắc muốn xóa tour này?')) return;
+                                  try {
+                                    const res = await api.delete(`/food-tours/${tour._id}`);
+                                    if(res.success) {
+                                      setFoodTours(foodTours.filter(t => t._id !== tour._id));
+                                      setMessage('✅ Đã xóa tour');
+                                      setTimeout(() => setMessage(''), 3000);
+                                    }
+                                  } catch(err) {
+                                    console.error(err);
+                                    setError('Lỗi khi xóa tour');
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Xóa tour"
+                              >
+                                <LogOut size={20} />
+                              </button>
+                            </div>
+                          </div>
+                          {/* Click hint */}
+                          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronRight size={14} />
+                            Click để xem và chỉnh sửa tour
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Settings Tab */}
+              {activeTab === 'settings' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Cài đặt tài khoản</h3>
+                  
+                  {/* Profile Update Form */}
+                  <form onSubmit={handleUpdateProfile} className="space-y-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tên hiển thị</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleFormChange}
+                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <input
+                          type="email"
+                          value={profile.email}
+                          disabled
+                          className="w-full p-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Số điện thoại</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleFormChange}
+                          placeholder="Nhập số điện thoại"
+                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ</label>
+                        <input
+                          type="text"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleFormChange}
+                          placeholder="Nhập địa chỉ"
+                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({
+                            name: user.name || '',
+                            phone: user.phone || '',
+                            address: user.address || ''
+                          });
+                        }}
+                        className="px-6 py-3 border-2 border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-amber-600 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Password Change Section (Separate Form) */}
+                  <div className="pt-8 border-t border-gray-200">
+                    <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <Shield size={20} className="text-orange-600" />
+                      Đổi mật khẩu
+                    </h4>
+                    {user.provider === 'google' ? (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          Tài khoản Google không thể đổi mật khẩu tại đây. Vui lòng quản lý mật khẩu qua Google.
+                        </p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleChangePassword} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu hiện tại</label>
+                          <input
+                            type="password"
+                            name="currentPassword"
+                            value={passwordData.currentPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Nhập mật khẩu hiện tại"
+                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu mới</label>
+                            <input
+                              type="password"
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
+                              placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                              className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Xác nhận mật khẩu</label>
+                            <input
+                              type="password"
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
+                              placeholder="Nhập lại mật khẩu mới"
+                              className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="px-6 py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
           </div>
-        </div>
-
-        {/* === CỘT PHẢI: NỘI DUNG THAY ĐỔI THEO TAB === */}
-        <div className="profile-card content">
-          
-          {/* HIỂN THỊ THÔNG BÁO CHUNG */}
-          {message && <div className="alert-box alert-success">{message}</div>}
-          {error && <div className="alert-box alert-error">{error}</div>}
-
-          {/* === TAB 1: THÔNG TIN CÁ NHÂN === */}
-          {activeTab === 'info' && (
-            <form onSubmit={handleUpdateInfo}>
-              <h2 className="section-title">Cập nhật hồ sơ</h2>
-              
-              <h4 className="form-section-header">Thông tin liên hệ</h4>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">Tên hiển thị</label>
-                  <input type="text" name="name" className="auth-input" value={formData.name} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email (Không đổi được)</label>
-                  <input type="email" className="auth-input disabled" value={formData.email} disabled />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Số điện thoại</label>
-                  <input type="text" name="phone" className="auth-input" value={formData.phone} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Địa chỉ</label>
-                  <input type="text" name="address" className="auth-input" value={formData.address} onChange={handleChange} />
-                </div>
-              </div>
-
-              <hr style={{margin: '30px 0', borderTop: '1px dashed #ddd'}} />
-
-              <h4 className="form-section-header">Gu ăn uống</h4>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">Ngân sách: {new Intl.NumberFormat('vi-VN').format(formData.budget)}đ</label>
-                  <input type="number" name="budget" className="auth-input" value={formData.budget} onChange={handleChange} step="5000" />
-                </div>
-                <div className="form-group">
-                   <label className="form-label">Độ cay</label>
-                   <select name="spiceLevel" className="auth-input" value={formData.spiceLevel} onChange={handleChange}>
-                     <option value="Không">Không cay</option>
-                     <option value="Ít">Ít</option>
-                     <option value="Vừa">Vừa</option>
-                     <option value="Nhiều">Nhiều</option>
-                   </select>
-                </div>
-              </div>
-              
-              {/* Cuisines & Dietary Tags (Giữ nguyên code cũ) */}
-              <div className="form-group" style={{marginTop: 15}}>
-                 <label className="form-label">Món yêu thích</label>
-                 <div className="tags-container">
-                   {CUISINE_OPTIONS.map(item => (
-                     <div key={item} className={`choice-tag ${formData.favoriteCuisines.includes(item) ? 'selected' : ''}`} onClick={() => handleMultiSelect('favoriteCuisines', item)}>{item}</div>
-                   ))}
-                 </div>
-              </div>
-              
-              <div className="form-group">
-                 <label className="form-label">Chế độ ăn</label>
-                 <div className="tags-container">
-                   {DIETARY_OPTIONS.map(item => (
-                     <div key={item} className={`choice-tag ${formData.dietaryRestrictions.includes(item) ? 'selected' : ''}`} onClick={() => handleMultiSelect('dietaryRestrictions', item)}>{item}</div>
-                   ))}
-                 </div>
-              </div>
-
-              <div className="form-group" style={{marginTop: 20}}>
-                 <label className="form-label">Khoảng cách: {formData.maxDistanceKm} km</label>
-                 <input type="range" name="maxDistanceKm" min="1" max="50" className="range-input" value={formData.maxDistanceKm} onChange={handleChange} />
-              </div>
-
-              <div style={{ marginTop: '30px', textAlign: 'right' }}>
-                <button type="submit" className="auth-btn" style={{ width: 'auto', padding: '12px 40px' }} disabled={loading}>
-                  {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* === TAB 2: ĐỔI MẬT KHẨU === */}
-          {activeTab === 'password' && (
-            <form onSubmit={handleChangePassword}>
-              <h2 className="section-title">Đổi mật khẩu</h2>
-              <p style={{color: '#666', marginBottom: '20px'}}>Để bảo mật, vui lòng nhập mật khẩu cũ trước khi đổi.</p>
-
-              <div className="form-group">
-                <label className="form-label">Mật khẩu hiện tại</label>
-                <input 
-                  type="password" 
-                  name="currentPassword" 
-                  className="auth-input" 
-                  value={passData.currentPassword} 
-                  onChange={handlePassChange} 
-                  required 
-                />
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">Mật khẩu mới</label>
-                  <input 
-                    type="password" 
-                    name="newPassword" 
-                    className="auth-input" 
-                    value={passData.newPassword} 
-                    onChange={handlePassChange} 
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Nhập lại mật khẩu mới</label>
-                  <input 
-                    type="password" 
-                    name="confirmPassword" 
-                    className="auth-input" 
-                    value={passData.confirmPassword} 
-                    onChange={handlePassChange} 
-                    required 
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginTop: '30px', textAlign: 'right' }}>
-                <button type="submit" className="auth-btn" style={{ width: 'auto', padding: '12px 40px' }} disabled={loading}>
-                  {loading ? 'Đang xử lý...' : 'Cập nhật mật khẩu'}
-                </button>
-              </div>
-            </form>
-          )}
 
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

@@ -395,7 +395,7 @@ const SearchPage = () => {
                   item.highlight ||
                   "";
 
-                // Nếu backend có id → link sang trang chi tiết
+                // N\u1ebfu backend c\u00f3 id - link sang trang chi ti\u1ebft
                 const hasId = item.id || item._id;
 
                 const card = (

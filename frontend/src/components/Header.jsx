@@ -15,14 +15,21 @@ const Header = () => {
   return (
     <header className="header">
       <div className="container top-bar">
-        {/* === LOGO === */}
-        <Link to="/" style={{ display: "flex", alignItems: "center" }}>
+        {/* === LOGO (Click để reload về trang chủ) === */}
+        <a 
+          href="/" 
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = '/';
+          }}
+          style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+        >
           <img
             src={logolmg}
             alt="Chewz Logo"
             style={{ height: "50px", objectFit: "contain" }}
           />
-        </Link>
+        </a>
 
         {/* === MENU GIỮA === */}
         <nav className="nav-menu">

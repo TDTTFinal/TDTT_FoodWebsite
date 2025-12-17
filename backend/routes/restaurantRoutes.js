@@ -1,24 +1,25 @@
 const express = require("express");
 const router = express.Router();
-const {
-  getAllRestaurants,
-  getRestaurantById,
-  getFeaturedRestaurants,
-  getCategoryStats,
-  createRestaurant,
-  updateRestaurant,
-  deleteRestaurant,
-} = require("../controllers/restaurantController");
+const restaurantController = require("../controllers/restaurantController");
 
 // Public routes
-router.get("/restaurants", getAllRestaurants);
-router.get("/restaurants/featured", getFeaturedRestaurants);
-router.get("/restaurants/categories/stats", getCategoryStats);
-router.get("/restaurants/:id", getRestaurantById);
+router.get("/", restaurantController.getAllRestaurants);
+router.get("/featured", restaurantController.getFeaturedRestaurants);
+
+// New Routes for Homepage (Place BEFORE /:id)
+router.get("/trending", restaurantController.getTrendingRestaurants);
+router.get("/reviews/latest", restaurantController.getLatestReviews);
+router.get("/nearby", restaurantController.getNearbyRestaurants);
+router.get("/contextual", restaurantController.getContextualRestaurants);
+router.get("/collections", restaurantController.getCollectionRestaurants);
+
+router.get("/categories/stats", restaurantController.getCategoryStats);
+router.get("/:id", restaurantController.getRestaurantById);
 
 // Admin routes (có thể thêm middleware auth sau)
-router.post("/restaurants", createRestaurant);
-router.put("/restaurants/:id", updateRestaurant);
-router.delete("/restaurants/:id", deleteRestaurant);
+router.post("/", restaurantController.createRestaurant);
+router.put("/:id", restaurantController.updateRestaurant);
+router.delete("/:id", restaurantController.deleteRestaurant);
 
 module.exports = router;
+
