@@ -350,10 +350,10 @@ export default function Categories() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:4000/api/categories");
+      const res = await fetch("http://localhost:5000/api/admin/categories");
       if (!res.ok) throw new Error("Lỗi khi tải danh mục");
-      const data = await res.json();
-      setCategories(data);
+      const json = await res.json();
+      setCategories(json.data || json);
     } catch (err) {
       setError(err.message || "Lỗi khi tải danh mục");
     } finally {
@@ -363,17 +363,17 @@ export default function Categories() {
 
   async function handleCreateCategory(payload) {
     try {
-      const res = await fetch("http://localhost:4000/api/categories", {
+      const res = await fetch("http://localhost:5000/api/admin/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "Lỗi khi thêm danh mục");
+        const json = await res.json();
+        throw new Error(json.message || "Lỗi khi thêm danh mục");
       }
-      const created = await res.json();
-      setCategories((prev) => [...prev, created]);
+      const json = await res.json();
+      setCategories((prev) => [...prev, json.data]);
     } catch (err) {
       throw new Error(err.message || "Không thể kết nối với server");
     }
@@ -399,14 +399,17 @@ export default function Categories() {
 
   async function handleUpdateCategory(id, payload) {
     try {
-      const res = await fetch(`http://localhost:4000/api/categories/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/admin/categories/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       if (!res.ok) throw new Error("Lỗi khi cập nhật danh mục");
-      const updated = await res.json();
-      setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      const json = await res.json();
+      setCategories((prev) => prev.map((c) => (c._id === id ? json.data : c)));
       setEditingCategory(null);
     } catch (err) {
       alert(err.message || "Không thể cập nhật danh mục");
@@ -415,15 +418,18 @@ export default function Categories() {
 
   async function handleHideCategory(id) {
     try {
-      const category = categories.find((c) => c.id === id);
-      const res = await fetch(`http://localhost:4000/api/categories/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...category, visible: !category.visible }),
-      });
+      const category = categories.find((c) => c._id === id);
+      const res = await fetch(
+        `http://localhost:5000/api/admin/categories/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visible: !category.visible }),
+        }
+      );
       if (!res.ok) throw new Error("Lỗi khi ẩn/hiện danh mục");
-      const updated = await res.json();
-      setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      const json = await res.json();
+      setCategories((prev) => prev.map((c) => (c._id === id ? json.data : c)));
     } catch (err) {
       alert(err.message || "Không thể ẩn/hiện danh mục");
     }
@@ -432,11 +438,17 @@ export default function Categories() {
   async function handleDeleteCategory(id) {
     if (!confirm("Bạn có chắc muốn xóa danh mục này?")) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/categories/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Lỗi khi xóa danh mục");
-      setCategories((prev) => prev.filter((c) => c.id !== id));
+      const res = await fetch(
+        `http://localhost:5000/api/admin/categories/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Lỗi khi xóa danh mục");
+      }
+      setCategories((prev) => prev.filter((c) => c._id !== id));
     } catch (err) {
       alert(err.message || "Không thể xóa danh mục");
     }
@@ -484,7 +496,7 @@ export default function Categories() {
             <tbody>
               {categories.map((s, idx) => (
                 <tr
-                  key={s.id}
+                  key={s._id}
                   className="border-t hover:bg-slate-50 cursor-pointer"
                   onClick={() => setSelected(s)}
                 >
@@ -497,14 +509,12 @@ export default function Categories() {
                       </span>
                     )}
                   </td>
-                  <td className="p-4 text-center">
-                    {Array.isArray(s.foodIds) ? s.foodIds.length : 0}
-                  </td>
+                  <td className="p-4 text-center">{s.restaurantCount || 0}</td>
                   <td className="p-4">
                     <ActionButtons
                       onEdit={() => setEditingCategory(s)}
-                      onHide={() => handleHideCategory(s.id)}
-                      onDelete={() => handleDeleteCategory(s.id)}
+                      onHide={() => handleHideCategory(s._id)}
+                      onDelete={() => handleDeleteCategory(s._id)}
                       isHidden={s.visible === false}
                     />
                   </td>
@@ -550,7 +560,7 @@ export default function Categories() {
             category={editingCategory}
             onClose={() => setEditingCategory(null)}
             onSave={(payload) =>
-              handleUpdateCategory(editingCategory.id, payload)
+              handleUpdateCategory(editingCategory._id, payload)
             }
           />
         )}

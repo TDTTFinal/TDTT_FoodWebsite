@@ -3,15 +3,31 @@ import React, { useState, useEffect } from "react";
 const ReviewCard = ({ review, onRestore, onDelete }) => {
   return (
     <div className="border-2 border-gray-300 rounded p-6 mb-4 bg-gray-100">
-      <h3 className="font-bold text-lg mb-3">{review.title}</h3>
+      <h3 className="font-bold text-lg mb-3">
+        {review.restaurant?.name || "Nhà hàng"}
+      </h3>
       <div className="mb-3">
-        <span className="text-yellow-400 text-xl">★</span>
-        <span className="ml-2 text-sm">{review.content}</span>
+        <div className="flex gap-1 mb-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <span
+              key={star}
+              className={`text-xl ${
+                star <= review.rating ? "text-yellow-400" : "text-gray-300"
+              }`}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+        <p className="text-sm font-semibold">
+          {review.title || "(Không có tiêu đề)"}
+        </p>
+        <p className="text-sm mt-1">{review.content}</p>
       </div>
       <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
         <div className="flex items-center gap-1">
           <span className="text-blue-500">👤</span>
-          <span>{review.userName || "Anonymous"}</span>
+          <span>{review.user?.name || "Anonymous"}</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-red-500">📅</span>
@@ -51,10 +67,12 @@ export default function ReviewsDeleted() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:4000/api/reviews/deleted");
+      const res = await fetch(
+        "http://localhost:5000/api/admin/reviews?status=deleted"
+      );
       if (!res.ok) throw new Error("Lỗi khi tải đánh giá đã xóa");
-      const data = await res.json();
-      setReviews(data);
+      const json = await res.json();
+      setReviews(json.data || []);
     } catch (err) {
       console.error("Failed to load deleted reviews:", err);
       setError(err.message);
@@ -65,15 +83,26 @@ export default function ReviewsDeleted() {
 
   async function handleRestore(review) {
     try {
+      console.log("Restoring review:", review._id);
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/restore`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/restore`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
         }
       );
-      if (!res.ok) throw new Error("Lỗi khi khôi phục đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      console.log("Restore response status:", res.status);
+      if (!res.ok) {
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Unknown error" }));
+        console.error("Restore error response:", errorData);
+        throw new Error(errorData.message || "Lỗi khi khôi phục đánh giá");
+      }
+      const data = await res.json();
+      console.log("Restore success:", data);
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
+      alert("Đã khôi phục đánh giá thành công!");
     } catch (err) {
       console.error("Restore error:", err);
       alert(err.message);
@@ -89,13 +118,13 @@ export default function ReviewsDeleted() {
       return;
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/permanent`,
         {
           method: "DELETE",
         }
       );
       if (!res.ok) throw new Error("Lỗi khi xóa vĩnh viễn đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
     } catch (err) {
       console.error("Delete error:", err);
       alert(err.message);
@@ -167,7 +196,7 @@ export default function ReviewsDeleted() {
           <>
             {currentReviews.map((review) => (
               <ReviewCard
-                key={review.id}
+                key={review._id}
                 review={review}
                 onRestore={handleRestore}
                 onDelete={handleDelete}

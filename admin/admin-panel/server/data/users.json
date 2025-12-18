@@ -5,7 +5,7 @@
     "email": "nguyen@example.com",
     "avatar": "https://via.placeholder.com/100",
     "role": "user",
-    "status": "banned",
+    "status": "active",
     "createdAt": "2025-01-01T00:00:00.000Z"
   },
   {
