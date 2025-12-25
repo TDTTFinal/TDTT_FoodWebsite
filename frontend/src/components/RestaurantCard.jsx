@@ -29,8 +29,13 @@ const RestaurantCard = ({ restaurant, action }) => {
   useEffect(() => {
     if (user && user.favorites) {
       // Check if favorites is array of strings or objects
-      const favIds = user.favorites.map(f => typeof f === 'object' ? f._id : f);
-      setIsFavorite(favIds.includes(_id));
+      const favIds = user.favorites.map(f => {
+          const id = typeof f === 'object' ? f._id : f;
+          return id ? id.toString() : "";
+      });
+      // console.log("Current Rest ID:", _id);
+      // console.log("User Fav IDs:", favIds);
+      setIsFavorite(favIds.includes(_id ? _id.toString() : ""));
     }
   }, [user, _id]);
 

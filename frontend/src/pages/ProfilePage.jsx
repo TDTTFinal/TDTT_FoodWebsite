@@ -659,7 +659,7 @@ const ProfilePage = () => {
                       <Heart size={64} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu quán nào</p>
                       <button
-                        onClick={() => navigate('/search')}
+                        onClick={() => navigate('/search-advanced')}
                         className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                       >
                         Khám phá ngay

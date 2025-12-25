@@ -22,7 +22,6 @@ import AdvancedSearchPage from "./pages/AdvancedSearchPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
-import SearchPage from "./pages/test/Search";
 
 
 
@@ -70,7 +69,7 @@ function App() {
           path="/profile"
           element={user ? <ProfilePage /> : <Navigate to="/login" />}
         />
-        <Route path="/search" element={<SearchPage />} />
+        <Route path="/search" element={<AdvancedSearchPage />} />
 
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
