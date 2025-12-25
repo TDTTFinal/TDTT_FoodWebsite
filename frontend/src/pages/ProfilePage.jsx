@@ -427,6 +427,17 @@ const ProfilePage = () => {
                   Đánh giá
                 </button>
                 <button
+                  onClick={() => setActiveTab('gallery')}
+                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'gallery'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Image size={20} />
+                  Thư viện ảnh
+                </button>
+                <button
                   onClick={() => setActiveTab('tours')}
                   className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === 'tours'
