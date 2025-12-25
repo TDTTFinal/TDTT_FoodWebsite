@@ -24,64 +24,71 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import SearchPage from "./pages/test/Search";
 
+
+
 function App() {
-  const { user } = useAuth(); // Lấy thông tin user
+  const { user } = useAuth(); 
+
 
   return (
-    <Routes>
-      {/* TRANG CHỦ: luôn dùng HomePage (đã merge giao diện Landing + Home) */}
-      <Route path="/" element={<HomePage />} />
+    <>
+      <Routes>
+        {/* TRANG CHỦ: luôn dùng HomePage (đã merge giao diện Landing + Home) */}
+        <Route path="/" element={<HomePage />} />
 
-      {/* Nếu đã đăng nhập mà cố vào Login -> Đá về trang chủ */}
-      <Route
-        path="/signin"
-        element={!user ? <SignInPage /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/login"
-        element={!user ? <SignInPage /> : <Navigate to="/" />}
-      />
+        {/* Nếu đã đăng nhập mà cố vào Login -> Đá về trang chủ */}
+        <Route
+          path="/signin"
+          element={!user ? <SignInPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/login"
+          element={!user ? <SignInPage /> : <Navigate to="/" />}
+        />
 
-      <Route
-        path="/signup"
-        element={!user ? <SignupPage /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/register"
-        element={!user ? <SignupPage /> : <Navigate to="/" />}
-      />
+        <Route
+          path="/signup"
+          element={!user ? <SignupPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/register"
+          element={!user ? <SignupPage /> : <Navigate to="/" />}
+        />
 
-      <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
+        <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
 
-      {/* Trang Khám phá / danh sách nhà hàng */}
-      <Route path="/explore" element={<RestaurantsPage />} />
-      <Route path="/restaurants" element={<RestaurantsPage />} />
+        {/* Trang Khám phá / danh sách nhà hàng */}
+        <Route path="/explore" element={<RestaurantsPage />} />
+        <Route path="/restaurants" element={<RestaurantsPage />} />
 
-      {/* Các trang khác */}
-      <Route path="/about" element={<About />} />
-      <Route path="/history" element={<History />} />
-      <Route path="/category/:slug" element={<CategoryPage />} />
+        {/* Các trang khác */}
+        <Route path="/about" element={<About />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/category/:slug" element={<CategoryPage />} />
 
-      <Route
-        path="/profile"
-        element={user ? <ProfilePage /> : <Navigate to="/login" />}
-      />
-      <Route path="/search" element={<SearchPage />} />
+        <Route
+          path="/profile"
+          element={user ? <ProfilePage /> : <Navigate to="/login" />}
+        />
+        <Route path="/search" element={<SearchPage />} />
 
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-      <Route path="/search-advanced" element={<AdvancedSearchPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/search-advanced" element={<AdvancedSearchPage />} />
 
-      <Route path="/food-tour" element={<ErrorBoundary><FoodTourPage /></ErrorBoundary>} />
-      <Route path="/food-tour/:tourId" element={
-        <ErrorBoundary>
-          <FoodTourEditPage />
-        </ErrorBoundary>
-      } />
+        <Route path="/food-tour" element={<ErrorBoundary><FoodTourPage /></ErrorBoundary>} />
+        <Route path="/food-tour/:tourId" element={
+          <ErrorBoundary>
+            <FoodTourEditPage />
+          </ErrorBoundary>
+        } />
 
-      {/* Route 404 (Nếu người dùng gõ link bậy bạ) */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        {/* Route 404 (Nếu người dùng gõ link bậy bạ) */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+
+
+    </>
   );
 }
 
