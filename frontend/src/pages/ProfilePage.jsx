@@ -15,6 +15,7 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('info');
   const [profile, setProfile] = useState(null);
   const [foodTours, setFoodTours] = useState([]); // State cho food tours
+  const [reviews, setReviews] = useState([]); // State cho reviews
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -69,7 +70,7 @@ const ProfilePage = () => {
         joinedDate: '2024-01-15',
         stats: {
           favorites: mockFavorites.length,
-          reviews: mockReviews.length
+          reviews: 0 // Will update after fetch
         }
       });
       // Initialize form data
@@ -91,7 +92,30 @@ const ProfilePage = () => {
           console.error("Lỗi lấy danh sách tour:", err);
         }
       };
+      };
+      
+      // Fetch User Reviews
+      const fetchUserReviews = async () => {
+        try {
+          const res = await api.get(`/reviews/user/${user._id}`);
+          if (res.success) {
+            setReviews(res.data);
+            // Update review count in profile stats
+            setProfile(prev => ({
+              ...prev,
+              stats: {
+                 ...prev.stats,
+                 reviews: res.pagination.total
+              }
+            }));
+          }
+        } catch (err) {
+          console.error("Lỗi lấy danh sách đánh giá:", err);
+        }
+      };
+
       fetchTours();
+      fetchUserReviews();
     }
   }, [user, user?.avatar]); // Added user?.avatar dependency for avatar updates
 
@@ -537,29 +561,29 @@ const ProfilePage = () => {
               {activeTab === 'reviews' && (
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-6">Đánh giá của tôi</h3>
-                  {mockReviews.length === 0 ? (
+                  {reviews.length === 0 ? (
                     <div className="text-center py-16">
                       <MessageSquare size={64} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-lg font-semibold text-gray-400">Bạn chưa có đánh giá nào</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {mockReviews.map((review) => (
+                      {reviews.map((review) => (
                         <div
-                          key={review.id}
+                          key={review._id}
                           className="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow"
                         >
                           <div className="flex items-start gap-3 mb-3">
                             <img
-                              src={review.restaurant.avatar_url}
-                              alt={review.restaurant.name}
+                              src={review.restaurant?.avatar_url || 'https://placehold.co/100x100/E0E0E0/999?text=No+Image'}
+                              alt={review.restaurant?.name}
                               className="w-12 h-12 rounded-lg object-cover"
                               onError={(e) => {
                                 e.target.src = 'https://placehold.co/100x100/E0E0E0/999?text=No+Image';
                               }}
                             />
                             <div className="flex-1">
-                              <p className="font-bold text-gray-800">{review.restaurant.name}</p>
+                              <p className="font-bold text-gray-800">{review.restaurant?.name || 'Nhà hàng không tồn tại'}</p>
                               <div className="flex items-center gap-1 mt-1">
                                 {[...Array(5)].map((_, i) => (
                                   <Star
@@ -570,9 +594,18 @@ const ProfilePage = () => {
                                 ))}
                               </div>
                             </div>
-                            <p className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString('vi-VN')}</p>
+                            <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</p>
                           </div>
-                          <p className="text-sm text-gray-700">{review.comment}</p>
+                          <p className="text-sm text-gray-700">{review.content}</p>
+                          {/* Review Images Preview in List */}
+                          {review.images && review.images.length > 0 && (
+                             <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                                {review.images.map((img, idx) => (
+                                   <img key={idx} src={img} alt="review" className="w-20 h-20 object-cover rounded-lg border border-gray-100" />
+                                ))}
+                             </div>
+                          )}
+                          
                           <div className="flex gap-2 mt-3">
                             <button className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
                               Sửa
@@ -592,7 +625,7 @@ const ProfilePage = () => {
               {activeTab === 'gallery' && (
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-6">Thư viện ảnh</h3>
-                  {mockReviews.length === 0 ? (
+                  {reviews.length === 0 || !reviews.some(r => r.images && r.images.length > 0) ? (
                     <div className="text-center py-16">
                       <Image size={64} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-lg font-semibold text-gray-400">Chưa có hình ảnh nào</p>
@@ -600,44 +633,33 @@ const ProfilePage = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* Convert reviews to a flat list of images if they had multiple, for now 1 image per review */}
-                      {mockReviews.map((review) => (
-                        <div key={review.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
+                      {/* Extract images from reviews */}
+                      {reviews.flatMap(review => 
+                          (review.images || []).map((img, idx) => ({
+                              id: `${review._id}-${idx}`,
+                              img,
+                              restaurantName: review.restaurant?.name || 'Nhà hàng',
+                              rating: review.rating
+                          }))
+                      ).map((item) => (
+                        <div key={item.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
                           <img
-                            src={review.restaurant.avatar_url}
-                            alt={review.restaurant.name}
+                            src={item.img}
+                            alt={item.restaurantName}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            onError={(e) => {
-                              e.target.src = 'https://placehold.co/400x400/E0E0E0/999?text=No+Image';
-                            }}
                           />
                           {/* Hover Overlay */}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
                             <div className="text-center text-white">
-                                <p className="font-bold text-sm line-clamp-1">{review.restaurant.name}</p>
+                                <p className="font-bold text-sm line-clamp-1">{item.restaurantName}</p>
                                 <div className="flex items-center justify-center gap-1 mt-1">
                                     <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                                    <span className="text-xs">{review.rating}</span>
+                                    <span className="text-xs">{item.rating}</span>
                                 </div>
                             </div>
                           </div>
                         </div>
                       ))}
-                      {/* Add some dummy images to fill grid for demo if reviews are few */}
-                      {mockReviews.length < 6 && (
-                          Array(6 - mockReviews.length).fill(0).map((_, i) => (
-                            <div key={`dummy-${i}`} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
-                                <img
-                                    src={`https://source.unsplash.com/random/400x400?food,restaurant&sig=${i}`}
-                                    alt="Food"
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Heart className="text-white fill-white" size={24} />
-                                </div>
-                            </div>
-                          ))
-                      )}
                     </div>
                   )}
                 </div>

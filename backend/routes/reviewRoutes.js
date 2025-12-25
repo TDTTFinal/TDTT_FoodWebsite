@@ -280,6 +280,44 @@ router.get("/community", async (req, res) => {
 });
 
 // ========================
+// GET /api/reviews/user/:userId - Get reviews by user
+// ========================
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page = 1, limit = 10, sort = "newest" } = req.query;
+
+    const sortOption = { createdAt: -1 }; // newest default
+
+    const reviews = await Review.find({ 
+      user: userId,
+      status: "active"
+    })
+      .populate("restaurant", "name avatar_url address")
+      .populate("user", "name avatar")
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Review.countDocuments({ user: userId, status: "active" });
+
+    res.json({
+      success: true,
+      data: reviews,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
+    });
+  } catch (error) {
+    console.error("Get user reviews error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
 // GET /api/reviews/top-users - Get top reviewers
 // ========================
 router.get("/top-users", async (req, res) => {
