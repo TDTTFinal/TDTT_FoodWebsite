@@ -271,15 +271,169 @@ const ProfilePage = () => {
     );
   };
 
+  // ... existing imports ...
+  import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Grid, Bookmark, X } from 'lucide-react';
+
+  // ... (keep existing setup code line 10-273) ...
+
+  // Modal Component for Edit Profile
+  const EditProfileModal = () => (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
+          <h3 className="text-lg font-bold">Chỉnh sửa trang cá nhân</h3>
+          <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="p-6">
+          {/* Settings Form Content (Reused from old settings tab) */}
+           <form onSubmit={handleUpdateProfile} className="space-y-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tên hiển thị</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleFormChange}
+                    placeholder="Nhập số điện thoại"
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleFormChange}
+                    placeholder="Nhập địa chỉ"
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-6 py-3 border-2 border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-amber-600 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+
+            {/* Password Change Section */}
+            <div className="pt-8 border-t border-gray-200">
+              <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Shield size={20} className="text-orange-600" />
+                Đổi mật khẩu
+              </h4>
+              {user.provider === 'google' ? (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    Tài khoản Google không thể đổi mật khẩu tại đây. Vui lòng quản lý mật khẩu qua Google.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu hiện tại</label>
+                    <input
+                      type="password"
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      placeholder="Nhập mật khẩu hiện tại"
+                      className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu mới</label>
+                      <input
+                        type="password"
+                        name="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
+                        placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                        className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Xác nhận mật khẩu</label>
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
+                        placeholder="Nhập lại mật khẩu mới"
+                        className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                  >
+                    {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                  </button>
+                </form>
+              )}
+            </div>
+            
+             <div className="mt-8 pt-8 border-t border-gray-200">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 p-3 text-red-600 border border-red-200 hover:bg-red-50 rounded-lg transition-colors font-bold"
+                >
+                  <LogOut size={18} />
+                  Đăng xuất
+                </button>
+             </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const [showEditModal, setShowEditModal] = useState(false);
+
   if (loading || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <Header />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Đang tải...</p>
-          </div>
+            <div className="w-16 h-16 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin"></div>
         </div>
         <Footer />
       </div>
@@ -287,59 +441,31 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Header />
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-orange-600 mb-6 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span className="font-semibold">Quay về trang chủ</span>
-        </button>
-
-        {/* Messages */}
-        {message && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl animate-in fade-in">
-            {message}
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl animate-in fade-in">
-            {error}
-          </div>
-        )}
-
-        {/* Main Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Sidebar */}
-          <div className="lg:col-span-4 xl:col-span-3">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sticky top-24">
-              
-              {/* Avatar Section */}
-              <div className="text-center mb-6">
-                <div className="relative inline-block">
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.name}
-                    className="w-32 h-32 rounded-full object-cover border-4 border-orange-100 shadow-lg"
-                  />
-                  <label
-                    htmlFor="avatar-upload"
-                    className={`absolute bottom-0 right-0 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg transition-all ${
-                      uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-600 cursor-pointer'
-                    }`}
-                  >
-                    {uploading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <Camera size={18} />
-                    )}
-                  </label>
-                  <input
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* === HEADER SECTION === */}
+        <header className="flex flex-col md:flex-row items-start md:items-center gap-8 mb-12 px-4 md:px-12">
+            {/* Avatar */}
+            <div className="shrink-0 relative group mx-auto md:mx-0">
+               <div className="w-32 h-32 md:w-40 md:h-40 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-orange-500 to-purple-600">
+                  <div className="w-full h-full rounded-full p-[2px] bg-white">
+                    <img
+                        src={profile.avatar_url}
+                        alt={profile.name}
+                        className="w-full h-full rounded-full object-cover"
+                    />
+                  </div>
+               </div>
+               {/* Upload Button Overlay */}
+               <label 
+                 htmlFor="avatar-upload"
+                 className="absolute inset-0 flex items-center justify-center bg-black/30 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
+               >
+                 <Camera size={24} />
+               </label>
+               <input
                     id="avatar-upload"
                     type="file"
                     accept="image/*"
@@ -347,466 +473,207 @@ const ProfilePage = () => {
                     disabled={uploading}
                     className="hidden"
                   />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800 mt-4">{profile.name}</h2>
-                <p className="text-sm text-gray-500 flex items-center gap-1 justify-center mt-1">
-                  <Calendar size={14} />
-                  Tham gia: {new Date(profile.joinedDate).toLocaleDateString('vi-VN')}
-                </p>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="text-center p-3 bg-pink-50 rounded-lg">
-                  <div className="text-2xl font-bold text-pink-600">{profile.stats.favorites}</div>
-                  <div className="text-xs text-gray-600 mt-1">Yêu thích</div>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{profile.stats.reviews}</div>
-                  <div className="text-xs text-gray-600 mt-1">Đánh giá</div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className="w-full flex items-center gap-3 p-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  <Settings size={18} className="text-gray-400" />
-                  <span className="font-semibold">Cài đặt tài khoản</span>
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 p-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <LogOut size={18} />
-                  <span className="font-semibold">Đăng xuất</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-8 xl:col-span-9">
-            
-            {/* Tab Navigation */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6">
-              <div className="flex overflow-x-auto hide-scrollbar border-b border-gray-200">
-                <button
-                  onClick={() => setActiveTab('info')}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'info'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <User size={20} />
-                  Hồ sơ
-                </button>
-                <button
-                  onClick={() => setActiveTab('favorites')}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'favorites'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Heart size={20} />
-                  Yêu thích
-                </button>
-                <button
-                  onClick={() => setActiveTab('reviews')}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'reviews'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Star size={20} />
-                  Đánh giá
-                </button>
-                <button
-                  onClick={() => setActiveTab('tours')}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'tours'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Map size={20} />
-                  Tour của tôi
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === 'settings'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Settings size={20} />
-                  Cài đặt
-                </button>
-              </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              
-              {/* Info Tab */}
-              {activeTab === 'info' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Thông tin cá nhân</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User size={24} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Tên</p>
-                        <p className="font-bold text-gray-800">{profile.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <Mail size={24} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Email</p>
-                        <p className="font-bold text-gray-800">{profile.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Phone size={24} className="text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Số điện thoại</p>
-                        <p className="font-bold text-gray-800">{profile.phone || 'Chưa cập nhật'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <MapPin size={24} className="text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Địa chỉ</p>
-                        <p className="font-bold text-gray-800">{profile.address || 'Chưa cập nhật'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Favorites Tab */}
-              {activeTab === 'favorites' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Quán yêu thích</h3>
-                  {mockFavorites.length === 0 ? (
-                    <div className="text-center py-16">
-                      <Heart size={64} className="mx-auto text-gray-300 mb-4" />
-                      <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu quán nào</p>
-                      <button
-                        onClick={() => navigate('/search')}
-                        className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                      >
-                        Khám phá ngay
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                      {/* Will use RestaurantCard component */}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Reviews Tab */}
-              {activeTab === 'reviews' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Đánh giá của tôi</h3>
-                  {mockReviews.length === 0 ? (
-                    <div className="text-center py-16">
-                      <MessageSquare size={64} className="mx-auto text-gray-300 mb-4" />
-                      <p className="text-lg font-semibold text-gray-400">Bạn chưa có đánh giá nào</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {mockReviews.map((review) => (
-                        <div
-                          key={review.id}
-                          className="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow"
+            {/* Info */}
+            <div className="flex-1 flex flex-col gap-4 w-full">
+                {/* Row 1: Name + Edit Button */}
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                    <h1 className="text-2xl font-light text-gray-800">{profile.name}</h1> {/* Using name as username for now */}
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setShowEditModal(true)}
+                            className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 font-semibold rounded-lg text-sm text-gray-800 transition-colors"
                         >
-                          <div className="flex items-start gap-3 mb-3">
-                            <img
-                              src={review.restaurant.avatar_url}
-                              alt={review.restaurant.name}
-                              className="w-12 h-12 rounded-lg object-cover"
-                              onError={(e) => {
-                                e.target.src = 'https://placehold.co/100x100/E0E0E0/999?text=No+Image';
-                              }}
-                            />
-                            <div className="flex-1">
-                              <p className="font-bold text-gray-800">{review.restaurant.name}</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    size={16}
-                                    className={i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            <p className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString('vi-VN')}</p>
-                          </div>
-                          <p className="text-sm text-gray-700">{review.comment}</p>
-                          <div className="flex gap-2 mt-3">
-                            <button className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
-                              Sửa
-                            </button>
-                            <button className="text-sm text-red-600 hover:text-red-700 font-semibold">
-                              Xóa
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* My Tours Tab */}
-              {activeTab === 'tours' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Food Tour đã lưu</h3>
-                  {foodTours.length === 0 ? (
-                    <div className="text-center py-16">
-                      <Map size={64} className="mx-auto text-gray-300 mb-4" />
-                      <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu Food Tour nào</p>
-                      <button
-                        onClick={() => navigate('/food-tour')}
-                        className="mt-4 px-6 py-2 bg-orange-500 text-white font-bold rounded-full hover:bg-orange-600 transition-colors"
-                      >
-                        Tạo Tour ngay
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-6">
-                      {foodTours.map((tour) => (
-                        <div 
-                          key={tour._id} 
-                          className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-orange-200 transition-all bg-white cursor-pointer group"
-                          onClick={() => navigate(`/food-tour/${tour._id}`)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">
-                                {tour.name}
-                              </h4>
-                              <p className="text-sm text-gray-500 mb-3">{tour.description}</p>
-                              <div className="flex gap-4 text-sm text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  <MapPin size={16} className="text-orange-500" />
-                                  {tour.totalRestaurants} địa điểm
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Package size={16} className="text-blue-500" />
-                                  {new Date(tour.createdAt).toLocaleDateString('vi-VN')}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                              {/* Nút Xem/Sửa */}
-                              <button 
-                                onClick={() => navigate(`/food-tour/${tour._id}`)}
-                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Xem/Chỉnh sửa tour"
-                              >
-                                <Edit size={20} />
-                              </button>
-                              {/* Nút Xóa */}
-                              <button 
-                                onClick={async () => {
-                                  if(!window.confirm('Bạn có chắc muốn xóa tour này?')) return;
-                                  try {
-                                    const res = await api.delete(`/food-tours/${tour._id}`);
-                                    if(res.success) {
-                                      setFoodTours(foodTours.filter(t => t._id !== tour._id));
-                                      setMessage('✅ Đã xóa tour');
-                                      setTimeout(() => setMessage(''), 3000);
-                                    }
-                                  } catch(err) {
-                                    console.error(err);
-                                    setError('Lỗi khi xóa tour');
-                                  }
-                                }}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Xóa tour"
-                              >
-                                <LogOut size={20} />
-                              </button>
-                            </div>
-                          </div>
-                          {/* Click hint */}
-                          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ChevronRight size={14} />
-                            Click để xem và chỉnh sửa tour
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Settings Tab */}
-              {activeTab === 'settings' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Cài đặt tài khoản</h3>
-                  
-                  {/* Profile Update Form */}
-                  <form onSubmit={handleUpdateProfile} className="space-y-6 mb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tên hiển thị</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleFormChange}
-                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                        <input
-                          type="email"
-                          value={profile.email}
-                          disabled
-                          className="w-full p-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Số điện thoại</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleFormChange}
-                          placeholder="Nhập số điện thoại"
-                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ</label>
-                        <input
-                          type="text"
-                          name="address"
-                          value={formData.address}
-                          onChange={handleFormChange}
-                          placeholder="Nhập địa chỉ"
-                          className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData({
-                            name: user.name || '',
-                            phone: user.phone || '',
-                            address: user.address || ''
-                          });
-                        }}
-                        className="px-6 py-3 border-2 border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-amber-600 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
-                      </button>
-                    </div>
-                  </form>
-
-                  {/* Password Change Section (Separate Form) */}
-                  <div className="pt-8 border-t border-gray-200">
-                    <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Shield size={20} className="text-orange-600" />
-                      Đổi mật khẩu
-                    </h4>
-                    {user.provider === 'google' ? (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-700">
-                          Tài khoản Google không thể đổi mật khẩu tại đây. Vui lòng quản lý mật khẩu qua Google.
-                        </p>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleChangePassword} className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu hiện tại</label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordChange}
-                            placeholder="Nhập mật khẩu hiện tại"
-                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu mới</label>
-                            <input
-                              type="password"
-                              name="newPassword"
-                              value={passwordData.newPassword}
-                              onChange={handlePasswordChange}
-                              placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
-                              className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Xác nhận mật khẩu</label>
-                            <input
-                              type="password"
-                              name="confirmPassword"
-                              value={passwordData.confirmPassword}
-                              onChange={handlePasswordChange}
-                              placeholder="Nhập lại mật khẩu mới"
-                              className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="px-6 py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                            Chỉnh sửa trang cá nhân
                         </button>
-                      </form>
-                    )}
-                  </div>
+                        <button className="p-2 text-gray-800 hover:bg-gray-100 rounded-full">
+                            <Settings size={20} />
+                        </button>
+                    </div>
                 </div>
-              )}
 
+                {/* Row 2: Stats */}
+                <div className="flex justify-center md:justify-start gap-8 text-base">
+                    <div className="text-center md:text-left">
+                        <span className="font-bold text-gray-900">{profile.stats.reviews}</span> bài viết
+                    </div>
+                    <div className="text-center md:text-left">
+                        <span className="font-bold text-gray-900">{foodTours.length}</span> food tour
+                    </div>
+                    <div className="text-center md:text-left">
+                        <span className="font-bold text-gray-900">{profile.stats.favorites}</span> đã lưu
+                    </div>
+                </div>
+
+                {/* Row 3: Bio */}
+                <div className="text-center md:text-left text-sm">
+                    <p className="font-bold text-gray-900">{profile.name}</p>
+                    <p className="text-gray-600 whitespace-pre-line">
+                        {profile.address ? `📍 ${profile.address}` : ''}
+                        {profile.phone ? `\n📞 ${profile.phone}` : ''}
+                        {(!profile.address && !profile.phone) && 'Chưa có thông tin giới thiệu.'}
+                    </p>
+                </div>
             </div>
+        </header>
+
+        {/* === MESSAGES === */}
+        {message && (
+          <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg animate-in fade-in flex items-center justify-center">
+            {message}
           </div>
+        )}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg animate-in fade-in flex items-center justify-center">
+            {error}
+          </div>
+        )}
+
+        {/* === TABS === */}
+        <div className="border-t border-gray-200 mb-4">
+            <div className="flex justify-center gap-12">
+                <button
+                    onClick={() => setActiveTab('info')} // Using 'info' as alias for Posts/Reviews grid
+                    className={`flex items-center gap-2 py-4 border-t-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                        activeTab === 'info' || activeTab === 'reviews' 
+                            ? 'border-gray-800 text-gray-800' 
+                            : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <Grid size={12} /> Bài viết
+                </button>
+                <button
+                    onClick={() => setActiveTab('favorites')}
+                    className={`flex items-center gap-2 py-4 border-t-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                        activeTab === 'favorites' 
+                            ? 'border-gray-800 text-gray-800' 
+                            : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <Bookmark size={12} /> Đã lưu
+                </button>
+                <button
+                    onClick={() => setActiveTab('tours')}
+                    className={`flex items-center gap-2 py-4 border-t-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                        activeTab === 'tours' 
+                            ? 'border-gray-800 text-gray-800' 
+                            : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <MapPin size={12} /> Food Tours
+                </button>
+            </div>
+        </div>
+
+        {/* === CONTENT GRID === */}
+        <div className="min-h-[300px]">
+            {/* POSTS / REVIEWS GRID */}
+            {(activeTab === 'info' || activeTab === 'reviews') && (
+                <div className="grid grid-cols-3 gap-1 md:gap-8">
+                     {mockReviews.length === 0 ? (
+                        <div className="col-span-3 py-10 flex flex-col items-center justify-center text-center">
+                            <div className="w-16 h-16 rounded-full border-2 border-gray-800 flex items-center justify-center mb-4">
+                                <Camera size={32} className="text-gray-800"/>
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-800">Chia sẻ ảnh quán ăn của bạn</h2>
+                            <p className="text-sm text-gray-500 mt-2 mb-4">Khi bạn viết đánh giá có ảnh, chúng sẽ xuất hiện ở đây.</p>
+                            <button className="text-blue-500 font-semibold hover:text-blue-600">Viết đánh giá đầu tiên</button>
+                        </div>
+                     ) : (
+                         mockReviews.map((review) => (
+                             <div key={review.id} className="relative aspect-square group cursor-pointer bg-gray-100">
+                                <img
+                                    src={review.restaurant.avatar_url || 'https://placehold.co/400'}
+                                    alt="Post"
+                                    className="w-full h-full object-cover"
+                                />
+                                {/* Hover Overlay */}
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center gap-2 text-white font-bold">
+                                        <Heart fill="white" size={20} /> 12
+                                    </div>
+                                    <div className="flex items-center gap-2 text-white font-bold">
+                                        <MessageSquare fill="white" size={20} /> 4
+                                    </div>
+                                </div>
+                             </div>
+                         ))
+                     )}
+                </div>
+            )}
+
+            {/* FAVORITES GRID */}
+            {activeTab === 'favorites' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {mockFavorites.length === 0 ? (
+                        <div className="col-span-3 py-20 text-center">
+                            <p className="text-gray-500">Chưa lưu quán ăn nào.</p>
+                             <button
+                                onClick={() => navigate('/search')}
+                                className="mt-4 text-blue-500 font-semibold"
+                              >
+                                Tìm quán ngon ngay
+                              </button>
+                        </div>
+                    ) : (
+                        // Mock Items
+                        <div className="border rounded-lg p-4">Favorite Item</div>
+                    )}
+                </div>
+            )}
+
+             {/* TOURS GRID */}
+             {activeTab === 'tours' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {foodTours.length === 0 ? (
+                        <div className="col-span-3 py-20 text-center">
+                             <div className="w-20 h-20 rounded-full border-2 border-gray-300 flex items-center justify-center mb-6 mx-auto bg-gray-50">
+                                <Map size={40} className="text-gray-400"/>
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800">Tạo Food Tour của riêng bạn</h2>
+                            <p className="text-gray-500 mt-2">Lưu lại lộ trình ăn uống và chia sẻ với bạn bè.</p>
+                             <button
+                                onClick={() => navigate('/food-tour')}
+                                className="mt-6 px-6 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600"
+                              >
+                                Tạo Tour Mới
+                              </button>
+                        </div>
+                    ) : (
+                         foodTours.map((tour) => (
+                            <div 
+                                key={tour._id} 
+                                className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer group bg-white"
+                                onClick={() => navigate(`/food-tour/${tour._id}`)}
+                            >
+                                <div className="h-40 bg-gray-100 flex items-center justify-center relative">
+                                     <Map className="text-gray-300" size={48} />
+                                     <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                                        {tour.totalRestaurants} địa điểm
+                                     </div>
+                                </div>
+                                <div className="p-4">
+                                     <h4 className="font-bold text-gray-800 truncate group-hover:text-amber-600">{tour.name}</h4>
+                                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tour.description || 'Không có mô tả'}</p>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
 
         </div>
-      </div>
+      </main>
+
+      {/* MODAL */}
+      {showEditModal && <EditProfileModal />}
 
       <Footer />
     </div>
   );
-};
+}; // End ProfilePage container
+
+export default ProfilePage;
 
 export default ProfilePage;
