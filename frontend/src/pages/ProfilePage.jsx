@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit } from 'lucide-react';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Grid, Bookmark, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
@@ -12,13 +12,14 @@ const ProfilePage = () => {
   const navigate = useNavigate();
 
   // State
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('info'); // 'info' now represents the 'Posts/Grid' view
   const [profile, setProfile] = useState(null);
-  const [foodTours, setFoodTours] = useState([]); // State cho food tours
+  const [foodTours, setFoodTours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Settings Form State
   const [formData, setFormData] = useState({
@@ -35,7 +36,6 @@ const ProfilePage = () => {
   });
 
   // Mock Data
-
   const mockFavorites = [];
 
   const mockReviews = [
@@ -93,29 +93,22 @@ const ProfilePage = () => {
       };
       fetchTours();
     }
-  }, [user, user?.avatar]); // Added user?.avatar dependency for avatar updates
+  }, [user, user?.avatar]);
 
   // Avatar upload handlers
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Kiểm tra file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('File quá lớn! Tối đa 5MB.');
         return;
       }
-      
-      // Kiểm tra file type
       if (!file.type.startsWith('image/')) {
         setError('Chỉ chấp nhận file ảnh!');
         return;
       }
-
-      // Preview ảnh ngay lập tức
       const previewUrl = URL.createObjectURL(file);
       setProfile({ ...profile, avatar_url: previewUrl });
-      
-      // Auto upload
       handleUploadAvatar(file);
     }
   };
@@ -124,30 +117,21 @@ const ProfilePage = () => {
     setUploading(true);
     setError('');
     setMessage('');
-
     try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-
-      const response = await api.post('/users/upload-avatar', formData, {
+      const formDataUpload = new FormData();
+      formDataUpload.append('avatar', file);
+      const response = await api.post('/users/upload-avatar', formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
       if (response.success) {
         setMessage('✅ Cập nhật ảnh đại diện thành công!');
         setProfile({ ...profile, avatar_url: response.url });
-        // Cập nhật vào AuthContext và localStorage
         updateUser({ avatar: response.url });
-        // Debug logging
-        console.log('✅ Avatar updated in profile:', response.url);
-        console.log('👤 User object after update:', user);
-        // Tự động ẩn message sau 3s
         setTimeout(() => setMessage(''), 3000);
       } else {
         setError(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      console.error('Upload error:', err);
       setError(err.response?.data?.message || 'Lỗi khi upload ảnh');
     } finally {
       setUploading(false);
@@ -155,10 +139,7 @@ const ProfilePage = () => {
   };
 
   const handleFormChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleUpdateProfile = async (e) => {
@@ -166,29 +147,17 @@ const ProfilePage = () => {
     setLoading(true);
     setError('');
     setMessage('');
-
-    console.log('📤 Sending profile update:', formData);
-
     try {
       const response = await api.put('/users/profile', formData);
-
-      console.log('📥 Backend response:', response);
-
       if (response.success) {
         setMessage('✅ Cập nhật thông tin thành công!');
-        // Update profile state
         setProfile({ ...profile, ...formData });
-        // Update AuthContext
         updateUser(formData);
-        // Auto hide message
         setTimeout(() => setMessage(''), 3000);
       } else {
-        console.error('❌ Update failed:', response.message);
         setError(response.message || 'Cập nhật thất bại');
       }
     } catch (err) {
-      console.error('❌ Update profile error:', err);
-      console.error('❌ Error response:', err.response?.data);
       setError(err.response?.data?.message || 'Lỗi khi cập nhật thông tin');
     } finally {
       setLoading(false);
@@ -196,55 +165,39 @@ const ProfilePage = () => {
   };
 
   const handlePasswordChange = (e) => {
-    setPasswordData({
-      ...passwordData,
-      [e.target.name]: e.target.value
-    });
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
   };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
-
-    // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
-
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('Mật khẩu mới không khớp!');
       return;
     }
-
     if (passwordData.newPassword.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
-
     setLoading(true);
-
     try {
       const response = await api.post('/users/change-password', {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
-
       if (response.success) {
         setMessage('✅ Đổi mật khẩu thành công!');
-        // Reset form
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setTimeout(() => setMessage(''), 3000);
       } else {
         setError(response.message || 'Đổi mật khẩu thất bại');
       }
     } catch (err) {
-      console.error('Change password error:', err);
       setError(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
     } finally {
       setLoading(false);
@@ -256,39 +209,18 @@ const ProfilePage = () => {
     navigate('/login');
   };
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Chờ xác nhận' },
-      confirmed: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Đã xác nhận' },
-      delivered: { bg: 'bg-green-100', text: 'text-green-700', label: 'Đã giao' },
-      cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' }
-    };
-    const badge = badges[status] || badges.pending;
-    return (
-      <span className={`px-3 py-1 ${badge.bg} ${badge.text} text-xs font-semibold rounded-full`}>
-        {badge.label}
-      </span>
-    );
-  };
-
-  // ... existing imports ...
-  import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Grid, Bookmark, X } from 'lucide-react';
-
-  // ... (keep existing setup code line 10-273) ...
-
   // Modal Component for Edit Profile
   const EditProfileModal = () => (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <h3 className="text-lg font-bold">Chỉnh sửa trang cá nhân</h3>
-          <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+          <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>
         
         <div className="p-6">
-          {/* Settings Form Content (Reused from old settings tab) */}
            <form onSubmit={handleUpdateProfile} className="space-y-6 mb-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -352,7 +284,6 @@ const ProfilePage = () => {
               </div>
             </form>
 
-            {/* Password Change Section */}
             <div className="pt-8 border-t border-gray-200">
               <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Shield size={20} className="text-orange-600" />
@@ -426,8 +357,6 @@ const ProfilePage = () => {
     </div>
   );
 
-  const [showEditModal, setShowEditModal] = useState(false);
-
   if (loading || !profile) {
     return (
       <div className="min-h-screen bg-white">
@@ -479,7 +408,7 @@ const ProfilePage = () => {
             <div className="flex-1 flex flex-col gap-4 w-full">
                 {/* Row 1: Name + Edit Button */}
                 <div className="flex flex-col md:flex-row items-center gap-4">
-                    <h1 className="text-2xl font-light text-gray-800">{profile.name}</h1> {/* Using name as username for now */}
+                    <h1 className="text-2xl font-light text-gray-800">{profile.name}</h1>
                     <div className="flex gap-2">
                         <button 
                             onClick={() => setShowEditModal(true)}
@@ -487,7 +416,10 @@ const ProfilePage = () => {
                         >
                             Chỉnh sửa trang cá nhân
                         </button>
-                        <button className="p-2 text-gray-800 hover:bg-gray-100 rounded-full">
+                        <button 
+                            onClick={() => setShowEditModal(true)}
+                            className="p-2 text-gray-800 hover:bg-gray-100 rounded-full"
+                        >
                             <Settings size={20} />
                         </button>
                     </div>
@@ -534,14 +466,14 @@ const ProfilePage = () => {
         <div className="border-t border-gray-200 mb-4">
             <div className="flex justify-center gap-12">
                 <button
-                    onClick={() => setActiveTab('info')} // Using 'info' as alias for Posts/Reviews grid
+                    onClick={() => setActiveTab('info')}
                     className={`flex items-center gap-2 py-4 border-t-2 text-xs font-bold uppercase tracking-widest transition-colors ${
                         activeTab === 'info' || activeTab === 'reviews' 
                             ? 'border-gray-800 text-gray-800' 
                             : 'border-transparent text-gray-400 hover:text-gray-600'
                     }`}
                 >
-                    <Grid size={12} /> Bài viết
+                    <Grid size={12} /> <span className="hidden md:inline">Bài viết</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('favorites')}
@@ -551,7 +483,7 @@ const ProfilePage = () => {
                             : 'border-transparent text-gray-400 hover:text-gray-600'
                     }`}
                 >
-                    <Bookmark size={12} /> Đã lưu
+                    <Bookmark size={12} /> <span className="hidden md:inline">Đã lưu</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('tours')}
@@ -561,7 +493,7 @@ const ProfilePage = () => {
                             : 'border-transparent text-gray-400 hover:text-gray-600'
                     }`}
                 >
-                    <MapPin size={12} /> Food Tours
+                    <MapPin size={12} /> <span className="hidden md:inline">Food Tours</span>
                 </button>
             </div>
         </div>
@@ -582,19 +514,19 @@ const ProfilePage = () => {
                         </div>
                      ) : (
                          mockReviews.map((review) => (
-                             <div key={review.id} className="relative aspect-square group cursor-pointer bg-gray-100">
+                             <div key={review.id} className="relative aspect-square group cursor-pointer bg-gray-100 overflow-hidden">
                                 <img
                                     src={review.restaurant.avatar_url || 'https://placehold.co/400'}
                                     alt="Post"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                 />
                                 {/* Hover Overlay */}
                                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <div className="flex items-center gap-2 text-white font-bold">
-                                        <Heart fill="white" size={20} /> 12
+                                        <Heart fill="white" size={20} /> {review.rating}
                                     </div>
                                     <div className="flex items-center gap-2 text-white font-bold">
-                                        <MessageSquare fill="white" size={20} /> 4
+                                        <MessageSquare fill="white" size={20} /> 2
                                     </div>
                                 </div>
                              </div>
@@ -617,7 +549,7 @@ const ProfilePage = () => {
                               </button>
                         </div>
                     ) : (
-                        // Mock Items
+                         // Need a compact RestaurantCard or similar. Using placeholder.
                         <div className="border rounded-lg p-4">Favorite Item</div>
                     )}
                 </div>
@@ -672,8 +604,6 @@ const ProfilePage = () => {
       <Footer />
     </div>
   );
-}; // End ProfilePage container
-
-export default ProfilePage;
+};
 
 export default ProfilePage;
