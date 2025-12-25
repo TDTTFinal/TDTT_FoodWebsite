@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image } from 'lucide-react';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image, Layers, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
+import FeedReviewCard from '../components/feed/FeedReviewCard'; // Import FeedReviewCard for Modal
 import api from '../config/api';
 
 const ProfilePage = () => {
@@ -16,6 +17,7 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [foodTours, setFoodTours] = useState([]); // State cho food tours
   const [reviews, setReviews] = useState([]); // State cho reviews
+  const [selectedReview, setSelectedReview] = useState(null); // State for Modal
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -631,29 +633,37 @@ const ProfilePage = () => {
                       <p className="text-sm text-gray-500 mt-2">Đăng đánh giá kèm ảnh để lưu giữ khoảnh khắc!</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* Extract images from reviews */}
-                      {reviews.flatMap(review => 
-                          (review.images || []).map((img, idx) => ({
-                              id: `${review._id}-${idx}`,
-                              img,
-                              restaurantName: review.restaurant?.name || 'Nhà hàng',
-                              rating: review.rating
-                          }))
-                      ).map((item) => (
-                        <div key={item.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
+                    <div className="grid grid-cols-3 gap-1 md:gap-4">
+                      {/* Instagram Style Grid: 1 Post (Review) = 1 Square */}
+                      {reviews.filter(r => r.images && r.images.length > 0).map((review) => (
+                        <div 
+                          key={review._id} 
+                          className="relative aspect-square group cursor-pointer overflow-hidden bg-gray-100"
+                          onClick={() => setSelectedReview(review)}
+                        >
                           <img
-                            src={item.img}
-                            alt={item.restaurantName}
+                            src={review.images[0]}
+                            alt={review.restaurant?.name}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
+                          
+                          {/* Multiple Images Indicator */}
+                          {review.images.length > 1 && (
+                            <div className="absolute top-2 right-2 text-white drop-shadow-md">
+                              <Layers size={20} fill="currentColor" fillOpacity={0.5} />
+                            </div>
+                          )}
+
                           {/* Hover Overlay */}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
-                            <div className="text-center text-white">
-                                <p className="font-bold text-sm line-clamp-1">{item.restaurantName}</p>
-                                <div className="flex items-center justify-center gap-1 mt-1">
-                                    <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                                    <span className="text-xs">{item.rating}</span>
+                            <div className="flex gap-6 text-white font-bold">
+                                <div className="flex items-center gap-2">
+                                    <Heart size={24} fill="white" />
+                                    <span>{review.likes?.length || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <MessageSquare size={24} fill="white" />
+                                    <span>{review.comments?.length || 0}</span>
                                 </div>
                             </div>
                           </div>
@@ -661,6 +671,23 @@ const ProfilePage = () => {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Review Detail Modal */}
+              {selectedReview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedReview(null)}>
+                   {/* Close Button */}
+                   <button 
+                      className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-50 p-2"
+                      onClick={() => setSelectedReview(null)}
+                   >
+                     <X size={32} />
+                   </button>
+                   
+                   <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl scale-100 animate-in zoom-in-95 duration-200 hide-scrollbar" onClick={e => e.stopPropagation()}>
+                      <FeedReviewCard review={selectedReview} />
+                   </div>
                 </div>
               )}
 
