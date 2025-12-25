@@ -93,7 +93,6 @@ const ProfilePage = () => {
         }
       };
 
-      
       // Fetch User Reviews
       const fetchUserReviews = async () => {
         try {
@@ -117,7 +116,7 @@ const ProfilePage = () => {
       fetchTours();
       fetchUserReviews();
     }
-  }, [user, user?.avatar]); // Added user?.avatar dependency for avatar updates
+  }, [user]);
 
   // Avatar upload handlers
   const handleAvatarChange = (e) => {
