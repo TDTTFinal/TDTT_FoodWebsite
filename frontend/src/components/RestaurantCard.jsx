@@ -1,7 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Star, MapPin, Clock, DollarSign } from "lucide-react";
+import { Star, MapPin, Clock, DollarSign, Heart } from "lucide-react";
 import { getOpenStatus, getStatusBadgeClasses } from "../utils/openingHoursUtils";
+import { useAuth } from "../context/AuthContext";
+import api from "../config/api";
+import { useState, useEffect } from "react";
 
 const RestaurantCard = ({ restaurant, action }) => {
   const {
@@ -17,6 +20,56 @@ const RestaurantCard = ({ restaurant, action }) => {
     menu,
     distance, // Add distance here
   } = restaurant;
+
+  const { user, updateUser } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [loadingFav, setLoadingFav] = useState(false);
+
+  // Check if restaurant is in user favorites
+  useEffect(() => {
+    if (user && user.favorites) {
+      // Check if favorites is array of strings or objects
+      const favIds = user.favorites.map(f => typeof f === 'object' ? f._id : f);
+      setIsFavorite(favIds.includes(_id));
+    }
+  }, [user, _id]);
+
+  const handleToggleFavorite = async (e) => {
+    e.preventDefault(); // Prevent navigation
+    e.stopPropagation();
+
+    if (!user) {
+      alert("Vui lòng đăng nhập để lưu quán yêu thích!");
+      return;
+    }
+
+    setLoadingFav(true);
+    try {
+      if (isFavorite) {
+        // Remove
+        const res = await api.delete(`/users/favorites/${_id}`);
+        if (res.success) {
+            setIsFavorite(false);
+            // Optional: Update global context if needed
+             // Refetch user profile to sync favorites locally
+             const userRes = await api.get('/users/profile');
+             if(userRes.success) updateUser(userRes.user);
+        }
+      } else {
+        // Add
+        const res = await api.post(`/users/favorites/${_id}`);
+        if (res.success) {
+            setIsFavorite(true);
+            const userRes = await api.get('/users/profile');
+            if(userRes.success) updateUser(userRes.user);
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi toggle favorite:", err);
+    } finally {
+      setLoadingFav(false);
+    }
+  };
 
   // Get open status
   const openStatus = getOpenStatus(opening_hours);
@@ -54,6 +107,18 @@ const RestaurantCard = ({ restaurant, action }) => {
             }}
           />
 
+          {/* Favorite Button (Heart) */}
+          <button
+            onClick={handleToggleFavorite}
+            disabled={loadingFav}
+            className="absolute top-2 right-2 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-md hover:bg-white transition-all hover:scale-110 active:scale-95"
+          >
+            <Heart 
+                size={18} 
+                className={`${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'} transition-colors`} 
+            />
+          </button>
+
           {/* District Badge */}
           {getDistrict(address) && (
             <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
@@ -61,10 +126,8 @@ const RestaurantCard = ({ restaurant, action }) => {
             </div>
           )}
 
-          {/* Rating Badge */}
-          {avg_rating > 0 && (
             <div
-              className={`absolute top-2 right-2 ${getRatingColorClass(
+              className={`absolute top-2 left-2 ${getRatingColorClass(
                 avg_rating
               )} text-white text-xs font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1`}
             >
@@ -74,7 +137,7 @@ const RestaurantCard = ({ restaurant, action }) => {
           )}
 
           {category && (
-            <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
+            <div className="absolute top-10 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
               {category}
             </div>
           )}
