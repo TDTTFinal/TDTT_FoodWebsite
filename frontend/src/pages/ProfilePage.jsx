@@ -17,7 +17,8 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [foodTours, setFoodTours] = useState([]); // State cho food tours
   const [reviews, setReviews] = useState([]); // State cho reviews
-  const [selectedReview, setSelectedReview] = useState(null); // State for Modal
+  const [selectedReview, setSelectedReview] = useState(null); // State for Modal (Gallery View)
+  const [editingReview, setEditingReview] = useState(null); // State for Edit Modal
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -119,6 +120,64 @@ const ProfilePage = () => {
       fetchUserReviews();
     }
   }, [user]);
+
+      fetchUserReviews();
+    }
+  }, [user]);
+
+  // Review Actions
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Bạn có chắc muốn xóa đánh giá này?')) return;
+
+    try {
+      const res = await api.delete(`/reviews/${reviewId}`);
+      if (res.success) {
+        setReviews(reviews.filter(r => r._id !== reviewId));
+        setProfile(prev => ({
+          ...prev,
+          stats: {
+            ...prev.stats,
+            reviews: prev.stats.reviews - 1
+          }
+        }));
+        setMessage('✅ Đã xóa đánh giá');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error("Lỗi xóa review:", err);
+      setError('Lỗi khi xóa đánh giá');
+    }
+  };
+
+  const handleEditClick = (review) => {
+    setEditingReview({
+      ...review,
+      originalRating: review.rating,
+      originalContent: review.content
+    });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingReview) return;
+
+    try {
+      const res = await api.put(`/reviews/${editingReview._id}`, {
+        rating: editingReview.rating,
+        content: editingReview.content
+      });
+
+      if (res.success) {
+        setReviews(reviews.map(r => r._id === editingReview._id ? { ...r, rating: editingReview.rating, content: editingReview.content } : r));
+        setEditingReview(null);
+        setMessage('✅ Đã cập nhật đánh giá');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error("Lỗi cập nhật review:", err);
+      setError('Lỗi khi cập nhật đánh giá');
+    }
+  };
 
   // Avatar upload handlers
   const handleAvatarChange = (e) => {
@@ -608,10 +667,16 @@ const ProfilePage = () => {
                           )}
                           
                           <div className="flex gap-2 mt-3">
-                            <button className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
+                            <button 
+                                onClick={() => handleEditClick(review)}
+                                className="text-sm text-blue-600 hover:text-blue-700 font-semibold"
+                            >
                               Sửa
                             </button>
-                            <button className="text-sm text-red-600 hover:text-red-700 font-semibold">
+                            <button 
+                                onClick={() => handleDeleteReview(review._id)}
+                                className="text-sm text-red-600 hover:text-red-700 font-semibold"
+                            >
                               Xóa
                             </button>
                           </div>
@@ -697,7 +762,7 @@ const ProfilePage = () => {
                 </div>
               )}
 
-              {/* Review Detail Modal */}
+              {/* Review Detail Modal (View Only) */}
               {selectedReview && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedReview(null)}>
                    {/* Close Button */}
@@ -711,6 +776,76 @@ const ProfilePage = () => {
                    <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl scale-100 animate-in zoom-in-95 duration-200 hide-scrollbar" onClick={e => e.stopPropagation()}>
                       <FeedReviewCard review={selectedReview} />
                    </div>
+                </div>
+              )}
+
+              {/* Edit Review Modal */}
+              {editingReview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setEditingReview(null)}>
+                  <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                      <h3 className="font-bold text-xl text-gray-800">Chỉnh sửa đánh giá</h3>
+                      <button onClick={() => setEditingReview(null)} className="text-gray-400 hover:text-gray-600">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    
+                    <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                      {/* Rating Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Đánh giá của bạn</label>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setEditingReview({ ...editingReview, rating: star })}
+                              className="focus:outline-none transition-transform hover:scale-110"
+                            >
+                              <Star 
+                                size={32} 
+                                className={`${star <= editingReview.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Content Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Nội dung</label>
+                        <textarea
+                          value={editingReview.content}
+                          onChange={(e) => setEditingReview({ ...editingReview, content: e.target.value })}
+                          className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 min-h-[120px] resize-none"
+                          placeholder="Chia sẻ trải nghiệm của bạn..."
+                          required
+                        />
+                      </div>
+
+                      {/* Info Message (No Image Edit yet) */}
+                      <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
+                         <Shield size={14} className="mt-0.5 text-blue-500 flex-shrink-0" />
+                         Hiện tại chưa hỗ trợ chỉnh sửa hình ảnh. Vui lòng xóa và đăng lại nếu muốn thay đổi ảnh.
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingReview(null)}
+                          className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-colors shadow-lg shadow-orange-200"
+                        >
+                          Lưu thay đổi
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
 
