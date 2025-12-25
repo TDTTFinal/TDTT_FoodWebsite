@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit } from 'lucide-react';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
@@ -572,6 +572,61 @@ const ProfilePage = () => {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Gallery Tab */}
+              {activeTab === 'gallery' && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Thư viện ảnh</h3>
+                  {mockReviews.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Image size={64} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-lg font-semibold text-gray-400">Chưa có hình ảnh nào</p>
+                      <p className="text-sm text-gray-500 mt-2">Đăng đánh giá kèm ảnh để lưu giữ khoảnh khắc!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {/* Convert reviews to a flat list of images if they had multiple, for now 1 image per review */}
+                      {mockReviews.map((review) => (
+                        <div key={review.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
+                          <img
+                            src={review.restaurant.avatar_url}
+                            alt={review.restaurant.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onError={(e) => {
+                              e.target.src = 'https://placehold.co/400x400/E0E0E0/999?text=No+Image';
+                            }}
+                          />
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                            <div className="text-center text-white">
+                                <p className="font-bold text-sm line-clamp-1">{review.restaurant.name}</p>
+                                <div className="flex items-center justify-center gap-1 mt-1">
+                                    <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                                    <span className="text-xs">{review.rating}</span>
+                                </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Add some dummy images to fill grid for demo if reviews are few */}
+                      {mockReviews.length < 6 && (
+                          Array(6 - mockReviews.length).fill(0).map((_, i) => (
+                            <div key={`dummy-${i}`} className="relative aspect-square group cursor-pointer overflow-hidden rounded-xl bg-gray-100">
+                                <img
+                                    src={`https://source.unsplash.com/random/400x400?food,restaurant&sig=${i}`}
+                                    alt="Food"
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Heart className="text-white fill-white" size={24} />
+                                </div>
+                            </div>
+                          ))
+                      )}
                     </div>
                   )}
                 </div>
