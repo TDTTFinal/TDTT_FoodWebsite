@@ -96,6 +96,32 @@ router.get("/advanced", async (req, res) => {
         });
     }
 
+    // ⭐ FALLBACK: If HF returns no results OR all results were filtered out (mismatched IDs)
+    if (results.length === 0) {
+      console.log("⚠️ HF Search yielded 0 valid matches. Falling back to MongoDB regex search.");
+      
+      const Restaurant = require("../models/Restaurant");
+      const fallbackResults = await Restaurant.find({
+        $or: [
+          { name: { $regex: q, $options: "i" } },
+          { address: { $regex: q, $options: "i" } },
+           // Also search in menu items if schema supports it
+           { "menu.name": { $regex: q, $options: "i" } }
+        ]
+      })
+      .limit(20)
+      .lean();
+
+      results = fallbackResults.map(r => ({
+          ...r,
+          hybrid_score: 0.1, // Low score for fallback
+          has_keyword_match: true,
+          semantic_score: 0,
+          tfidf_score: 0,
+          is_fallback: true
+      }));
+    }
+
     console.log(
       `Filtered from ${hfResponse.data.length} to ${results.length} results`
     );
