@@ -441,9 +441,9 @@ const ProfilePage = () => {
         {/* Main Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Sidebar */}
-          <div className="lg:col-span-4 xl:col-span-3">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sticky top-24">
+          {/* Sidebar - Overlapping Cover */}
+          <div className="lg:col-span-4 xl:col-span-3 -mt-20 relative z-10">
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sticky top-24 backdrop-blur-md bg-white/90">
               
               {/* Avatar Section */}
               <div className="text-center mb-6">
@@ -451,12 +451,12 @@ const ProfilePage = () => {
                   <img
                     src={profile.avatar_url}
                     alt={profile.name}
-                    className="w-32 h-32 rounded-full object-cover border-4 border-orange-100 shadow-lg"
+                    className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-2xl bg-white"
                   />
                   <label
                     htmlFor="avatar-upload"
-                    className={`absolute bottom-0 right-0 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg transition-all ${
-                      uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-600 cursor-pointer'
+                    className={`absolute bottom-2 right-2 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg transition-all ring-4 ring-white ${
+                      uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-600 cursor-pointer hover:scale-110 active:scale-90'
                     }`}
                   >
                     {uploading ? (
