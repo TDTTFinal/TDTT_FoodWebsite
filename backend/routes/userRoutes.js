@@ -374,7 +374,7 @@ router.post('/favorites/:restaurantId', protect, async (req, res) => {
         const restaurantId = req.params.restaurantId;
         const user = await User.findById(req.user._id);
 
-        if (user.favorites.some(id => id.toString() === restaurantId)) {
+        if (user.favorites.includes(restaurantId)) {
             return res.status(400).json({ success: false, message: "Đã có trong danh sách yêu thích" });
         }
 
@@ -394,7 +394,7 @@ router.delete('/favorites/:restaurantId', protect, async (req, res) => {
         const restaurantId = req.params.restaurantId;
         const user = await User.findById(req.user._id);
 
-        if (!user.favorites.some(id => id.toString() === restaurantId)) {
+        if (!user.favorites.includes(restaurantId)) {
             return res.status(400).json({ success: false, message: "Không tìm thấy trong danh sách yêu thích" });
         }
 
