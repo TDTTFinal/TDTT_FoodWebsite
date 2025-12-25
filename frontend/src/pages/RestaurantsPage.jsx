@@ -173,6 +173,32 @@ const SocialPage = () => {
       }
   };
 
+  // === SEARCH USERS ===
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef(null);
+
+  const handleSearchUsers = (query) => {
+      if(searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      if(!query.trim()) {
+          setUserSearchResults([]);
+          return;
+      }
+
+      setUserSearchLoading(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+          try {
+              const res = await axios.get(`${API_URL}/api/users?search=${query}`);
+              setUserSearchResults(res.data);
+          } catch (error) {
+              console.error("Search user error:", error);
+          } finally {
+              setUserSearchLoading(false);
+          }
+      }, 500); // Debounce 500ms
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -248,6 +274,47 @@ const SocialPage = () => {
                     </div>
                 </div>
               )}
+
+              {/* 0. NEW: SEARCH USERS */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                       <Search size={18} className="text-gray-500" /> Tìm bạn bè
+                  </h3>
+                  <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Nhập tên hoặc email..." 
+                        className="w-full pl-3 pr-10 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                        value={userSearchQuery || ''}
+                        onChange={(e) => {
+                            setUserSearchQuery(e.target.value);
+                            handleSearchUsers(e.target.value);
+                        }}
+                      />
+                      {userSearchLoading && <span className="absolute right-3 top-2.5"><Loader2 size={16} className="animate-spin text-gray-400"/></span>}
+                  </div>
+                  
+                  {userSearchResults.length > 0 && (
+                      <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+                          {userSearchResults.map(u => (
+                              <div key={u._id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg">
+                                    <Link to={`/user/${u._id}`}>
+                                        <img src={u.avatar || "https://ui-avatars.com/api/?name="+u.name} className="w-8 h-8 rounded-full" />
+                                    </Link>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">{u.name}</p>
+                                        <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
+                                    </div>
+                                    <FriendButton 
+                                       targetUserId={u._id} 
+                                       currentStatus={getFriendStatus(u._id)} 
+                                       className="scakle-75 origin-right"
+                                    />
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
 
               {/* 2. Chat / Online Friends */}
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
