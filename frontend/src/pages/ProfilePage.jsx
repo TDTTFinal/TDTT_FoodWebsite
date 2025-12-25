@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image, Layers, X, Grid, List } from 'lucide-react';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image, Layers, X, Grid, List, CheckCircle, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
@@ -382,17 +382,39 @@ const ProfilePage = () => {
           <span className="font-semibold">Quay về trang chủ</span>
         </button>
 
-        {/* Messages */}
-        {message && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl animate-in fade-in">
-            {message}
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl animate-in fade-in">
-            {error}
-          </div>
-        )}
+        {/* Floating Toast Messages */}
+        <div className="fixed top-24 right-5 z-[100] space-y-4 pointer-events-none">
+            {message && (
+              <div className="pointer-events-auto bg-white border-l-4 border-green-500 shadow-2xl rounded-r-xl p-4 flex items-center gap-3 min-w-[300px] animate-in slide-in-from-right duration-300">
+                <CheckCircle className="text-green-500" size={24} />
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Thành công</h4>
+                  <p className="text-gray-600 text-sm">{message}</p>
+                </div>
+                <button 
+                  onClick={() => setMessage('')} 
+                  className="ml-auto text-gray-400 hover:text-gray-600"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {error && (
+              <div className="pointer-events-auto bg-white border-l-4 border-red-500 shadow-2xl rounded-r-xl p-4 flex items-center gap-3 min-w-[300px] animate-in slide-in-from-right duration-300">
+                <AlertCircle className="text-red-500" size={24} />
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Lỗi</h4>
+                  <p className="text-gray-600 text-sm">{error}</p>
+                </div>
+                <button 
+                  onClick={() => setError('')} 
+                  className="ml-auto text-gray-400 hover:text-gray-600"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+        </div>
 
         {/* Main Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
