@@ -35,7 +35,7 @@ const RestaurantCard = ({ restaurant, action }) => {
   }, [user, _id]);
 
   const handleToggleFavorite = async (e) => {
-    e.preventDefault(); // Prevent navigation
+    e.preventDefault();
     e.stopPropagation();
 
     if (!user) {
@@ -43,28 +43,35 @@ const RestaurantCard = ({ restaurant, action }) => {
       return;
     }
 
+    // Optimistic Update
+    const oldFavoriteStatus = isFavorite;
+    setIsFavorite(!oldFavoriteStatus);
     setLoadingFav(true);
+
     try {
-      if (isFavorite) {
-        // Remove
-        const res = await api.delete(`/users/favorites/${_id}`);
-        if (res.success) {
-            setIsFavorite(false);
-            // Optional: Update global context if needed
-             // Refetch user profile to sync favorites locally
-             const userRes = await api.get('/users/profile');
-             if(userRes.success) updateUser(userRes.user);
+      let res;
+      if (oldFavoriteStatus) {
+        // Remove from favorites
+        res = await api.delete(`/users/favorites/${_id}`);
+      } else {
+        // Add to favorites
+        res = await api.post(`/users/favorites/${_id}`);
+      }
+
+      if (res.success) {
+        // Fetch updated user profile to keep favorites list in sync
+        const userRes = await api.get('/users/profile');
+        if (userRes.success) {
+          updateUser(userRes.user);
         }
       } else {
-        // Add
-        const res = await api.post(`/users/favorites/${_id}`);
-        if (res.success) {
-            setIsFavorite(true);
-            const userRes = await api.get('/users/profile');
-            if(userRes.success) updateUser(userRes.user);
-        }
+        // Rollback on failure
+        setIsFavorite(oldFavoriteStatus);
+        alert(res.message || "Không thể cập nhật yêu thích");
       }
     } catch (err) {
+      // Rollback on error
+      setIsFavorite(oldFavoriteStatus);
       console.error("Lỗi toggle favorite:", err);
     } finally {
       setLoadingFav(false);

@@ -37,8 +37,8 @@ const Header = () => {
             TRANG CHỦ
           </Link>
 
-          {/* Link này có thể dẫn đến trang Search hoặc để tạm # */}
-          <Link to="/search-advanced" className={isActive("/search")}>
+          {/* Link này dẫn đến trang Tìm kiếm nâng cao */}
+          <Link to="/search-advanced" className={isActive("/search-advanced")}>
             TÌM KIẾM NÂNG CAO
           </Link>
           <Link to="/explore" className={isActive("/explore")}>

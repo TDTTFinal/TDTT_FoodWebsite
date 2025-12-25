@@ -43,38 +43,16 @@ const ProfilePage = () => {
   // State
   const [favorites, setFavorites] = useState([]); // State for favorites
 
-  const mockReviews = [
-    {
-      id: 'REV-001',
-      restaurant: {
-        name: 'Quán Phở Hà Nội',
-        avatar_url: 'https://placehold.co/100x100/FF6B35/FFF?text=PHO'
-      },
-      rating: 5,
-      comment: 'Phở rất ngon, nước dùng đậm đà, thịt bò tươi. Sẽ quay lại!',
-      date: '2024-12-10'
-    },
-    {
-      id: 'REV-002',
-      restaurant: {
-        name: 'Cơm Tấm Sài Gòn',
-        avatar_url: 'https://placehold.co/100x100/4ECDC4/FFF?text=COM'
-      },
-      rating: 4,
-      comment: 'Cơm tấm ngon, sườn mềm. Giá cả hợp lý.',
-      date: '2024-12-08'
-    }
-  ];
 
   useEffect(() => {
     if (user) {
       setProfile({
         ...user,
         avatar_url: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=FF6B35&color=fff&size=200`,
-        joinedDate: '2024-01-15',
+        joinedDate: user.createdAt || '2024-01-15',
         stats: {
-          favorites: mockFavorites.length,
-          reviews: 0 // Will update after fetch
+          favorites: user.favorites ? user.favorites.length : 0,
+          reviews: 0
         }
       });
       // Initialize form data
@@ -645,7 +623,7 @@ const ProfilePage = () => {
                       <Heart size={64} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu quán nào</p>
                       <button
-                        onClick={() => navigate('/search')}
+                        onClick={() => navigate('/search-advanced')}
                         className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                       >
                         Khám phá ngay

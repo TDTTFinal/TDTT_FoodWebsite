@@ -22,7 +22,7 @@ import AdvancedSearchPage from "./pages/AdvancedSearchPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
-import SearchPage from "./pages/test/Search";
+// import SearchPage from "./pages/test/Search"; // Removed
 
 
 
@@ -62,19 +62,20 @@ function App() {
         <Route path="/restaurants" element={<RestaurantsPage />} />
 
         {/* Các trang khác */}
-        <Route path="/about" element={<About />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/category/:slug" element={<CategoryPage />} />
+        <Route path="/about" element={<ErrorBoundary><About /></ErrorBoundary>} />
+        <Route path="/history" element={<ErrorBoundary><History /></ErrorBoundary>} />
+        <Route path="/category/:slug" element={<ErrorBoundary><CategoryPage /></ErrorBoundary>} />
 
         <Route
           path="/profile"
-          element={user ? <ProfilePage /> : <Navigate to="/login" />}
+          element={user ? <ErrorBoundary><ProfilePage /></ErrorBoundary> : <Navigate to="/login" />}
         />
-        <Route path="/search" element={<SearchPage />} />
+        {/* Redirect old search to advanced search */}
+        <Route path="/search" element={<Navigate to="/search-advanced" replace />} />
 
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-        <Route path="/search-advanced" element={<AdvancedSearchPage />} />
+        <Route path="/search-advanced" element={<ErrorBoundary><AdvancedSearchPage /></ErrorBoundary>} />
 
         <Route path="/food-tour" element={<ErrorBoundary><FoodTourPage /></ErrorBoundary>} />
         <Route path="/food-tour/:tourId" element={
