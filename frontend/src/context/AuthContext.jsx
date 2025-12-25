@@ -15,7 +15,11 @@ export const AuthProvider = ({ children }) => {
         try {
           const parsedData = JSON.parse(storedAuth);
           if (parsedData.user && parsedData.token) {
-            // Fetch fresh user data from MongoDB
+            // OPTIMISTIC UPDATE: Set user immediately from local storage to show UI
+            setUser(parsedData.user);
+            setLoading(false); // Unblock render immediately
+
+            // Background fetch to ensure fresh data
             try {
               const response = await fetch(`${API_BASE_URL}/users/profile`, {
                 headers: {
@@ -26,7 +30,6 @@ export const AuthProvider = ({ children }) => {
               if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.user) {
-                  // Update localStorage with fresh data including avatar
                   const newAuth = {
                     user: {
                       ...parsedData.user,
@@ -37,27 +40,21 @@ export const AuthProvider = ({ children }) => {
                     token: parsedData.token
                   };
                   localStorage.setItem("auth", JSON.stringify(newAuth));
-                  setUser(newAuth.user);
-                  console.log('Fresh user data loaded from MongoDB, avatar:', data.user.avatar);
-                } else {
-                  // Fallback to localStorage if API fails
-                  setUser(parsedData.user);
+                  setUser(newAuth.user); // Update with fresh data
+                  console.log('Fresh user data loaded from MongoDB (Background)');
                 }
-              } else {
-                // If token expired or server error, use localStorage data
-                setUser(parsedData.user);
               }
             } catch (apiError) {
-              console.warn('Failed to fetch fresh user data, using localStorage:', apiError);
-              setUser(parsedData.user);
+              console.warn('Background profile fetch failed, using local data:', apiError);
             }
+            return; // Exit since we handled loading inside
           }
         } catch (error) {
           console.error("Lỗi parse auth:", error);
           localStorage.removeItem("auth");
         }
       }
-      setLoading(false);
+      setLoading(false); // No user found or error, stop loading
     };
 
     initAuth();

@@ -38,7 +38,7 @@ router.get("/advanced", async (req, res) => {
 
     const hfResponse = await axios.get(HF_SEARCH_URL, {
       params: hfParams,
-      timeout: 10000,
+      timeout: 3000, 
     });
 
     let results = hfResponse.data;
