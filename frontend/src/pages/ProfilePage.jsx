@@ -73,6 +73,7 @@ const ProfilePage = () => {
         avatar_url: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=FF6B35&color=fff&size=200`,
         joinedDate: '2024-01-15',
         stats: {
+        stats: {
           favorites: user.favorites?.length || 0,
           reviews: 0 // Will update after fetch
         }
