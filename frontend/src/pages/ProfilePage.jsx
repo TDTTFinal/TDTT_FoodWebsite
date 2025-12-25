@@ -73,7 +73,8 @@ const ProfilePage = () => {
         avatar_url: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=FF6B35&color=fff&size=200`,
         joinedDate: '2024-01-15',
         stats: {
-          favorites: mockFavorites.length,
+        stats: {
+          favorites: user.favorites?.length || 0,
           reviews: 0 // Will update after fetch
         }
       });
@@ -391,8 +392,22 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
       <Header />
+      
+      {/* Cover Image Section */}
+      <div className="h-48 md:h-64 bg-gradient-to-r from-orange-400 to-pink-500 relative overflow-hidden">
+        {/* Abstract Shapes/Pattern for Cover */}
+         <div className="absolute top-0 left-0 w-full h-full opacity-20">
+             <div className="absolute top-[-50%] left-[-20%] w-[80%] h-[200%] bg-white rotate-12 transform-gpu blur-3xl rounded-[100%]"></div>
+             <div className="absolute bottom-[-50%] right-[-20%] w-[80%] h-[200%] bg-yellow-300 rotate-12 transform-gpu blur-3xl rounded-[100%]"></div>
+         </div>
+         
+         {/* Edit Cover Button (Visual only for now) */}
+         <button className="absolute bottom-4 right-4 bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-lg flex items-center gap-2 backdrop-blur-sm transition-all text-sm font-medium">
+            <Camera size={18} /> Cập nhật ảnh bìa
+         </button>
+      </div>
 
       <div className="container mx-auto px-4 py-8">
         {/* Back Button */}
