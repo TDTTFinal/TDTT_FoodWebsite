@@ -121,9 +121,7 @@ const ProfilePage = () => {
     }
   }, [user]);
 
-      fetchUserReviews();
-    }
-  }, [user]);
+
 
   // Review Actions
   const handleDeleteReview = async (reviewId) => {
