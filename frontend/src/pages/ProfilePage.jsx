@@ -40,7 +40,8 @@ const ProfilePage = () => {
 
   // Mock Data
 
-  const mockFavorites = [];
+  // State
+  const [favorites, setFavorites] = useState([]); // State for favorites
 
   const mockReviews = [
     {
@@ -116,8 +117,29 @@ const ProfilePage = () => {
         }
       };
 
+      // Fetch Favorites
+      const fetchFavorites = async () => {
+        try {
+          const res = await api.get('/users/favorites');
+          if (res.success) {
+            setFavorites(res.favorites);
+            // Update profile stats
+            setProfile(prev => ({
+                 ...prev,
+                 stats: {
+                      ...prev.stats,
+                      favorites: res.favorites?.length || 0
+                 }
+            }));
+          }
+        } catch (err) {
+            console.error("Lỗi lấy danh sách yêu thích:", err);
+        }
+      };
+
       fetchTours();
       fetchUserReviews();
+      fetchFavorites();
     }
   }, [user]);
 
@@ -618,7 +640,7 @@ const ProfilePage = () => {
               {activeTab === 'favorites' && (
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-6">Quán yêu thích</h3>
-                  {mockFavorites.length === 0 ? (
+                  {favorites.length === 0 ? (
                     <div className="text-center py-16">
                       <Heart size={64} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-lg font-semibold text-gray-400">Bạn chưa lưu quán nào</p>
@@ -631,7 +653,10 @@ const ProfilePage = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                      {/* Will use RestaurantCard component */}
+                       {/* Render Restaurant Cards */}
+                       {favorites.map(restaurant => (
+                           <RestaurantCard key={restaurant._id} restaurant={restaurant} />
+                       ))}
                     </div>
                   )}
                 </div>

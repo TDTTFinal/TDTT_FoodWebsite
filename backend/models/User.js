@@ -39,6 +39,9 @@ const userSchema = new mongoose.Schema(
     maxDistanceKm: { type: Number, default: 5 },
     topTags: { type: [String], default: [] },
     
+    // Favorites
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Restaurant" }],
+    
     // Social Features
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

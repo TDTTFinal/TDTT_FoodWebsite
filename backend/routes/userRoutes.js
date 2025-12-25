@@ -353,5 +353,60 @@ router.get('/friend-requests', protect, async (req, res) => {
     }
 });
 
+// -----------------------------------------------------------------------------
+// FAVORITES SYSTEM API
+// -----------------------------------------------------------------------------
+
+// GET /api/users/favorites
+router.get('/favorites', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('favorites');
+        res.json({ success: true, favorites: user.favorites });
+    } catch (error) {
+        console.error("Get favorites error:", error);
+        res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+
+// POST /api/users/favorites/:restaurantId
+router.post('/favorites/:restaurantId', protect, async (req, res) => {
+    try {
+        const restaurantId = req.params.restaurantId;
+        const user = await User.findById(req.user._id);
+
+        if (user.favorites.includes(restaurantId)) {
+            return res.status(400).json({ success: false, message: "Đã có trong danh sách yêu thích" });
+        }
+
+        user.favorites.push(restaurantId);
+        await user.save();
+
+        res.json({ success: true, message: "Đã thêm vào yêu thích" });
+    } catch (error) {
+        console.error("Add favorite error:", error);
+        res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+
+// DELETE /api/users/favorites/:restaurantId
+router.delete('/favorites/:restaurantId', protect, async (req, res) => {
+    try {
+        const restaurantId = req.params.restaurantId;
+        const user = await User.findById(req.user._id);
+
+        if (!user.favorites.includes(restaurantId)) {
+            return res.status(400).json({ success: false, message: "Không tìm thấy trong danh sách yêu thích" });
+        }
+
+        user.favorites = user.favorites.filter(id => id.toString() !== restaurantId);
+        await user.save();
+
+        res.json({ success: true, message: "Đã xóa khỏi yêu thích" });
+    } catch (error) {
+        console.error("Remove favorite error:", error);
+        res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+
 module.exports = router;
 
