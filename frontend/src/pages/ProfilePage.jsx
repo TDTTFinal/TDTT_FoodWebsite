@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image, Layers, X } from 'lucide-react';
+import { User, ShoppingBag, Heart, Star, Settings, Camera, LogOut, ChevronRight, MapPin, Package, Shield, Map, Mail, Phone, Calendar, MessageSquare, ArrowLeft, Edit, Image, Layers, X, Grid, List } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
@@ -624,16 +624,32 @@ const ProfilePage = () => {
 
               {/* Gallery Tab */}
               {activeTab === 'gallery' && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-6">Thư viện ảnh</h3>
+                <div className="animate-in fade-in duration-500">
+                  {/* Gallery Stats / Filter Bar */}
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <div className="flex gap-4 text-sm font-medium text-gray-500">
+                      <span className="flex items-center gap-1">
+                         <Grid size={16} /> {reviews.filter(r => r.images?.length > 0).length} bài viết
+                      </span>
+                      <span className="flex items-center gap-1">
+                         <Heart size={16} /> {reviews.reduce((acc, r) => acc + (r.likes?.length || 0), 0)} lượt thích
+                      </span>
+                    </div>
+                    {/* Optional: Add Filter/Sort here later */}
+                  </div>
+
                   {reviews.length === 0 || !reviews.some(r => r.images && r.images.length > 0) ? (
-                    <div className="text-center py-16">
-                      <Image size={64} className="mx-auto text-gray-300 mb-4" />
-                      <p className="text-lg font-semibold text-gray-400">Chưa có hình ảnh nào</p>
-                      <p className="text-sm text-gray-500 mt-2">Đăng đánh giá kèm ảnh để lưu giữ khoảnh khắc!</p>
+                    <div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                      <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                         <Camera size={32} className="text-orange-500" />
+                      </div>
+                      <h4 className="text-xl font-bold text-gray-800">Chưa có ảnh nào</h4>
+                      <p className="text-gray-500 mt-2 text-center max-w-md">
+                        Hãy chia sẻ những trải nghiệm ẩm thực của bạn kèm theo hình ảnh để làm phong phú thư viện nhé!
+                      </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-1 md:gap-4">
+                    <div className="grid grid-cols-3 gap-0.5 md:gap-1">
                       {/* Instagram Style Grid: 1 Post (Review) = 1 Square */}
                       {reviews.filter(r => r.images && r.images.length > 0).map((review) => (
                         <div 
@@ -644,19 +660,21 @@ const ProfilePage = () => {
                           <img
                             src={review.images[0]}
                             alt={review.restaurant?.name}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                           />
                           
                           {/* Multiple Images Indicator */}
                           {review.images.length > 1 && (
-                            <div className="absolute top-2 right-2 text-white drop-shadow-md">
-                              <Layers size={20} fill="currentColor" fillOpacity={0.5} />
+                            <div className="absolute top-2 right-2 text-white drop-shadow-md bg-black/20 rounded-full p-1 backdrop-blur-sm">
+                              <Layers size={16} fill="currentColor" className="text-white" />
                             </div>
                           )}
 
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
-                            <div className="flex gap-6 text-white font-bold">
+                          {/* Hover Overlay - Premium Style */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-4 backdrop-blur-[2px]">
+                            
+                            {/* Likes & Comments */}
+                            <div className="flex gap-6 text-white font-bold mb-2">
                                 <div className="flex items-center gap-2">
                                     <Heart size={24} fill="white" />
                                     <span>{review.likes?.length || 0}</span>
@@ -666,6 +684,11 @@ const ProfilePage = () => {
                                     <span>{review.comments?.length || 0}</span>
                                 </div>
                             </div>
+
+                            {/* Restaurant Name (Optional enhancement) */}
+                            <p className="text-white/90 text-xs font-medium mt-2 line-clamp-1 border-t border-white/30 pt-2 px-2">
+                                {review.restaurant?.name}
+                            </p>
                           </div>
                         </div>
                       ))}
