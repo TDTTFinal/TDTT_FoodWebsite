@@ -193,4 +193,165 @@ router.post('/change-password', protect, async (req, res) => {
   }
 });
 
+// GET /api/users
+router.get('/', protect, async (req, res) => {
+  try {
+    const keyword = req.query.search
+      ? {
+          $or: [
+            { name: { $regex: req.query.search, $options: "i" } },
+            { email: { $regex: req.query.search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    // Find users excluding the current user
+    const users = await User.find({ ...keyword, _id: { $ne: req.user._id } })
+      .select("-passwordHash")
+      .limit(20);
+
+    res.json(users);
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách người dùng'
+    });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// FRIEND SYSTEM API
+// -----------------------------------------------------------------------------
+
+// POST /api/users/friend-request/:id
+router.post('/friend-request/:id', protect, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user._id;
+
+    if (targetUserId === currentUserId.toString()) {
+      return res.status(400).json({ success: false, message: "Không thể kết bạn với chính mình" });
+    }
+
+    const targetUser = await User.findById(targetUserId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!targetUser || !currentUser) {
+      return res.status(404).json({ success: false, message: "Người dùng không tồn tại" });
+    }
+
+    // Check if already friends
+    if (currentUser.friends.includes(targetUserId)) {
+      return res.status(400).json({ success: false, message: "Đã là bạn bè rồi" });
+    }
+
+    // Check if request already sent
+    if (currentUser.sentFriendRequests.includes(targetUserId)) {
+      return res.status(400).json({ success: false, message: "Đã gửi lời mời trước đó" });
+    }
+
+    // Check if request received (so should accept instead)
+    if (currentUser.friendRequests.includes(targetUserId)) {
+      return res.status(400).json({ success: false, message: "Người này đã gửi lời mời cho bạn, hãy chấp nhận nhé" });
+    }
+
+    // Update arrays
+    currentUser.sentFriendRequests.push(targetUserId);
+    targetUser.friendRequests.push(currentUserId);
+
+    await currentUser.save();
+    await targetUser.save();
+
+    res.json({ success: true, message: "Đã gửi lời mời kết bạn" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+});
+
+// POST /api/users/friend-accept/:id
+router.post('/friend-accept/:id', protect, async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const currentUserId = req.user._id;
+
+    const currentUser = await User.findById(currentUserId);
+    const requester = await User.findById(requesterId);
+
+    if (!currentUser || !requester) {
+      return res.status(404).json({ success: false, message: "Người dùng không tồn tại" });
+    }
+
+    if (!currentUser.friendRequests.includes(requesterId)) {
+      return res.status(400).json({ success: false, message: "Không tìm thấy lời mời kết bạn" });
+    }
+
+    // Add to friends list
+    currentUser.friends.push(requesterId);
+    requester.friends.push(currentUserId);
+
+    // Remove from requests
+    currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+    requester.sentFriendRequests = requester.sentFriendRequests.filter(id => id.toString() !== currentUserId.toString());
+
+    await currentUser.save();
+    await requester.save();
+
+    res.json({ success: true, message: "Đã chấp nhận kết bạn" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+});
+
+// POST /api/users/friend-reject/:id
+router.post('/friend-reject/:id', protect, async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const currentUserId = req.user._id;
+
+    const currentUser = await User.findById(currentUserId);
+    const requester = await User.findById(requesterId); // Need to update sender's sent list too
+
+    if (currentUser && currentUser.friendRequests.includes(requesterId)) {
+        currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+        await currentUser.save();
+    }
+    
+    if(requester && requester.sentFriendRequests.includes(currentUserId)){
+        requester.sentFriendRequests = requester.sentFriendRequests.filter(id => id.toString() !== currentUserId.toString());
+        await requester.save();
+    }
+
+    res.json({ success: true, message: "Đã từ chối lời mời" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+});
+
+// GET /api/users/friends (My Friends)
+router.get('/friends', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('friends', 'name email avatar');
+        res.json({ success: true, friends: user.friends });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+
+// GET /api/users/requests (Incoming Requests)
+router.get('/friend-requests', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('friendRequests', 'name email avatar');
+        res.json({ success: true, requests: user.friendRequests });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+
 module.exports = router;
+

@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema(
     budget: { type: Number, default: 2 },
     maxDistanceKm: { type: Number, default: 5 },
     topTags: { type: [String], default: [] },
+    
+    // Social Features
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    sentFriendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },

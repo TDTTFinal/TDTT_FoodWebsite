@@ -62,6 +62,11 @@ app.use("/api/reviews", reviewRoutes);
 // -> /api/reviews/:id/like
 // -> /api/reviews/upload
 
+// 💬 Chat API
+const chatRoutes = require("./routes/chatRoutes");
+app.use("/api/chat", chatRoutes);
+
+
 // 🕒 History API
 const historyRoutes = require("./routes/historyRoutes");
 app.use("/api/history", historyRoutes);
@@ -69,5 +74,11 @@ app.use("/api/history", historyRoutes);
 // -> /api/history/reviews (GET)
 // -> /api/history/sync (POST)
 
+const http = require("http");
+const { initSocket } = require("./socket");
+
+const server = http.createServer(app);
+initSocket(server);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server chạy port ${PORT}`));
