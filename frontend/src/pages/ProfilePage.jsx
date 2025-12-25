@@ -92,7 +92,7 @@ const ProfilePage = () => {
           console.error("Lỗi lấy danh sách tour:", err);
         }
       };
-      };
+
       
       // Fetch User Reviews
       const fetchUserReviews = async () => {
