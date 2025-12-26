@@ -11,7 +11,7 @@ const NearMeSection = () => {
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
   const [roadDistances, setRoadDistances] = useState({});
-  const [useRoadDistance, setUseRoadDistance] = useState(true); // Toggle for distance type
+  const [useRoadDistance, setUseRoadDistance] = useState(false); // Default to false (Haversine) since OSRM is flaky
 
   useEffect(() => {
     // Set timeout for geolocation - if takes too long, use default HCM location
@@ -78,8 +78,8 @@ const NearMeSection = () => {
       const fetchedRestaurants = res.data || [];
       setRestaurants(fetchedRestaurants);
       
-      // Fetch road distances asynchronously
-      if (fetchedRestaurants.length > 0) {
+      // Fetch road distances if enabled
+      if (fetchedRestaurants.length > 0 && useRoadDistance) {
         fetchRoadDistances({ lat, lon }, fetchedRestaurants);
       }
     } catch (err) {
@@ -114,6 +114,17 @@ const NearMeSection = () => {
       console.error("Road distance fetch error:", err);
     }
   };
+
+  // React to toggle change
+  useEffect(() => {
+    if (useRoadDistance && location && restaurants.length > 0) {
+      // Check if we already have distances to avoid refetching
+      const missingDistances = restaurants.some(r => !roadDistances[r._id]);
+      if (missingDistances) {
+        fetchRoadDistances(location, restaurants);
+      }
+    }
+  }, [useRoadDistance, location, restaurants]);
 
   // Haversine formula (fallback)
   const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {

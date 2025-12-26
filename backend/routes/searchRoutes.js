@@ -1,6 +1,7 @@
 // backend/routes/searchRoutes.js
 const express = require("express");
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -38,24 +39,26 @@ router.get("/advanced", async (req, res) => {
 
     const hfResponse = await axios.get(HF_SEARCH_URL, {
       params: hfParams,
-      timeout: 3000, 
+      timeout: 5000, 
     });
 
     let results = hfResponse.data;
 
     // ⭐ ENRICHMENT STEPS:
     // 1. Get List of IDs
-    // 2. Query MongoDB
+    // 2. Query MongoDB ('test' collection)
     // 3. Merge Data
     if (Array.isArray(results) && results.length > 0) {
-      const Restaurant = require("../models/Restaurant"); // Lazy require or move top
+      const Restaurant = require("../models/Restaurant");
+      // Create/Get TestRestaurant Model
+      const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
       
       const ids = results
         .map((r) => r.restaurant_id || r._id || r.id)
         .filter((id) => id); // Remove null/undefined
-
-      // Fetch full details from MongoDB
-      const dbRestaurants = await Restaurant.find({ _id: { $in: ids } }).lean();
+      
+      // Fetch full details from MongoDB (test collection)
+      const dbRestaurants = await TestRestaurant.find({ _id: { $in: ids } }).lean();
 
       // Create Map for fast lookup
       const dbMap = new Map(dbRestaurants.map((r) => [r._id.toString(), r]));
@@ -65,7 +68,7 @@ router.get("/advanced", async (req, res) => {
           const id = item.restaurant_id || item._id || item.id;
           const dbItem = dbMap.get(id);
 
-          // If not found in DB, skip or keep original (risk of missing data)
+          // If not found in DB, skip
           if (!dbItem) return null; 
 
           const semanticScore = item.semantic_score || 0;
@@ -80,7 +83,7 @@ router.get("/advanced", async (req, res) => {
           // Merge: DB data overwrites generic fields, but keep scores
           return {
             ...item,            // Original scores/metadata
-            ...dbItem,          // Full Mongo Data (price_range, etc.)
+            ...dbItem,          // Full Mongo Data from test collection
             _id: dbItem._id,    // Ensure ID format
             hybrid_score: hybridScore,
             has_keyword_match: hasKeywordMatch,
@@ -101,7 +104,9 @@ router.get("/advanced", async (req, res) => {
       console.log("⚠️ HF Search yielded 0 valid matches. Falling back to MongoDB regex search.");
       
       const Restaurant = require("../models/Restaurant");
-      const fallbackResults = await Restaurant.find({
+      const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
+      
+      const fallbackResults = await TestRestaurant.find({
         $or: [
           { name: { $regex: q, $options: "i" } },
           { address: { $regex: q, $options: "i" } },

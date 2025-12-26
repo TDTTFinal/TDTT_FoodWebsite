@@ -17,9 +17,11 @@ router.get("/views", protect, async (req, res) => {
       .sort({ viewedAt: -1 })
       .limit(parseInt(limit));
 
+    const validHistory = history.filter(h => h.restaurant);
+
     res.json({
       success: true,
-      data: history.map((h) => ({
+      data: validHistory.map((h) => ({
         id: h.restaurant._id,
         name: h.restaurant.name,
         address: h.restaurant.address,

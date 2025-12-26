@@ -1,0 +1,8 @@
+[2025-12-26T09:50:30.509Z] Calling HF: https://nemo-chewz.hf.space/api/v1/search/ | q="com"
+[2025-12-26T09:50:31.850Z] HF Response: Status 200 | Time: 1341ms | Items: 0
+[2025-12-26T09:50:34.772Z] Calling HF: https://nemo-chewz.hf.space/api/v1/search/ | q="com"
+[2025-12-26T09:50:35.305Z] HF Response: Status 200 | Time: 533ms | Items: 0
+[2025-12-26T09:50:52.374Z] Calling HF: https://nemo-chewz.hf.space/api/v1/search/ | q="bún bò"
+[2025-12-26T09:50:53.817Z] HF Response: Status 200 | Time: 1442ms | Items: 0
+[2025-12-26T09:51:49.287Z] Calling HF: https://nemo-chewz.hf.space/api/v1/search/ | Params: {"q":"bún bò","top_k":9999,"lat":10.7769,"lon":106.7009,"radius":0,"alpha":0.6}
+[2025-12-26T09:51:50.767Z] HF Response: Status 200 | Time: 1479ms | Items: 0
