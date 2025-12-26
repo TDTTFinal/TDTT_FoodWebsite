@@ -120,6 +120,20 @@ const SocialPage = () => {
     fetchFeed();
   }, [page, sortMode, refreshKey]);
 
+  // === FETCH USER STATS (My Post Count) ===
+  const [myReviewCount, setMyReviewCount] = useState(0);
+  useEffect(() => {
+      if (currentUser) {
+          axios.get(`${API_URL}/api/reviews/user/${currentUser._id}?limit=1`)
+            .then(res => {
+                if (res.data.success) {
+                    setMyReviewCount(res.data.pagination.total);
+                }
+            })
+            .catch(err => console.error("Fetch user stats error:", err));
+      }
+  }, [currentUser, refreshKey]); // Re-fetch when refreshing feed (implies new post)
+
   // Handle load more
   const loadMore = () => {
     if (!loadingMore && hasMore) {
@@ -299,7 +313,7 @@ const SocialPage = () => {
                     </div>
                     <div className="flex justify-between border-t pt-3 text-center">
                          <div><p className="font-bold text-gray-800">{friends.length}</p><p className="text-xs text-gray-500">Bạn bè</p></div>
-                         <div><p className="font-bold text-gray-800">{reviews.filter(r => r.user?._id === currentUser._id).length}</p><p className="text-xs text-gray-500">Bài viết</p></div>
+                         <div><p className="font-bold text-gray-800">{myReviewCount}</p><p className="text-xs text-gray-500">Bài viết</p></div>
                          <Link to="/profile" className="text-xs text-blue-500 hover:underline flex items-end">Xem Profile</Link>
                     </div>
                 </div>
