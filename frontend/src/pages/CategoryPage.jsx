@@ -68,7 +68,10 @@ const CategoryPage = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sortOption, setSortOption] = useState("default");
+  // Filter & Sort States
+  const [sortOption, setSortOption] = useState("default"); // default, rating_desc, name_asc, new
+  const [minRating, setMinRating] = useState(0);
+  const [showFilter, setShowFilter] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -77,7 +80,7 @@ const CategoryPage = () => {
   useEffect(() => {
     fetchRestaurants();
     window.scrollTo(0, 0);
-  }, [slug, currentPage]);
+  }, [slug, currentPage, sortOption, minRating]);
 
   const fetchRestaurants = async () => {
     try {
@@ -86,8 +89,22 @@ const CategoryPage = () => {
       
       const params = new URLSearchParams();
       params.append("page", currentPage);
-      params.append("limit", 24); // Use 24 for better grid multiples (2,3,4)
+      params.append("limit", 24); 
       params.append("category", categoryName);
+      
+      if (minRating > 0) params.append("minRating", minRating);
+
+      // Map sortOption to backend params
+      if (sortOption === 'rating_desc') {
+          params.append("sortBy", "avg_rating");
+          params.append("order", "desc");
+      } else if (sortOption === 'name_asc') {
+          params.append("sortBy", "name");
+          params.append("order", "asc");
+      } else if (sortOption === 'new') {
+          params.append("sortBy", "createdAt");
+          params.append("order", "desc");
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/restaurants?${params.toString()}`
@@ -111,13 +128,6 @@ const CategoryPage = () => {
       setLoading(false);
     }
   };
-
-  // Sort logic (Client-side for now, can be server-side)
-  const sortedRestaurants = [...restaurants].sort((a, b) => {
-    if (sortOption === "rating_desc") return b.avg_rating - a.avg_rating;
-    if (sortOption === "name_asc") return a.name.localeCompare(b.name);
-    return 0; // Default order from DB
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -159,19 +169,53 @@ const CategoryPage = () => {
            </div>
 
            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-700">
-                 <Filter size={16} />
-                 <span>Lọc: Mặc định</span>
+              {/* Filter Dropdown */}
+              <div className="relative">
+                  <button 
+                    onClick={() => setShowFilter(!showFilter)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors border ${minRating > 0 ? 'bg-orange-50 border-orange-200 text-orange-700 font-medium' : 'bg-gray-100 border-transparent text-gray-700 hover:bg-gray-200'}`}
+                  >
+                     <Filter size={16} />
+                     <span>{minRating > 0 ? `Trên ${minRating} sao` : 'Bộ lọc'}</span>
+                  </button>
+                  
+                  {showFilter && (
+                      <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                           <div className="text-xs font-bold text-gray-400 mb-2 px-2 uppercase tracking-wide">Đánh giá</div>
+                           {[0, 7, 8, 9].map(rating => (
+                               <button
+                                  key={rating}
+                                  onClick={() => {
+                                      setMinRating(rating);
+                                      setShowFilter(false);
+                                      setCurrentPage(1);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ${minRating === rating ? 'bg-orange-50 text-orange-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                               >
+                                  {rating === 0 ? 'Tất cả' : `Trên ${rating} sao`}
+                                  {minRating === rating && <span className="text-orange-500">✓</span>}
+                               </button>
+                           ))}
+                      </div>
+                  )}
+                  {/* Backdrop */}
+                  {showFilter && <div className="fixed inset-0 z-40" onClick={() => setShowFilter(false)}></div>}
               </div>
+
+              {/* Sort Selection */}
               <div className="relative group">
                  <select 
                     value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value)}
-                    className="appearance-none bg-gray-100 pl-9 pr-8 py-2 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                    onChange={(e) => {
+                        setSortOption(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                    className="appearance-none bg-gray-100 pl-9 pr-8 py-2 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer border border-transparent hover:bg-gray-200 transition-colors"
                  >
                     <option value="default">Sắp xếp: Mặc định</option>
                     <option value="rating_desc">Đánh giá cao nhất</option>
                     <option value="name_asc">Tên (A-Z)</option>
+                    <option value="new">Mới nhất</option>
                  </select>
                  <ArrowUpDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               </div>
@@ -196,12 +240,16 @@ const CategoryPage = () => {
         {!loading && !error && (
             <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {sortedRestaurants.map((res) => (
-                        <RestaurantCard key={res._id} restaurant={res} />
+                    {restaurants.map((res) => (
+                        <RestaurantCard 
+                           key={res._id} 
+                           restaurant={res} 
+                           showRating={sortOption === 'rating_desc' || minRating > 0} 
+                        />
                     ))}
                 </div>
 
-                {sortedRestaurants.length === 0 && (
+                {restaurants.length === 0 && (
                     <div className="text-center py-24 bg-white rounded-2xl shadow-sm border border-gray-100">
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-xl font-bold text-gray-800 mb-2">Chưa có quán nào</h3>

@@ -11,6 +11,8 @@ import FriendButton from "../components/social/FriendButton";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import RestaurantSearchModal from "../components/review/RestaurantSearchModal";
+import ReviewModal from "../components/review/ReviewModal";
 
 const SocialPage = () => {
   const navigate = useNavigate();
@@ -87,6 +89,8 @@ const SocialPage = () => {
     fetchSidebarData();
   }, [currentUser]);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // === FETCH FEED ===
   useEffect(() => {
     const fetchFeed = async () => {
@@ -94,7 +98,7 @@ const SocialPage = () => {
           if (page === 1) setLoading(true);
           else setLoadingMore(true);
     
-          const res = await axios.get(`${API_URL}/api/reviews/feed?page=${page}&limit=5&sort=${sortMode}`);
+          const res = await axios.get(`${API_URL}/api/posts/feed?page=${page}&limit=5&sort=${sortMode}&t=${Date.now()}`); // Prevent cache
           const data = res.data;
     
           if (data.success) {
@@ -114,7 +118,14 @@ const SocialPage = () => {
       };
       
     fetchFeed();
-  }, [page, sortMode]);
+  }, [page, sortMode, refreshKey]);
+
+  // Handle load more
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   // === HELPERS ===
   const handleSortChange = (mode) => {
@@ -126,13 +137,32 @@ const SocialPage = () => {
   };
 
   const handleRefresh = () => {
-    setPage(1);
-    setHasMore(true);
     setReviews([]);
   };
 
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showCreateReviewModal, setShowCreateReviewModal] = useState(false);
+  const [selectedRestaurantForReview, setSelectedRestaurantForReview] = useState(null);
+
   const handleCreatePost = () => {
-    navigate('/search-advanced');
+    if (!currentUser) {
+        alert("Vui lòng đăng nhập để đăng bài!");
+        return;
+    }
+    setShowSearchModal(true);
+  };
+
+  const handleSelectRestaurant = (restaurant) => {
+      setShowSearchModal(false);
+      setSelectedRestaurantForReview(restaurant);
+      setShowCreateReviewModal(true);
+  };
+
+  const handleReviewSuccess = (newReview) => {
+      // Refresh feed or append new review/post
+      // Since API returns review, we might need to fetch the post or just reload feed
+      // Simple way: reset page 1
+      handleRefresh();
   };
 
   // Helper to determine friendship status given a user ID
@@ -415,10 +445,27 @@ const SocialPage = () => {
           onClose={() => setSelectedReview(null)}
           onReviewUpdate={(updatedReview) => {
              setReviews(prev => prev.map(r => r._id === updatedReview._id ? { ...r, ...updatedReview } : r));
-             // Also update selectedReview so the modal reflects changes immediately if it relies on external props (though it has internal state too)
              setSelectedReview(prev => ({ ...prev, ...updatedReview }));
           }}
         />
+      )}
+
+      {/* Create Post Flow Modals */}
+      <RestaurantSearchModal 
+        isOpen={showSearchModal} 
+        onClose={() => setShowSearchModal(false)}
+        onSelect={handleSelectRestaurant}
+      />
+
+      {showCreateReviewModal && selectedRestaurantForReview && (
+         <ReviewModal
+            isOpen={showCreateReviewModal}
+            onClose={() => setShowCreateReviewModal(false)}
+            restaurantId={selectedRestaurantForReview._id}
+            restaurantName={selectedRestaurantForReview.name}
+            initialSharedToFeed={true} // Auto-check share for feed flow
+            onSuccess={handleReviewSuccess}
+         />
       )}
 
       <Footer />

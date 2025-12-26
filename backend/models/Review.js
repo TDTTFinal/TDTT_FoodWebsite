@@ -92,6 +92,12 @@ const reviewSchema = new mongoose.Schema(
       enum: ["active", "hidden", "deleted"],
       default: "active",
     },
+    // Social Feed Opt-in
+    isSharedToFeed: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,

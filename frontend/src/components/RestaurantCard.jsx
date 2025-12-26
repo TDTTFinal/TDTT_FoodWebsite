@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../config/api";
 import { useState, useEffect } from "react";
 
-const RestaurantCard = ({ restaurant, action }) => {
+const RestaurantCard = ({ restaurant, action, showRating }) => {
   const {
     _id,
     name,
@@ -134,6 +134,15 @@ const RestaurantCard = ({ restaurant, action }) => {
           )}
 
 
+
+
+          {/* Rating Badge (Conditional) */}
+          {(showRating || avg_rating >= 8.0) && (
+             <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold px-2 py-1 rounded-lg shadow-md flex items-center gap-1">
+                 <Star size={12} className="fill-orange-500 text-orange-500" />
+                 {avg_rating ? avg_rating.toFixed(1) : "N/A"}
+             </div>
+          )}
 
           {category && (
             <div className="absolute top-10 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2 py-1 rounded-full shadow-sm">

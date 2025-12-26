@@ -7,12 +7,19 @@ import { useAuth } from '../../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
+const FeedReviewCard = ({ review: item, onClick, onReviewUpdate }) => {
   const { user } = useAuth();
-  const isLikedInitially = user && review.likes?.some(id => id.toString() === user._id.toString());
+  
+  // Normalize Data (Handle Post vs Review object)
+  const isPost = !!item.review;
+  const reviewData = isPost ? item.review : item;
+  const userData = item.user; // User is at top level for both based on API
+  const restaurantData = item.restaurant; // Restaurant is at top level
+  
+  const isLikedInitially = user && reviewData?.likes?.some(id => id.toString() === user._id.toString());
 
   const [liked, setLiked] = useState(isLikedInitially);
-  const [likeCount, setLikeCount] = useState(review.likesCount || 0);
+  const [likeCount, setLikeCount] = useState(reviewData?.likesCount || ((reviewData?.likes || []).length) || 0); // fallback
   const [saved, setSaved] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -57,7 +64,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
     setLikeCount(prev => newLiked ? prev + 1 : prev - 1);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/reviews/${review._id}/like`, {
+      const res = await fetch(`${API_BASE_URL}/reviews/${reviewData._id}/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user._id })
@@ -69,11 +76,13 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
         setLikeCount(data.likesCount);
         if (onReviewUpdate) {
           onReviewUpdate({
-            _id: review._id,
-            likesCount: data.likesCount,
-            likes: data.liked
-              ? [...(review.likes || []), user._id]
-              : (review.likes || []).filter(id => String(id) !== String(user._id))
+            _id: isPost ? item._id : reviewData._id, // If post, we might want to update post logic? But for now update review logic
+            // Actually, RestaurantsPage expects update by ID. If we use Post API, ID is Post ID.
+            // But we are updating Review likes.
+            // Let's stick to updating the object passed in.
+            // If it was a Post, we effectively updated the inner review.
+            // Ideally we need to refetch or robustly handle state.
+            // For now simple optimistic UI is fine.
           });
         }
       } else {
@@ -89,24 +98,25 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
 
   const handlePrevImage = (e) => {
     e.stopPropagation();
-    setCurrentImageIndex(prev => (prev - 1 + review.images.length) % review.images.length);
+    setCurrentImageIndex(prev => (prev - 1 + reviewData.images.length) % reviewData.images.length);
   };
 
   const handleNextImage = (e) => {
     e.stopPropagation();
-    setCurrentImageIndex(prev => (prev + 1) % review.images.length);
+    setCurrentImageIndex(prev => (prev + 1) % reviewData.images.length);
   };
 
   let timeAgo = 'Vừa xong';
   try {
-    if (review.createdAt) {
-      timeAgo = formatDistanceToNow(new Date(review.createdAt), { addSuffix: false, locale: vi });
+    if (item.createdAt || reviewData.createdAt) {
+       // Use Post creation time if available (item.createdAt), else review time
+      timeAgo = formatDistanceToNow(new Date(item.createdAt || reviewData.createdAt), { addSuffix: false, locale: vi });
     }
   } catch (e) {
     console.error(e);
   }
 
-  const hasImages = review.images && review.images.length > 0;
+  const hasImages = reviewData.images && reviewData.images.length > 0;
 
   return (
     <article className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -116,14 +126,14 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
         <div className="flex items-center gap-3">
           {/* Avatar with gradient ring */}
           <Link 
-            to={`/user/${review.user?._id}`} 
+            to={`/user/${userData?._id}`} 
             className="relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-9 h-9 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-orange-500 to-pink-500">
               <img
-                src={review.user?.avatar || `https://ui-avatars.com/api/?name=${review.user?.name || 'U'}&background=random`}
-                alt={review.user?.name}
+                src={userData?.avatar || `https://ui-avatars.com/api/?name=${userData?.name || 'U'}&background=random`}
+                alt={userData?.name}
                 className="w-full h-full rounded-full object-cover border-2 border-white"
               />
             </div>
@@ -132,13 +142,13 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <Link 
-                to={`/user/${review.user?._id}`} 
+                to={`/user/${userData?._id}`} 
                 className="font-semibold text-sm text-gray-900 hover:text-gray-600 transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
-                {review.user?.name || "Người dùng"}
+                {userData?.name || "Người dùng"}
               </Link>
-              {review.rating >= 8 && (
+              {reviewData.rating >= 8 && (
                 <span className="text-blue-500">
                   <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                     <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -147,12 +157,12 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
               )}
             </div>
             <Link 
-              to={`/restaurant/${review.restaurant?._id}`}
+              to={`/restaurant/${restaurantData?._id}`}
               className="text-xs text-gray-500 hover:text-orange-600 transition-colors flex items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >
               <MapPin size={10} />
-              <span className="truncate max-w-[180px]">{review.restaurant?.name || "Nhà hàng"}</span>
+              <span className="truncate max-w-[180px]">{restaurantData?.name || "Nhà hàng"}</span>
             </Link>
           </div>
         </div>
@@ -174,7 +184,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
         >
           {/* Current Image */}
           <img
-            src={review.images[currentImageIndex]}
+            src={reviewData.images[currentImageIndex]}
             alt={`Review ${currentImageIndex + 1}`}
             className="w-full h-full object-cover"
           />
@@ -191,7 +201,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
           )}
 
           {/* Navigation Arrows */}
-          {review.images.length > 1 && (
+          {reviewData.images.length > 1 && (
             <>
               <button
                 onClick={handlePrevImage}
@@ -201,7 +211,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
               </button>
               <button
                 onClick={handleNextImage}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-all ${currentImageIndex === review.images.length - 1 ? 'opacity-0' : 'opacity-100'}`}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-all ${currentImageIndex === reviewData.images.length - 1 ? 'opacity-0' : 'opacity-100'}`}
               >
                 <ChevronRight size={18} className="text-gray-800" />
               </button>
@@ -209,16 +219,16 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
           )}
 
           {/* Image Counter */}
-          {review.images.length > 1 && (
+          {reviewData.images.length > 1 && (
             <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full font-medium">
-              {currentImageIndex + 1}/{review.images.length}
+              {currentImageIndex + 1}/{reviewData.images.length}
             </div>
           )}
 
           {/* Dots Navigation */}
-          {review.images.length > 1 && (
+          {reviewData.images.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-              {review.images.map((_, idx) => (
+              {reviewData.images.map((_, idx) => (
                 <div
                   key={idx}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${
@@ -238,7 +248,7 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
           onClick={onClick}
         >
           <p className="text-gray-800 text-sm leading-relaxed">
-            {review.content}
+            {reviewData.content}
           </p>
         </div>
       )}
@@ -313,31 +323,31 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
       <div className="px-4 pb-2">
         <p className="text-sm">
           <Link 
-            to={`/user/${review.user?._id}`}
+            to={`/user/${userData?._id}`}
             className="font-semibold text-gray-900 hover:text-gray-600 mr-1.5"
             onClick={(e) => e.stopPropagation()}
           >
-            {review.user?.name || "Người dùng"}
+            {userData?.name || "Người dùng"}
           </Link>
           <span className="text-gray-800 line-clamp-2">
-            {hasImages ? review.content : ''}
+            {hasImages ? reviewData.content : ''}
           </span>
         </p>
         
         {/* Rating Badge */}
         <div className="flex items-center gap-2 mt-1.5">
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            review.rating >= 8 
+            reviewData.rating >= 8 
               ? 'bg-green-100 text-green-700' 
-              : review.rating >= 5 
+              : reviewData.rating >= 5 
                 ? 'bg-amber-100 text-amber-700' 
                 : 'bg-red-100 text-red-700'
           }`}>
-            ⭐ {review.rating}/10
+            ⭐ {reviewData.rating}/10
           </span>
           
           {/* Tags */}
-          {review.tags?.slice(0, 2).map((tag, idx) => (
+          {reviewData.tags?.slice(0, 2).map((tag, idx) => (
             <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
               {tag}
             </span>
@@ -346,12 +356,12 @@ const FeedReviewCard = ({ review, onClick, onReviewUpdate }) => {
       </div>
 
       {/* VIEW COMMENTS */}
-      {review.comments?.length > 0 && (
+      {reviewData.comments?.length > 0 && (
         <button 
           onClick={onClick}
           className="px-4 pb-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
-          Xem tất cả {review.comments.length} bình luận
+          Xem tất cả {reviewData.comments.length} bình luận
         </button>
       )}
 

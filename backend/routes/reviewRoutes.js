@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const Review = require("../models/Review");
 const Restaurant = require("../models/Restaurant");
+const Post = require("../models/Post"); // Imported Post model
 const cloudinary = require("../config/cloudinary");
 const multer = require("multer");
 
@@ -118,7 +119,7 @@ router.post("/upload", upload.array("images", 5), async (req, res) => {
 // ========================
 router.post("/", async (req, res) => {
   try {
-    const { restaurant, userId, title, rating, content, images, tags, visitDate, isAnonymous } = req.body;
+    const { restaurant, userId, title, rating, content, images, tags, visitDate, isAnonymous, isSharedToFeed } = req.body;
 
     // Validate required fields
     if (!restaurant || !rating || !content) {
@@ -145,9 +146,21 @@ router.post("/", async (req, res) => {
       tags: tags || [],
       visitDate: visitDate || null,
       isAnonymous: isAnonymous || false,
+      isSharedToFeed: isSharedToFeed || false,
     });
 
     await review.save();
+
+    // Create Post if shared to feed
+    if (isSharedToFeed && userId && !isAnonymous) {
+        // Optional: Add ranking logic here (e.g. must be > 3 stars to post?)
+        await Post.create({
+            review: review._id,
+            user: userId,
+            restaurant: restaurant,
+            status: "active"
+        });
+    }
 
     // Update restaurant avg_rating
     const avgResult = await Review.aggregate([
@@ -428,6 +441,14 @@ router.post("/:id/like", async (req, res) => {
     }
 
     await review.save();
+
+    // Sync Post likesCount if exists
+    if (review.isSharedToFeed) {
+        await Post.findOneAndUpdate(
+            { review: id },
+            { likesCount: review.likesCount }
+        );
+    }
 
     res.json({ 
       success: true, 

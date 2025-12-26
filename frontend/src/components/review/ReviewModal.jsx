@@ -14,7 +14,7 @@ const QUICK_TAGS = [
 
 import { useAuth } from "../../context/AuthContext";
 
-const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess }) => {
+const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess, initialSharedToFeed = false }) => {
   const { user } = useAuth(); // Get user from context
   const [title, setTitle] = useState("");
   const [rating, setRating] = useState(7);
@@ -22,6 +22,7 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
   const [selectedTags, setSelectedTags] = useState([]);
   const [visitDate, setVisitDate] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isSharedToFeed, setIsSharedToFeed] = useState(initialSharedToFeed); // Default from prop
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -116,6 +117,7 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
         tags: selectedTags,
         visitDate: visitDate || null,
         isAnonymous,
+        isSharedToFeed,
       };
 
       const response = await api.post("/reviews", reviewData);
@@ -128,6 +130,7 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
         setSelectedTags([]);
         setVisitDate("");
         setIsAnonymous(false);
+        setIsSharedToFeed(false);
         setImages([]);
         setImageFiles([]);
         
@@ -312,18 +315,39 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, restaurantName, onSuccess 
             </div>
           </div>
 
-          {/* Anonymous */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="anonymous"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
-            />
-            <label htmlFor="anonymous" className="text-sm text-gray-600">
-              Đăng ẩn danh
-            </label>
+          {/* Anonymous & Share */}
+          <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="anonymous"
+                  checked={isAnonymous}
+                  onChange={(e) => {
+                      setIsAnonymous(e.target.checked);
+                      if (e.target.checked) setIsSharedToFeed(false); // Cannot share if anonymous
+                  }}
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                />
+                <label htmlFor="anonymous" className="text-sm text-gray-600">
+                  Đăng ẩn danh (sẽ không hiện tên bạn)
+                </label>
+              </div>
+
+              {!isAnonymous && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <input
+                      type="checkbox"
+                      id="shareToFeed"
+                      checked={isSharedToFeed}
+                      onChange={(e) => setIsSharedToFeed(e.target.checked)}
+                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="shareToFeed" className="text-sm font-medium text-gray-700 cursor-pointer">
+                      Chia sẻ lên Khám phá (Social Feed) 
+                      <span className="block text-xs font-normal text-gray-500">Bài viết của bạn sẽ xuất hiện trên bảng tin cộng đồng.</span>
+                    </label>
+                  </div>
+              )}
           </div>
 
           {/* Submit */}

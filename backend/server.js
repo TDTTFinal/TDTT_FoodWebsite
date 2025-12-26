@@ -62,6 +62,11 @@ app.use("/api/reviews", reviewRoutes);
 // -> /api/reviews/:id/like
 // -> /api/reviews/upload
 
+// 📰 Post (Feed) API
+const postRoutes = require("./routes/postRoutes");
+app.use("/api/posts", postRoutes);
+// -> /api/posts/feed
+
 // 💬 Chat API
 const chatRoutes = require("./routes/chatRoutes");
 app.use("/api/chat", chatRoutes);
