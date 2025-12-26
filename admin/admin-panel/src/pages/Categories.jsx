@@ -28,93 +28,7 @@ const ActionButtons = ({ onEdit, onHide, onDelete, isHidden }) => (
   </div>
 );
 
-function AddFoodForm({ onClose, onCreate }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await onCreate({ name, description, price });
-      setName("");
-      setDescription("");
-      setPrice("");
-      onClose();
-    } catch (err) {
-      setError(err.message || "Lỗi khi thêm món ăn");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <form
-        onSubmit={handleSubmit}
-        className="relative bg-white rounded shadow-lg p-6 w-full max-w-md z-10"
-      >
-        <h2 className="text-xl font-bold mb-4">Thêm món ăn mới</h2>
-        {error && (
-          <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-            {error}
-          </div>
-        )}
-        <div className="mb-3">
-          <label className="block mb-1 font-semibold">Tên món ăn</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-        <div className="mb-3">
-          <label className="block mb-1 font-semibold">Mô tả</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-            rows={3}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="block mb-1 font-semibold">Giá tiền (VNĐ)</label>
-          <input
-            type="text"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
-            className="w-full border rounded px-3 py-2"
-            placeholder="150000"
-          />
-        </div>
-        <div className="flex gap-2 justify-end mt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border rounded bg-white"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-sky-200 rounded hover:bg-sky-300 disabled:opacity-50"
-          >
-            {loading ? "Đang thêm..." : "Thêm"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 function AddCategoryForm({ onClose, onCreate }) {
   const [name, setName] = useState("");
@@ -340,7 +254,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [showAddFood, setShowAddFood] = useState(false);
+
   const [editingCategory, setEditingCategory] = useState(null);
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -383,23 +297,7 @@ export default function Categories() {
     }
   }
 
-  async function handleCreateFood(payload) {
-    try {
-      const res = await fetch("http://localhost:4000/api/foods", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "Lỗi khi thêm món ăn");
-      }
-      const created = await res.json();
-      setFoods((prev) => [...prev, created]);
-    } catch (err) {
-      throw new Error(err.message || "Không thể kết nối với server");
-    }
-  }
+
 
   async function handleUpdateCategory(id, payload) {
     try {
@@ -420,6 +318,7 @@ export default function Categories() {
     }
   }
 
+// ... (This function is inside Categories component)
   async function handleHideCategory(id) {
     try {
       const category = categories.find((c) => c._id === id);
@@ -433,11 +332,21 @@ export default function Categories() {
       );
       if (!res.ok) throw new Error("Lỗi khi ẩn/hiện danh mục");
       const json = await res.json();
-      setCategories((prev) => prev.map((c) => (c._id === id ? json.data : c)));
+      // Preserve restaurantCount from previous state
+      setCategories((prev) => 
+        prev.map((c) => (c._id === id ? { ...json.data, restaurantCount: c.restaurantCount } : c))
+      );
     } catch (err) {
       alert(err.message || "Không thể ẩn/hiện danh mục");
     }
   }
+
+// ...
+
+// Remove AddFoodForm component definition (it was around line 31 in grep search, but let's confirm in file view)
+// Actually I need to be careful with replace_file_content targetting multiple disjoint blocks. 
+// I will just use multi_replace.
+
 
   async function handleDeleteCategory(id) {
     if (!confirm("Bạn có chắc muốn xóa danh mục này?")) return;
@@ -493,13 +402,7 @@ export default function Categories() {
           <Plus size={20} />
           Thêm danh mục
         </button>
-        <button
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors shadow-lg"
-          onClick={() => setShowAddFood(true)}
-        >
-          <Utensils size={20} />
-          Thêm món ăn
-        </button>
+
       </div>
 
         {error && (
@@ -578,6 +481,7 @@ export default function Categories() {
         {selected && (
           <CategoryDetail
             category={selected}
+            allCategories={categories}
             onClose={() => setSelected(null)}
           />
         )}
@@ -587,12 +491,7 @@ export default function Categories() {
             onCreate={handleCreateCategory}
           />
         )}
-        {showAddFood && (
-          <AddFoodForm
-            onClose={() => setShowAddFood(false)}
-            onCreate={handleCreateFood}
-          />
-        )}
+
         {editingCategory && (
           <EditCategoryForm
             category={editingCategory}

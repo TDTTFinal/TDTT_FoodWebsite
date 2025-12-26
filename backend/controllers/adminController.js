@@ -1,20 +1,41 @@
+const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const Restaurant = require("../models/Restaurant");
 const Review = require("../models/Review");
 
 // ============== CATEGORY MANAGEMENT ==============
 
-// @desc    Lấy tất cả categories
+// @desc    Lấy tất cả categories (với số lượng nhà hàng được tính động)
 // @route   GET /api/admin/categories
 // @access  Private/Admin
 exports.getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find().sort({ order: 1, name: 1 });
 
+    // Use the 'test' collection for counting, as that's where the real data is
+    // Create model if not exists (similar to searchRoutes)
+    const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
+
+    // Aggregate counts from test collection
+    const counts = await TestRestaurant.aggregate([
+      { $group: { _id: "$category", count: { $sum: 1 } } }
+    ]);
+
+    const countMap = {};
+    counts.forEach(c => {
+      if (c._id) countMap[c._id] = c.count;
+    });
+
+    // Merge counts into categories
+    const categoriesWithCounts = categories.map(cat => ({
+      ...cat.toObject(),
+      restaurantCount: countMap[cat.name] || 0
+    }));
+
     res.status(200).json({
       success: true,
-      count: categories.length,
-      data: categories,
+      count: categoriesWithCounts.length,
+      data: categoriesWithCounts,
     });
   } catch (error) {
     console.error("Error in getAllCategories:", error);
