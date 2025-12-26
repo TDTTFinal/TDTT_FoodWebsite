@@ -60,11 +60,21 @@ const NearMeSection = () => {
     return () => clearTimeout(geoTimeout);
   }, []);
 
-  const fetchNearby = async (lat, lon) => {
+  const fetchNearby = async (lat, lon, isRetry = false) => {
     try {
       const res = await api.get("/restaurants/nearby", {
         params: { lat, lon, radius: 5000 },
       });
+      
+      if ((!res.data || res.data.length === 0) && !isRetry) {
+         console.log("No restaurants found locally, falling back to default HCMC location");
+         const defaultLat = 10.762622;
+         const defaultLon = 106.660172;
+         setLocation({ lat: defaultLat, lon: defaultLon });
+         fetchNearby(defaultLat, defaultLon, true);
+         return;
+      }
+
       const fetchedRestaurants = res.data || [];
       setRestaurants(fetchedRestaurants);
       
