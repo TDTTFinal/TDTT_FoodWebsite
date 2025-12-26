@@ -82,7 +82,7 @@ def search_restaurants_v2(
     
     # 2. NLP Parse
     intents = nlp.parse(q)
-    
+    # print(intents)  # [Debug] xem kết quả parse
     steps_result = []
 
     # 3. Tìm Candidates cho từng bước
@@ -96,14 +96,15 @@ def search_restaurants_v2(
 
         location_query = intent.get("location_query")
         if location_query:
-            print(f"📍 Đang tìm tọa độ cho: {location_query}...")
+            # print(f"📍 Đang tìm tọa độ cho: {location_query}...")
             resolved_loc = resolver.resolve(location_query)
             if resolved_loc:
                 step_center = resolved_loc
                 step_radius = 2.0  # Tìm trong 2km quanh landmark
-                print(f"   -> Tìm thấy: {step_center}")
+                # print(f"   -> Tìm thấy: {step_center}")
             else:
-                print(f"   -> Không tìm thấy '{location_query}', dùng vị trí user.")
+                # print(f"   -> Không tìm thấy '{location_query}', dùng vị trí user.")
+                pass
 
         candidates = engine.search(
             query=keyword,

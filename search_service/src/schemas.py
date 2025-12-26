@@ -7,6 +7,7 @@ PyObjectId = Annotated[str, BeforeValidator(str)]
 class MenuItem(BaseModel):
     name: str
     price: float = 0.0
+    image_url: Optional[str] = None
 
 class LocationModel(BaseModel):
     type: str = "Point"

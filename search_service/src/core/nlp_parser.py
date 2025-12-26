@@ -58,7 +58,8 @@ class IntentParser:
             print(f"❌ NLP Error: {e}")
             # Fallback cơ bản nếu lỗi: Trả về nguyên câu
             return [{"keyword": query, "district": None}]
+        
 # if __name__ == "__main__":
 #     parser = IntentParser()
 #     result = parser.parse("Sáng tôi ăn bánh mì sau đó ăn phở ở q3")
-#     print(type(result))
+#     print(result)
