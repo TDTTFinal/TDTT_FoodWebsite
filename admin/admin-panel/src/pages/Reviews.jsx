@@ -25,17 +25,20 @@ const StarRating = ({ rating }) => {
 };
 
 const ReviewRow = ({ review, onApprove, onReject, onDelete }) => {
-  const status = review.approved
-    ? { text: "Đã duyệt", color: "bg-emerald-200 text-emerald-800" }
-    : { text: "Chưa duyệt", color: "bg-gray-300 text-gray-700" };
+  const status =
+    review.status === "active"
+      ? { text: "Đã duyệt", color: "bg-emerald-200 text-emerald-800" }
+      : review.status === "hidden"
+      ? { text: "Đã ẩn", color: "bg-orange-200 text-orange-800" }
+      : { text: "Chưa duyệt", color: "bg-gray-300 text-gray-700" };
 
   return (
     <tr className="border-t hover:bg-slate-50">
       <td className="p-4">
         <StarRating rating={review.rating} />
       </td>
-      <td className="p-4 font-bold">{review.title}</td>
-      <td className="p-4">{review.restaurantName}</td>
+      <td className="p-4 font-bold">{review.title || "(Không có tiêu đề)"}</td>
+      <td className="p-4">{review.restaurant?.name || "N/A"}</td>
       <td className="p-4 text-center">
         <span className={`px-3 py-1 rounded-full text-sm ${status.color}`}>
           {status.text}
@@ -90,10 +93,10 @@ export default function Reviews() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:4000/api/reviews");
+      const res = await fetch("http://localhost:5000/api/admin/reviews");
       if (!res.ok) throw new Error("Lỗi khi tải đánh giá");
-      const data = await res.json();
-      setReviews(data);
+      const json = await res.json();
+      setReviews(json.data || []);
     } catch (err) {
       console.error("Failed to load reviews:", err);
       setError(err.message);
@@ -103,10 +106,10 @@ export default function Reviews() {
   }
 
   async function handleApprove(review) {
-    console.log("Approving review:", review.id);
+    console.log("Approving review:", review._id);
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/approve`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/approve`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -118,9 +121,11 @@ export default function Reviews() {
         console.error("Approve error response:", errorText);
         throw new Error("Lỗi khi duyệt đánh giá");
       }
-      const updated = await res.json();
-      console.log("Review approved:", updated);
-      setReviews((prev) => prev.map((r) => (r.id === review.id ? updated : r)));
+      const json = await res.json();
+      console.log("Review approved:", json);
+      setReviews((prev) =>
+        prev.map((r) => (r._id === review._id ? json.data : r))
+      );
     } catch (err) {
       console.error("Approve error:", err);
       alert(err.message);
@@ -128,10 +133,10 @@ export default function Reviews() {
   }
 
   async function handleReject(review) {
-    console.log("Rejecting review:", review.id);
+    console.log("Rejecting review:", review._id);
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/reject`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/reject`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -143,9 +148,11 @@ export default function Reviews() {
         console.error("Reject error response:", errorText);
         throw new Error("Lỗi khi không duyệt đánh giá");
       }
-      const updated = await res.json();
-      console.log("Review rejected:", updated);
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      const json = await res.json();
+      console.log("Review rejected:", json);
+      setReviews((prev) =>
+        prev.map((r) => (r._id === review._id ? json.data : r))
+      );
     } catch (err) {
       console.error("Reject error:", err);
       alert(err.message);
@@ -153,17 +160,16 @@ export default function Reviews() {
   }
 
   async function handleDelete(review) {
-    if (!confirm(`Xóa đánh giá "${review.title}"?`)) return;
+    if (!confirm(`Xóa đánh giá "${review.title || "này"}"?`)) return;
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/hide`,
+        `http://localhost:5000/api/admin/reviews/${review._id}`,
         {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          method: "DELETE",
         }
       );
       if (!res.ok) throw new Error("Lỗi khi xóa đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
     } catch (err) {
       console.error("Delete error:", err);
       alert(err.message);
@@ -171,24 +177,23 @@ export default function Reviews() {
   }
 
   const filteredReviews = reviews.filter((r) => {
-    // Loại bỏ các review vi phạm và đã xóa khỏi trang chính
-    if (r.violation === true) return false;
-    if (r.deleted === true) return false;
+    // Loại bỏ các review đã xóa
+    if (r.status === "deleted") return false;
 
-    const matchSearch = r.restaurantName
-      ?.toLowerCase()
+    const matchSearch = (r.restaurant?.name || "")
+      .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchCategory =
       categoryFilter === "all" ||
-      r.category?.toLowerCase() === categoryFilter.toLowerCase();
+      r.restaurant?.category?.toLowerCase() === categoryFilter.toLowerCase();
     const matchStatus =
       statusFilter === "all" ||
-      (statusFilter === "approved" && r.approved === true) ||
-      (statusFilter === "pending" && r.approved !== true);
+      (statusFilter === "approved" && r.status === "active") ||
+      (statusFilter === "pending" && r.status !== "active");
     return matchSearch && matchCategory && matchStatus;
   });
 
-  const pendingCount = reviews.filter((r) => r.approved !== true).length;
+  const pendingCount = reviews.filter((r) => r.status !== "active").length;
 
   return (
     <div>

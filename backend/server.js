@@ -36,9 +36,15 @@ app.use("/api/restaurants", restaurantRoutes);
 // -> /api/restaurants/categories/stats
 // 🆕 KẾT THÚC ĐOẠN THÊM
 
+// Dish/Food API
+const dishRoutes = require("./routes/dishRoutes");
+app.use("/api/dishes", dishRoutes);
+// -> /api/dishes (GET all dishes with filters)
+// -> /api/dishes/:id (GET single dish)
+// -> /api/dishes/featured (GET featured dishes)
+// -> /api/dishes/categories/stats (GET category stats)
 
 app.use("/api/search", searchRoutes); // dùng cho cả /api/search/advanced
-
 
 const foodTourRoutes = require("./routes/foodTourRoutes");
 app.use("/api/food-tours", foodTourRoutes);
@@ -78,6 +84,12 @@ app.use("/api/history", historyRoutes);
 // -> /api/history/views (GET/POST/DELETE)
 // -> /api/history/reviews (GET)
 // -> /api/history/sync (POST)
+
+// Admin API
+const adminRoutes = require("./routes/adminRoutes");
+app.use("/api/admin", adminRoutes);
+// -> /api/admin/categories (GET/POST/PUT/DELETE)
+// -> /api/admin/restaurants (GET)
 
 const http = require("http");
 const { initSocket } = require("./socket");

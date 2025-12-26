@@ -3,15 +3,31 @@ import React, { useState, useEffect } from "react";
 const ReviewCard = ({ review, onKeep, onHide, onDelete }) => {
   return (
     <div className="border-2 border-gray-300 rounded p-6 mb-4 bg-gray-100">
-      <h3 className="font-bold text-lg mb-3">Vi phạm 1</h3>
+      <h3 className="font-bold text-lg mb-3">
+        {review.restaurant?.name || "Nhà hàng"}
+      </h3>
       <div className="mb-3">
-        <span className="text-yellow-400 text-xl">★</span>
-        <span className="ml-2 text-sm">{review.content}</span>
+        <div className="flex gap-1 mb-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <span
+              key={star}
+              className={`text-xl ${
+                star <= review.rating ? "text-yellow-400" : "text-gray-300"
+              }`}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+        <p className="text-sm font-semibold">
+          {review.title || "(Không có tiêu đề)"}
+        </p>
+        <p className="text-sm mt-1">{review.content}</p>
       </div>
       <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
         <div className="flex items-center gap-1">
           <span className="text-blue-500">👤</span>
-          <span>{review.userName || "Anonymous"}</span>
+          <span>{review.user?.name || "Anonymous"}</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-red-500">📅</span>
@@ -29,13 +45,13 @@ const ReviewCard = ({ review, onKeep, onHide, onDelete }) => {
           onClick={() => onHide(review)}
           className="px-4 py-2 bg-red-500 text-white rounded flex items-center gap-2 hover:bg-red-600"
         >
-          <span>⊘</span> Ẩn đánh giá
+          <span>⊘</span> Chuyển vào thùng rác
         </button>
         <button
           onClick={() => onDelete(review)}
           className="px-4 py-2 border-2 border-gray-400 rounded flex items-center gap-2 hover:bg-gray-200"
         >
-          <span>🗑</span> Xóa
+          <span>🗑</span> Xóa vĩnh viễn
         </button>
       </div>
     </div>
@@ -57,10 +73,12 @@ export default function ReviewViolations() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:4000/api/reviews/violations");
+      const res = await fetch(
+        "http://localhost:5000/api/admin/reviews?status=reported"
+      );
       if (!res.ok) throw new Error("Lỗi khi tải đánh giá vi phạm");
-      const data = await res.json();
-      setReviews(data);
+      const json = await res.json();
+      setReviews(json.data || []);
     } catch (err) {
       console.error("Failed to load violations:", err);
       setError(err.message);
@@ -71,16 +89,26 @@ export default function ReviewViolations() {
 
   async function handleKeep(review) {
     try {
+      console.log("Keeping review:", review._id);
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/approve`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/restore`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ violation: false }),
         }
       );
-      if (!res.ok) throw new Error("Lỗi khi giữ lại đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      console.log("Keep response status:", res.status);
+      if (!res.ok) {
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Unknown error" }));
+        console.error("Keep error response:", errorData);
+        throw new Error(errorData.message || "Lỗi khi giữ lại đánh giá");
+      }
+      const data = await res.json();
+      console.log("Keep success:", data);
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
+      alert("Đã khôi phục đánh giá thành công!");
     } catch (err) {
       console.error("Keep error:", err);
       alert(err.message);
@@ -90,14 +118,13 @@ export default function ReviewViolations() {
   async function handleHide(review) {
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}/hide`,
+        `http://localhost:5000/api/admin/reviews/${review._id}`,
         {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          method: "DELETE",
         }
       );
-      if (!res.ok) throw new Error("Lỗi khi xóa đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      if (!res.ok) throw new Error("Lỗi khi ẩn đánh giá");
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
     } catch (err) {
       console.error("Hide error:", err);
       alert(err.message);
@@ -105,16 +132,16 @@ export default function ReviewViolations() {
   }
 
   async function handleDelete(review) {
-    if (!confirm(`Xóa đánh giá vi phạm này?`)) return;
+    if (!confirm(`Xóa vĩnh viễn đánh giá vi phạm này?`)) return;
     try {
       const res = await fetch(
-        `http://localhost:4000/api/reviews/${review.id}`,
+        `http://localhost:5000/api/admin/reviews/${review._id}/permanent`,
         {
           method: "DELETE",
         }
       );
       if (!res.ok) throw new Error("Lỗi khi xóa đánh giá");
-      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      setReviews((prev) => prev.filter((r) => r._id !== review._id));
     } catch (err) {
       console.error("Delete error:", err);
       alert(err.message);
@@ -186,7 +213,7 @@ export default function ReviewViolations() {
           <>
             {currentReviews.map((review) => (
               <ReviewCard
-                key={review.id}
+                key={review._id}
                 review={review}
                 onKeep={handleKeep}
                 onHide={handleHide}

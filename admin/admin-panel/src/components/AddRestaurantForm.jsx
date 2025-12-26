@@ -34,20 +34,92 @@ export default function AddRestaurantForm({ onClose, onSave }) {
     }));
   };
 
-  const handleSave = () => {
-    onSave?.(form);
-    onClose();
+  const handleSave = async () => {
+    try {
+      // Validate
+      if (!form.name || !form.address) {
+        alert("Vui lòng nhập tên và địa chỉ nhà hàng!");
+        return;
+      }
+
+      // Chuyển đổi dữ liệu form sang format MongoDB
+      const payload = {
+        name: form.name,
+        address: form.address,
+        opening_hours: "Đang cập nhật",
+        price_range: "Đang cập nhật",
+        avatar_url: form.image || uploadedImages[0] || undefined,
+        category: getCategoryFromForm(form.categories),
+        tags: getTagsFromForm(form),
+        location: {
+          type: "Point",
+          coordinates:
+            form.lng && form.lat
+              ? [parseFloat(form.lng), parseFloat(form.lat)]
+              : [0, 0],
+        },
+      };
+
+      console.log("📤 Sending payload to API:", payload);
+
+      // Đảm bảo onSave được gọi và chờ kết quả
+      if (onSave) {
+        const result = await onSave(payload);
+        console.log("✅ API response:", result);
+      }
+
+      onClose();
+    } catch (err) {
+      console.error("❌ Error saving restaurant:", err);
+      alert("Lỗi khi lưu nhà hàng: " + err.message);
+    }
+  };
+
+  // Helper để lấy category chính từ checkboxes
+  const getCategoryFromForm = (categories) => {
+    if (categories.lau) return "Lẩu";
+    if (categories.nuong) return "Nướng";
+    if (categories.buffet) return "Buffet";
+    if (categories.monViet) return "Món Việt";
+    if (categories.monHan) return "Món Hàn";
+    if (categories.monNhat) return "Món Nhật";
+    if (categories.monAu) return "Món Âu";
+    return "Khác";
+  };
+
+  // Helper để lấy tất cả tags
+  const getTagsFromForm = (formData) => {
+    const tags = [];
+
+    // Thêm meal types
+    if (formData.mealTypes?.sang) tags.push("Ăn sáng");
+    if (formData.mealTypes?.trua) tags.push("Ăn trưa");
+    if (formData.mealTypes?.chieu) tags.push("Ăn chiều");
+    if (formData.mealTypes?.toi) tags.push("Ăn tối");
+
+    // Thêm amenities
+    if (formData.amenities?.mayLanh) tags.push("Máy lạnh");
+    if (formData.amenities?.choDoXe) tags.push("Chỗ đỗ xe");
+    if (formData.amenities?.wifi) tags.push("Wifi");
+
+    return tags;
   };
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const formData = new FormData();
+    // TODO: Upload to backend or cloud storage
+    // Tạm thời dùng URL placeholder
+    alert(
+      "Chức năng upload ảnh đang được phát triển. Vui lòng nhập URL ảnh trực tiếp."
+    );
+
+    /* const formData = new FormData();
     files.forEach((file) => formData.append("images", file));
 
     try {
-      const res = await fetch("http://localhost:4000/api/upload", {
+      const res = await fetch("http://localhost:5000/api/admin/upload", {
         method: "POST",
         body: formData,
       });
@@ -60,7 +132,7 @@ export default function AddRestaurantForm({ onClose, onSave }) {
     } catch (err) {
       console.error("Upload error:", err);
       alert("Lỗi khi upload ảnh");
-    }
+    } */
   };
 
   const handleMouseDown = (e) => {

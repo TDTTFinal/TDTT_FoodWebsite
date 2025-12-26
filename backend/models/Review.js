@@ -37,12 +37,20 @@ const reviewSchema = new mongoose.Schema(
     images: {
       type: [String],
       default: [],
-      validate: [arr => arr.length <= 5, "Maximum 5 images allowed"],
+      validate: [(arr) => arr.length <= 5, "Maximum 5 images allowed"],
     },
     // Quick tags
     tags: {
       type: [String],
-      enum: ["Món ngon", "Phục vụ tốt", "Giá ổn", "Không gian đẹp", "Sạch sẽ", "Đông khách", "Giao hàng nhanh"],
+      enum: [
+        "Món ngon",
+        "Phục vụ tốt",
+        "Giá ổn",
+        "Không gian đẹp",
+        "Sạch sẽ",
+        "Đông khách",
+        "Giao hàng nhanh",
+      ],
       default: [],
     },
     // Visit date (optional)
@@ -51,17 +59,25 @@ const reviewSchema = new mongoose.Schema(
       default: null,
     },
     // Likes
-    likes: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    }],
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     // Comments
-    comments: [{
-        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    comments: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
         content: { type: String, required: true, maxlength: 500 },
-        createdAt: { type: Date, default: Date.now }
-    }],
-    
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
     likesCount: {
       type: Number,
       default: 0,
@@ -77,11 +93,13 @@ const reviewSchema = new mongoose.Schema(
       default: false,
     },
     // Report tracking
-    reports: [{
-      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      reason: String,
-      date: { type: Date, default: Date.now },
-    }],
+    reports: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        reason: String,
+        date: { type: Date, default: Date.now },
+      },
+    ],
     reportsCount: {
       type: Number,
       default: 0,
@@ -89,7 +107,7 @@ const reviewSchema = new mongoose.Schema(
     // Status
     status: {
       type: String,
-      enum: ["active", "hidden", "deleted"],
+      enum: ["active", "hidden", "deleted", "reported"],
       default: "active",
     },
     // Social Feed Opt-in
@@ -111,14 +129,14 @@ reviewSchema.index({ user: 1 });
 reviewSchema.index({ rating: -1 });
 
 // Virtual for time ago
-reviewSchema.virtual("timeAgo").get(function() {
+reviewSchema.virtual("timeAgo").get(function () {
   const now = new Date();
   const diff = now - this.createdAt;
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
   const months = Math.floor(diff / 2592000000);
-  
+
   if (minutes < 1) return "Vừa xong";
   if (minutes < 60) return `${minutes} phút trước`;
   if (hours < 24) return `${hours} giờ trước`;
