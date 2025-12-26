@@ -413,7 +413,11 @@ const SocialPage = () => {
           review={selectedReview}
           currentUser={currentUser}
           onClose={() => setSelectedReview(null)}
-          onReviewUpdate={() => handleRefresh()}
+          onReviewUpdate={(updatedReview) => {
+             setReviews(prev => prev.map(r => r._id === updatedReview._id ? { ...r, ...updatedReview } : r));
+             // Also update selectedReview so the modal reflects changes immediately if it relies on external props (though it has internal state too)
+             setSelectedReview(prev => ({ ...prev, ...updatedReview }));
+          }}
         />
       )}
 
