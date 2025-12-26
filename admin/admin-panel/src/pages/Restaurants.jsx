@@ -11,17 +11,21 @@ import {
   Trash,
   Store,
   Star,
+  Eye,
+  MapPin,
 } from "lucide-react";
 
-const StatCard = ({ title, value, icon: Icon, color }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-    <div>
-      <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-      <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+const StatCard = ({ title, value, icon: Icon, gradient, iconBg }) => (
+  <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+    <div className="flex items-center justify-between">
+      <div className={`p-3 rounded-xl ${iconBg}`}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <span className={`text-3xl font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </span>
     </div>
-    <div className={`p-3 rounded-lg ${color}`}>
-      <Icon className="w-6 h-6 text-white" />
-    </div>
+    <p className="mt-3 text-slate-500 text-sm font-medium">{title}</p>
   </div>
 );
 
@@ -120,7 +124,7 @@ export default function Restaurants() {
     setLoading(true);
     try {
       const res = await fetch(
-        "http://localhost:5000/api/admin/restaurants?limit=100"
+        "http://localhost:5000/api/admin/restaurants?limit=2000"
       );
       if (!res.ok) throw new Error("Lỗi khi tải danh sách nhà hàng");
       const json = await res.json();
@@ -256,28 +260,33 @@ export default function Restaurants() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Tất cả nhà hàng</h2>
-          <p className="text-slate-500 mt-1">
-            Quản lý danh sách nhà hàng và đối tác của bạn.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchRestaurants}
-            className="p-2 text-slate-500 hover:text-slate-700 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
-            title="Tải lại"
-          >
-            <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors shadow-sm shadow-indigo-200"
-          >
-            <Plus size={20} />
-            Thêm nhà hàng
-          </button>
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-indigo-100 text-sm mb-2">
+              <span>Quản lý nhà hàng</span>
+              <span>›</span>
+              <span className="text-white font-medium">Tất cả</span>
+            </div>
+            <h1 className="text-2xl font-bold text-white">Quản lý Nhà hàng</h1>
+            <p className="text-indigo-200 mt-1">Quản lý danh sách nhà hàng và đối tác của bạn</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchRestaurants}
+              className="p-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              title="Tải lại"
+            >
+              <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 transition-colors shadow-lg"
+            >
+              <Plus size={20} />
+              Thêm nhà hàng
+            </button>
+          </div>
         </div>
       </div>
 
@@ -287,22 +296,22 @@ export default function Restaurants() {
           title="Tổng nhà hàng"
           value={restaurants.length}
           icon={Store}
-          color="bg-indigo-500"
+          gradient="from-indigo-600 to-purple-600"
+          iconBg="bg-indigo-100 text-indigo-600"
         />
         <StatCard
           title="Tổng đánh giá"
-          value={restaurants
-            .filter((r) => r.rating !== null && r.rating !== undefined)
-            .reduce((sum, r) => sum + (Number(r.rating) || 0), 0)
-            .toFixed(1)}
+          value={restaurants.reduce((sum, r) => sum + (r.reviews?.length || 0), 0)}
           icon={Star}
-          color="bg-amber-500"
+          gradient="from-amber-500 to-orange-500"
+          iconBg="bg-amber-100 text-amber-600"
         />
         <StatCard
           title="Hoạt động"
           value={restaurants.filter((r) => r.visible !== false).length}
-          icon={Store}
-          color="bg-emerald-500"
+          icon={Eye}
+          gradient="from-emerald-500 to-teal-500"
+          iconBg="bg-emerald-100 text-emerald-600"
         />
       </div>
 
@@ -342,18 +351,18 @@ export default function Restaurants() {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <thead>
+              <tr className="bg-gradient-to-r from-slate-800 to-slate-900">
+                <th className="px-6 py-4 text-left text-white font-semibold text-sm">
                   Thông tin
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-white font-semibold text-sm">
                   Danh mục
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-white font-semibold text-sm">
                   Trạng thái
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-white font-semibold text-sm">
                   Thao tác
                 </th>
               </tr>

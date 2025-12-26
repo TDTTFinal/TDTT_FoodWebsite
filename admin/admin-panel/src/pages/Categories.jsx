@@ -1,24 +1,28 @@
 import React, { useState, useEffect } from "react";
 import CategoryDetail from "../components/CategoryDetail";
+import { Plus, RefreshCw, Edit3, Eye, EyeOff, Trash2, FolderOpen, Utensils } from "lucide-react";
 
 const ActionButtons = ({ onEdit, onHide, onDelete, isHidden }) => (
   <div className="flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
     <button
       onClick={onEdit}
-      className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all text-sm font-medium"
     >
+      <Edit3 size={14} />
       Sửa
     </button>
     <button
       onClick={onHide}
-      className="px-3 py-1 bg-amber-200 rounded hover:bg-amber-300"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all text-sm font-medium"
     >
+      {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
       {isHidden ? "Hiện" : "Ẩn"}
     </button>
     <button
       onClick={onDelete}
-      className="px-3 py-1 bg-pink-400 text-white rounded hover:bg-pink-500"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100 transition-all text-sm font-medium"
     >
+      <Trash2 size={14} />
       Xóa
     </button>
   </div>
@@ -455,27 +459,48 @@ export default function Categories() {
   }
 
   return (
-    <div>
-      <div className="px-6 py-4 border-b bg-sky-200 text-slate-800">
-        Quản lý nhà hàng &nbsp; &gt; &nbsp; Danh mục
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-indigo-100 text-sm mb-2">
+              <span>Quản lý nhà hàng</span>
+              <span>›</span>
+              <span className="text-white font-medium">Danh mục</span>
+            </div>
+            <h1 className="text-2xl font-bold text-white">Danh mục món ăn</h1>
+            <p className="text-indigo-200 mt-1">Quản lý các danh mục và phân loại món ăn</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchCategories}
+              className="p-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              title="Tải lại"
+            >
+              <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="p-6">
-        <div className="mb-6 flex items-center gap-4">
-          <button
-            className="px-3 py-2 border rounded-lg bg-sky-50"
-            onClick={() => setShowAdd(true)}
-          >
-            + Thêm danh mục
-          </button>
-          <button
-            className="px-3 py-2 border rounded-lg bg-green-50"
-            onClick={() => setShowAddFood(true)}
-          >
-            + Thêm món ăn
-          </button>
-          <div className="flex-1" />
-        </div>
+      {/* Action Buttons */}
+      <div className="flex flex-wrap items-center gap-4">
+        <button
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors shadow-lg"
+          onClick={() => setShowAdd(true)}
+        >
+          <Plus size={20} />
+          Thêm danh mục
+        </button>
+        <button
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors shadow-lg"
+          onClick={() => setShowAddFood(true)}
+        >
+          <Utensils size={20} />
+          Thêm món ăn
+        </button>
+      </div>
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
@@ -483,33 +508,46 @@ export default function Categories() {
           </div>
         )}
 
-        <div className="overflow-hidden border rounded-lg">
-          <table className="w-full text-left border-collapse">
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
             <thead>
-              <tr className="bg-sky-200 text-slate-800 rounded-t-lg">
-                <th className="p-4 w-20">STT</th>
-                <th className="p-4">Tên danh mục</th>
-                <th className="p-4 text-center">Số lượng món ăn</th>
-                <th className="p-4">Thao tác</th>
+              <tr className="bg-gradient-to-r from-slate-800 to-slate-900">
+                <th className="p-4 w-20 text-left text-white font-semibold text-sm">STT</th>
+                <th className="p-4 text-left text-white font-semibold text-sm">Tên danh mục</th>
+                <th className="p-4 text-center text-white font-semibold text-sm">Số lượng</th>
+                <th className="p-4 text-right text-white font-semibold text-sm">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {categories.map((s, idx) => (
                 <tr
                   key={s._id}
-                  className="border-t hover:bg-slate-50 cursor-pointer"
+                  className="border-b border-slate-100 hover:bg-indigo-50/30 transition-all duration-200 cursor-pointer group"
                   onClick={() => setSelected(s)}
                 >
-                  <td className="p-4">{idx + 1}</td>
-                  <td className="p-4 font-semibold">
-                    {s.name}
-                    {s.visible === false && (
-                      <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">
-                        Bị ẩn
-                      </span>
-                    )}
+                  <td className="p-4 text-slate-500 font-medium">{idx + 1}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-100 rounded-lg">
+                        <FolderOpen size={18} className="text-indigo-600" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-800">{s.name}</span>
+                        {s.visible === false && (
+                          <span className="ml-2 text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                            Bị ẩn
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
-                  <td className="p-4 text-center">{s.restaurantCount || 0}</td>
+                  <td className="p-4 text-center">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
+                      {s.restaurantCount || 0}
+                    </span>
+                  </td>
                   <td className="p-4">
                     <ActionButtons
                       onEdit={() => setEditingCategory(s)}

@@ -1,4 +1,5 @@
 const Restaurant = require("../models/Restaurant");
+const Review = require("../models/Review");
 
 // @desc    Lấy tất cả nhà hàng (có phân trang và filter)
 // @route   GET /api/restaurants
@@ -91,6 +92,73 @@ exports.getRestaurantById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy thông tin nhà hàng",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Lấy reviews của một nhà hàng từ collection reviews
+// @route   GET /api/restaurants/:id/reviews
+// @access  Public
+exports.getRestaurantReviews = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const restaurantId = req.params.id;
+
+    // Verify restaurant exists
+    const restaurant = await Restaurant.findById(restaurantId).select('name');
+    if (!restaurant) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhà hàng",
+      });
+    }
+
+    // Fetch reviews from reviews collection
+    const reviews = await Review.find({ 
+      restaurant: restaurantId,
+      status: 'active' // Only active reviews
+    })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .populate('user', 'name avatar')
+      .lean();
+
+    // Count total reviews
+    const total = await Review.countDocuments({ 
+      restaurant: restaurantId,
+      status: 'active'
+    });
+
+    // Format reviews for frontend
+    const formattedReviews = reviews.map(review => ({
+      _id: review._id,
+      user: review.user?.name || review.metadata?.original_user_name || 'Người dùng ẩn danh',
+      user_avatar: review.user?.avatar || null,
+      rating: review.rating,
+      comment: review.content,
+      title: review.title,
+      images: review.images || [],
+      date: review.createdAt,
+      likes: review.likes?.length || 0,
+      isFromMigration: !!review.metadata?.source
+    }));
+
+    res.status(200).json({
+      success: true,
+      restaurant: restaurant.name,
+      count: reviews.length,
+      total,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page),
+      data: formattedReviews,
+    });
+  } catch (error) {
+    console.error("Error in getRestaurantReviews:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy reviews của nhà hàng",
       error: error.message,
     });
   }

@@ -28,98 +28,97 @@ router.get("/advanced", async (req, res) => {
     const minScore = parseFloat(min_score) || DEFAULT_MIN_SCORE;
     const queryLower = q.trim().toLowerCase();
 
-    const hfParams = {
-      q: q.trim(),
-      top_k: top_k || DEFAULT_TOP_K,
-      lat: lat || DEFAULT_LAT,
-      lon: lon || DEFAULT_LON,
-      radius: radius || DEFAULT_RADIUS,
-      alpha: alphaValue,
-    };
+    const Restaurant = require("../models/Restaurant");
+    const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
 
-    const hfResponse = await axios.get(HF_SEARCH_URL, {
-      params: hfParams,
-      timeout: 5000, 
-    });
+    let results = [];
+    let hfDataLength = 0;
+    let usedFallback = false;
 
-    let results = hfResponse.data;
+    // Try HuggingFace API first
+    try {
+      const hfParams = {
+        q: q.trim(),
+        top_k: top_k || DEFAULT_TOP_K,
+        lat: lat || DEFAULT_LAT,
+        lon: lon || DEFAULT_LON,
+        radius: radius || DEFAULT_RADIUS,
+        alpha: alphaValue,
+      };
 
-    // ⭐ ENRICHMENT STEPS:
-    // 1. Get List of IDs
-    // 2. Query MongoDB ('test' collection)
-    // 3. Merge Data
-    if (Array.isArray(results) && results.length > 0) {
-      const Restaurant = require("../models/Restaurant");
-      // Create/Get TestRestaurant Model
-      const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
-      
-      const ids = results
-        .map((r) => r.restaurant_id || r._id || r.id)
-        .filter((id) => id); // Remove null/undefined
-      
-      // Fetch full details from MongoDB (test collection)
-      const dbRestaurants = await TestRestaurant.find({ _id: { $in: ids } }).lean();
+      const hfResponse = await axios.get(HF_SEARCH_URL, {
+        params: hfParams,
+        timeout: 8000, // Increased timeout
+      });
 
-      // Create Map for fast lookup
-      const dbMap = new Map(dbRestaurants.map((r) => [r._id.toString(), r]));
+      results = hfResponse.data;
+      hfDataLength = results.length;
 
-      results = results
-        .map((item) => {
-          const id = item.restaurant_id || item._id || item.id;
-          const dbItem = dbMap.get(id);
+      // ENRICHMENT from MongoDB
+      if (Array.isArray(results) && results.length > 0) {
+        const ids = results
+          .map((r) => r.restaurant_id || r._id || r.id)
+          .filter((id) => id);
+        
+        const dbRestaurants = await TestRestaurant.find({ _id: { $in: ids } }).lean();
+        const dbMap = new Map(dbRestaurants.map((r) => [r._id.toString(), r]));
 
-          // If not found in DB, skip
-          if (!dbItem) return null; 
+        results = results
+          .map((item) => {
+            const id = item.restaurant_id || item._id || item.id;
+            const dbItem = dbMap.get(id);
 
-          const semanticScore = item.semantic_score || 0;
-          const tfidfScore = item.tfidf_score || 0;
-          const hybridScore =
-            alphaValue * semanticScore + (1 - alphaValue) * tfidfScore;
+            if (!dbItem) return null; 
 
-          const hasKeywordMatch =
-            dbItem.name.toLowerCase().includes(queryLower) ||
-            dbItem.menu?.some((m) => m.name.toLowerCase().includes(queryLower));
+            const semanticScore = item.semantic_score || 0;
+            const tfidfScore = item.tfidf_score || 0;
+            const hybridScore =
+              alphaValue * semanticScore + (1 - alphaValue) * tfidfScore;
 
-          // Merge: DB data overwrites generic fields, but keep scores
-          return {
-            ...item,            // Original scores/metadata
-            ...dbItem,          // Full Mongo Data from test collection
-            _id: dbItem._id,    // Ensure ID format
-            hybrid_score: hybridScore,
-            has_keyword_match: hasKeywordMatch,
-          };
-        })
-        .filter((item) => {
-          if (!item) return false;
-          // Filtering logic
-          return (
-            item.hybrid_score >= minScore ||
-            (item.has_keyword_match && item.hybrid_score >= 0.2)
-          );
-        });
+            const hasKeywordMatch =
+              dbItem.name.toLowerCase().includes(queryLower) ||
+              dbItem.menu?.some((m) => m.name.toLowerCase().includes(queryLower));
+
+            return {
+              ...item,
+              ...dbItem,
+              _id: dbItem._id,
+              hybrid_score: hybridScore,
+              has_keyword_match: hasKeywordMatch,
+            };
+          })
+          .filter((item) => {
+            if (!item) return false;
+            return (
+              item.hybrid_score >= minScore ||
+              (item.has_keyword_match && item.hybrid_score >= 0.2)
+            );
+          });
+      }
+    } catch (hfError) {
+      console.error("⚠️ HuggingFace API error:", hfError.message);
+      usedFallback = true;
     }
 
-    // ⭐ FALLBACK: If HF returns no results OR all results were filtered out (mismatched IDs)
+    // FALLBACK: If HF fails or returns 0 results, use MongoDB regex search
     if (results.length === 0) {
-      console.log("⚠️ HF Search yielded 0 valid matches. Falling back to MongoDB regex search.");
-      
-      const Restaurant = require("../models/Restaurant");
-      const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
+      console.log("📍 Using MongoDB fallback search for:", q);
+      usedFallback = true;
       
       const fallbackResults = await TestRestaurant.find({
         $or: [
           { name: { $regex: q, $options: "i" } },
           { address: { $regex: q, $options: "i" } },
-           // Also search in menu items if schema supports it
-           { "menu.name": { $regex: q, $options: "i" } }
+          { "menu.name": { $regex: q, $options: "i" } }
         ]
       })
-      .limit(20)
+      .sort({ avg_rating: -1 })
+      .limit(30)
       .lean();
 
       results = fallbackResults.map(r => ({
           ...r,
-          hybrid_score: 0.1, // Low score for fallback
+          hybrid_score: 0.5,
           has_keyword_match: true,
           semantic_score: 0,
           tfidf_score: 0,
@@ -128,7 +127,7 @@ router.get("/advanced", async (req, res) => {
     }
 
     console.log(
-      `Filtered from ${hfResponse.data.length} to ${results.length} results`
+      `Search "${q}": ${usedFallback ? 'Fallback' : 'HF'} → ${results.length} results`
     );
 
     return res.json({
@@ -139,14 +138,17 @@ router.get("/advanced", async (req, res) => {
         query: q.trim(),
         min_score_applied: minScore,
         alpha_applied: alphaValue,
-        original_total: hfResponse.data.length,
+        original_total: hfDataLength,
         filtered_total: results.length,
+        used_fallback: usedFallback
       },
     });
   } catch (error) {
     console.error("Advanced search error:", error.message);
     return res.status(500).json({
-      message: "Lỗi hệ thống khi gọi search service",
+      success: false,
+      message: "Lỗi hệ thống khi tìm kiếm",
+      error: error.message
     });
   }
 });

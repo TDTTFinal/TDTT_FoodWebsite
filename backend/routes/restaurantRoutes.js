@@ -14,6 +14,10 @@ router.get("/contextual", restaurantController.getContextualRestaurants);
 router.get("/collections", restaurantController.getCollectionRestaurants);
 
 router.get("/categories/stats", restaurantController.getCategoryStats);
+
+// Get reviews for a specific restaurant (from reviews collection)
+router.get("/:id/reviews", restaurantController.getRestaurantReviews);
+
 router.get("/:id", restaurantController.getRestaurantById);
 
 // Admin routes (có thể thêm middleware auth sau)
