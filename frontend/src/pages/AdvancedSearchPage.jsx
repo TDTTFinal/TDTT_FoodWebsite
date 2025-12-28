@@ -790,9 +790,21 @@ const AdvancedSearchPage = () => {
     setCurrentPage(1);
 
     try {
-      // Call /nearby endpoint
-      const res = await api.get(`/restaurants/nearby?lat=${lat}&lon=${lon}&radius=5000`);
+      // 1. Initial Search: 15km
+      let currentRadius = 15000;
+      let res = await api.get(`/restaurants/nearby?lat=${lat}&lon=${lon}&radius=${currentRadius}`);
       
+      // 2. Fallback Search: 50km if no results
+      if (res.success && (!res.data || res.data.length === 0)) {
+         console.log("No results in 15km, expanding to 50km...");
+         currentRadius = 50000;
+         res = await api.get(`/restaurants/nearby?lat=${lat}&lon=${lon}&radius=${currentRadius}`);
+         
+         if (res.success && res.data.length > 0) {
+             setError(`Không tìm thấy quán nào trong 15km. Đã mở rộng tìm kiếm ra ${currentRadius/1000}km.`);
+         }
+      }
+
       if (res.success) {
         setRestaurants(res.data);
         const filtered = applyFilters(res.data, {
@@ -1010,7 +1022,10 @@ const AdvancedSearchPage = () => {
       }
 
       // Updated endpoint: api.get (using axios instance)
-      const response = await api.get("/search/advanced", { params });
+      const response = await api.get("/search/advanced", { 
+        params,
+        timeout: 20000 // Increase timeout for AI search
+      });
 
       // Note: api.js interceptor returns response.data
       // And /search/advanced returns { success: true, data: [...], ... }

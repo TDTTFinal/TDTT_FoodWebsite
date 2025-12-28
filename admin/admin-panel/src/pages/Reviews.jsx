@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Star, MessageSquare, Clock, RefreshCw, Search, Filter, Check, X, Trash2, ChevronDown } from "lucide-react";
+import { Star, MessageSquare, Clock, RefreshCw, Search, Filter, Check, X, Trash2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 const StatCard = ({ title, value, icon: Icon, gradient, iconBg }) => (
   <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
@@ -47,6 +47,10 @@ const StatusBadge = ({ status }) => {
     pending: { 
       label: "Chờ duyệt", 
       classes: "bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-slate-200" 
+    },
+    deleted: {
+        label: "Đã xóa",
+        classes: "bg-slate-200 text-slate-500"
     }
   };
 
@@ -84,14 +88,17 @@ const ReviewRow = ({ review, onApprove, onReject, onDelete }) => {
       </td>
       <td className="p-4">
         <div className="flex items-center justify-end gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onApprove(review); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all text-sm font-medium"
-            title="Duyệt"
-          >
-            <Check size={14} />
-            <span className="hidden sm:inline">Duyệt</span>
-          </button>
+          {review.status !== 'active' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onApprove(review); }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all text-sm font-medium"
+                title="Duyệt"
+              >
+                <Check size={14} />
+                <span className="hidden sm:inline">Duyệt</span>
+              </button>
+          )}
+          
           <button
             onClick={(e) => { e.stopPropagation(); onReject(review); }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all text-sm font-medium"
@@ -100,6 +107,7 @@ const ReviewRow = ({ review, onApprove, onReject, onDelete }) => {
             <X size={14} />
             <span className="hidden sm:inline">Từ chối</span>
           </button>
+          
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(review); }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100 hover:border-rose-300 transition-all text-sm font-medium"
@@ -121,19 +129,51 @@ export default function Reviews() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalReviews, setTotalReviews] = useState(0);
 
+  // Debounce search
   useEffect(() => {
-    fetchReviews();
-  }, []);
+     const timer = setTimeout(() => {
+         setPage(1); // Reset page on filter change
+         fetchReviews();
+     }, 500);
+     return () => clearTimeout(timer);
+  }, [searchQuery, categoryFilter, statusFilter]);
+
+  // Fetch on page change (skip if triggered by filter change above to avoid double fetch? 
+  // actually useEffect deps logic: changing filters updates dependency array)
+  useEffect(() => {
+      fetchReviews();
+  }, [page]);
 
   async function fetchReviews() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:5000/api/admin/reviews");
+      const params = new URLSearchParams({
+          page: page,
+          limit: 20,
+          sort: "createdAt",
+          order: "desc"
+      });
+
+      if (searchQuery) params.append("search", searchQuery);
+      if (categoryFilter && categoryFilter !== "all") params.append("category", categoryFilter);
+      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+
+      const res = await fetch(`http://localhost:5000/api/admin/reviews?${params.toString()}`);
       if (!res.ok) throw new Error("Lỗi khi tải đánh giá");
       const json = await res.json();
+      
       setReviews(json.data || []);
+      if (json.pagination) {
+          setTotalPages(json.pagination.totalPages);
+          setTotalReviews(json.pagination.total);
+      }
     } catch (err) {
       console.error("Failed to load reviews:", err);
       setError(err.message);
@@ -180,24 +220,13 @@ export default function Reviews() {
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error("Lỗi khi xóa đánh giá");
+      // Remove from list or refresh? Removing is faster UX
       setReviews((prev) => prev.filter((r) => r._id !== review._id));
     } catch (err) {
       console.error("Delete error:", err);
       alert(err.message);
     }
   }
-
-  const filteredReviews = reviews.filter((r) => {
-    if (r.status === "deleted") return false;
-    const matchSearch = (r.restaurant?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCategory = categoryFilter === "all" || r.restaurant?.category?.toLowerCase() === categoryFilter.toLowerCase();
-    const matchStatus = statusFilter === "all" ||
-      (statusFilter === "approved" && r.status === "active") ||
-      (statusFilter === "pending" && r.status !== "active");
-    return matchSearch && matchCategory && matchStatus;
-  });
-
-  const pendingCount = reviews.filter((r) => r.status !== "active" && r.status !== "deleted").length;
 
   return (
     <div className="space-y-6">
@@ -222,36 +251,33 @@ export default function Reviews() {
         </div>
       )}
 
-      {/* Stats Cards */}
+      {/* Stats Cards (Static/Approximate or remove if expensive?) 
+          Actually keeping them static based on current page might be confusing.
+          Ideally these should come from a separate /stats endpoint or the same API.
+          For now, let's just show total from pagination metadata.
+      */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard 
           title="Tổng đánh giá" 
-          value={reviews.length} 
+          value={totalReviews} 
           icon={MessageSquare}
           gradient="from-indigo-600 to-purple-600"
           iconBg="bg-indigo-100 text-indigo-600"
         />
-        <StatCard 
-          title="Chờ duyệt" 
-          value={pendingCount} 
-          icon={Clock}
-          gradient="from-amber-500 to-orange-500"
-          iconBg="bg-amber-100 text-amber-600"
-        />
-        <StatCard 
-          title="Đã duyệt" 
-          value={reviews.filter(r => r.status === 'active').length} 
-          icon={Check}
-          gradient="from-emerald-500 to-teal-500"
-          iconBg="bg-emerald-100 text-emerald-600"
-        />
+        {/* These counts are not easily available with simple pagination without aggregation. 
+            We can leave them as 0 or remove them, or fetch a stats endpoint.
+            Let's disable them effectively or put a placeholder. 
+        */}
+        <div className="hidden md:block">
+             {/* Placeholder or separate stats call needed */}
+        </div>
       </div>
 
       {/* Search & Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="flex flex-wrap items-center gap-4">
           <button
-            onClick={fetchReviews}
+            onClick={() => { setPage(1); fetchReviews(); }}
             disabled={loading}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
           >
@@ -317,17 +343,7 @@ export default function Reviews() {
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-                      <span className="text-slate-500">Đang tải dữ liệu...</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!loading && filteredReviews.slice(0, 50).map((review) => (
+              {!loading && reviews.map((review) => (
                 <ReviewRow
                   key={review._id}
                   review={review}
@@ -336,7 +352,7 @@ export default function Reviews() {
                   onDelete={handleDelete}
                 />
               ))}
-              {!loading && filteredReviews.length === 0 && (
+              {!loading && reviews.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -350,12 +366,29 @@ export default function Reviews() {
           </table>
         </div>
         
-        {/* Table Footer */}
-        {!loading && filteredReviews.length > 50 && (
-          <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-sm text-slate-500">
-            Đang hiển thị 50 / {filteredReviews.length} đánh giá
-          </div>
-        )}
+        {/* Pagination Controls */}
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+           <span className="text-sm text-slate-500">
+             Trang {page} / {totalPages} (Tổng {totalReviews} đánh giá)
+           </span>
+           
+           <div className="flex gap-2">
+             <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="p-2 border rounded hover:bg-white disabled:opacity-50"
+             >
+                <ChevronLeft size={20} />
+             </button>
+             <button
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="p-2 border rounded hover:bg-white disabled:opacity-50"
+             >
+                <ChevronRight size={20} />
+             </button>
+           </div>
+        </div>
       </div>
     </div>
   );

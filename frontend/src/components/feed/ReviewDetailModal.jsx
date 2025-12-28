@@ -7,24 +7,28 @@ import { vi } from "date-fns/locale";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onReviewUpdate }) => {
-  const [review, setReview] = useState(initialReview); // Local review state
+  // Normalize: If input is a Post (has .review property), use that. Otherwise use input as Review.
+  const realInitialReview = initialReview.review || initialReview;
+
+  const [review, setReview] = useState(realInitialReview); // Local review state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState(initialReview.comments || []);
+  const [comments, setComments] = useState(realInitialReview.comments || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [likesCount, setLikesCount] = useState(initialReview.likesCount || 0);
+  const [likesCount, setLikesCount] = useState(realInitialReview.likesCount || 0);
   
   // Initialize isLiked logic
   const [isLiked, setIsLiked] = useState(() => {
-     if (!currentUser?._id || !initialReview.likes) return false;
-     return initialReview.likes.some(id => id && String(id) === String(currentUser._id));
+     if (!currentUser?._id || !realInitialReview.likes) return false;
+     return realInitialReview.likes.some(id => id && String(id) === String(currentUser._id));
   });
 
   // Fetch fresh data on mount to ensure comments are up-to-date
   useEffect(() => {
     const fetchReviewDetail = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/reviews/${initialReview._id}`);
+            // Use the correct ID (Review ID)
+            const res = await fetch(`${API_BASE_URL}/reviews/${realInitialReview._id}`);
             const data = await res.json();
             if (data.success) {
                 setReview(data.data);
@@ -39,7 +43,7 @@ const ReviewDetailModal = ({ review: initialReview, onClose, currentUser, onRevi
         }
     };
     fetchReviewDetail();
-  }, [initialReview._id, currentUser]);
+  }, [realInitialReview._id, currentUser]);
 
   // Handle body scroll lock
   useEffect(() => {

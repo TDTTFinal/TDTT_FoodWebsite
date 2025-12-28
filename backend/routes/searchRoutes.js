@@ -19,7 +19,7 @@ router.get("/advanced", async (req, res) => {
 
     const DEFAULT_LAT = 10.7769;
     const DEFAULT_LON = 106.7009;
-    const DEFAULT_RADIUS = 0;
+    const DEFAULT_RADIUS = 20000; 
     const DEFAULT_ALPHA = 0.6;
     const DEFAULT_TOP_K = 9999;
     const DEFAULT_MIN_SCORE = 0.35;
@@ -46,10 +46,13 @@ router.get("/advanced", async (req, res) => {
         alpha: alphaValue,
       };
 
+      const startTime = Date.now();
       const hfResponse = await axios.get(HF_SEARCH_URL, {
         params: hfParams,
-        timeout: 8000, // Increased timeout
+        timeout: 15000, // Increased to 15s for testing
       });
+      const duration = Date.now() - startTime;
+      console.log(`✅ HuggingFace API responded in ${duration}ms with ${hfResponse.data.length} results.`);
 
       results = hfResponse.data;
       hfDataLength = results.length;
@@ -67,7 +70,6 @@ router.get("/advanced", async (req, res) => {
           .map((item) => {
             const id = item.restaurant_id || item._id || item.id;
             const dbItem = dbMap.get(id);
-
             if (!dbItem) return null; 
 
             const semanticScore = item.semantic_score || 0;
@@ -96,7 +98,7 @@ router.get("/advanced", async (req, res) => {
           });
       }
     } catch (hfError) {
-      console.error("⚠️ HuggingFace API error:", hfError.message);
+      console.error(`⚠️ HuggingFace API failed: ${hfError.message}`);
       usedFallback = true;
     }
 

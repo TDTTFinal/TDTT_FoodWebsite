@@ -10,13 +10,12 @@ export default function AddRestaurantForm({ onClose, onSave }) {
     description: "",
     image: "",
     categories: {
-      lau: false,
-      nuong: false,
-      buffet: false,
-      monViet: false,
-      monHan: false,
-      monNhat: false,
-      monAu: false,
+      com: false,
+      nuoc: false,
+      drinks: false,
+      snack: false,
+      party: false,
+      healthy: false,
     },
     mealTypes: { sang: false, trua: false, chieu: false, toi: false },
     amenities: { mayLanh: false, choDoXe: false, wifi: false },
@@ -28,10 +27,20 @@ export default function AddRestaurantForm({ onClose, onSave }) {
   const [uploadedImages, setUploadedImages] = useState([]);
 
   const handleCheckbox = (section, key) => {
-    setForm((prev) => ({
-      ...prev,
-      [section]: { ...prev[section], [key]: !prev[section][key] },
-    }));
+    if (section === "categories") {
+        setForm((prev) => ({
+            ...prev,
+            categories: {
+                ...prev.categories,
+                [key]: !prev.categories[key]
+            }
+        }));
+    } else {
+        setForm((prev) => ({
+        ...prev,
+        [section]: { ...prev[section], [key]: !prev[section][key] },
+        }));
+    }
   };
 
   const handleSave = async () => {
@@ -42,6 +51,9 @@ export default function AddRestaurantForm({ onClose, onSave }) {
         return;
       }
 
+      // Determine primary category
+      const primaryCategory = getCategoryFromForm(form.categories);
+
       // Chuyển đổi dữ liệu form sang format MongoDB
       const payload = {
         name: form.name,
@@ -49,7 +61,7 @@ export default function AddRestaurantForm({ onClose, onSave }) {
         opening_hours: "Đang cập nhật",
         price_range: "Đang cập nhật",
         avatar_url: form.image || uploadedImages[0] || undefined,
-        category: getCategoryFromForm(form.categories),
+        category: primaryCategory,
         tags: getTagsFromForm(form),
         location: {
           type: "Point",
@@ -62,7 +74,6 @@ export default function AddRestaurantForm({ onClose, onSave }) {
 
       console.log("📤 Sending payload to API:", payload);
 
-      // Đảm bảo onSave được gọi và chờ kết quả
       if (onSave) {
         const result = await onSave(payload);
         console.log("✅ API response:", result);
@@ -75,21 +86,28 @@ export default function AddRestaurantForm({ onClose, onSave }) {
     }
   };
 
-  // Helper để lấy category chính từ checkboxes
+  // Helper để lấy category chính từ checkboxes -> Matches User App Categories
   const getCategoryFromForm = (categories) => {
-    if (categories.lau) return "Lẩu";
-    if (categories.nuong) return "Nướng";
-    if (categories.buffet) return "Buffet";
-    if (categories.monViet) return "Món Việt";
-    if (categories.monHan) return "Món Hàn";
-    if (categories.monNhat) return "Món Nhật";
-    if (categories.monAu) return "Món Âu";
+    if (categories.com) return "Cơm & Món Mặn";
+    if (categories.nuoc) return "Món Nước & Sợi";
+    if (categories.drinks) return "Cafe & Trà Sữa";
+    if (categories.snack) return "Ăn Vặt & Bánh";
+    if (categories.party) return "Lẩu - Nướng & Nhậu";
+    if (categories.healthy) return "Healthy & Khác";
     return "Khác";
   };
 
-  // Helper để lấy tất cả tags
+  // Helper để lấy tất cả tags (bao gồm cả các category phụ nếu muốn, hoặc các tiện ích)
   const getTagsFromForm = (formData) => {
     const tags = [];
+
+    // Thêm các category đã chọn vào tags
+    if (formData.categories.com) tags.push("Cơm", "Món Mặn");
+    if (formData.categories.nuoc) tags.push("Món Nước", "Bún", "Phở");
+    if (formData.categories.drinks) tags.push("Cafe", "Trà Sữa", "Đồ uống");
+    if (formData.categories.snack) tags.push("Ăn Vặt", "Bánh");
+    if (formData.categories.party) tags.push("Lẩu", "Nướng", "Nhậu");
+    if (formData.categories.healthy) tags.push("Healthy", "Salad");
 
     // Thêm meal types
     if (formData.mealTypes?.sang) tags.push("Ăn sáng");
@@ -108,31 +126,9 @@ export default function AddRestaurantForm({ onClose, onSave }) {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
-
-    // TODO: Upload to backend or cloud storage
-    // Tạm thời dùng URL placeholder
     alert(
       "Chức năng upload ảnh đang được phát triển. Vui lòng nhập URL ảnh trực tiếp."
     );
-
-    /* const formData = new FormData();
-    files.forEach((file) => formData.append("images", file));
-
-    try {
-      const res = await fetch("http://localhost:5000/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      setUploadedImages((prev) => [...prev, ...data.files]);
-      if (data.files.length > 0 && !form.image) {
-        setForm((prev) => ({ ...prev, image: data.files[0] }));
-      }
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Lỗi khi upload ảnh");
-    } */
   };
 
   const handleMouseDown = (e) => {
@@ -251,7 +247,7 @@ export default function AddRestaurantForm({ onClose, onSave }) {
             </div>
           </section>
 
-          {/* Phân loại */}
+          {/* Phân loại - Updated to match User App */}
           <section className="p-8 bg-gray-200 border-b-2 border-gray-300">
             <h3 className="font-bold text-base mb-6">Phân loại</h3>
 
@@ -260,15 +256,14 @@ export default function AddRestaurantForm({ onClose, onSave }) {
                 <label className="text-sm">Danh mục</label>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                   {[
-                    ["lau", "Lẩu"],
-                    ["nuong", "Nướng"],
-                    ["buffet", "Buffet"],
-                    ["monViet", "Món Việt"],
-                    ["monHan", "Món Hàn"],
-                    ["monNhat", "Món Nhật"],
-                    ["monAu", "Món Âu"],
+                    ["com", "Cơm & Món Mặn"],
+                    ["nuoc", "Món Nước & Sợi"],
+                    ["drinks", "Cafe & Trà Sữa"],
+                    ["snack", "Ăn Vặt & Bánh"],
+                    ["party", "Lẩu - Nướng & Nhậu"],
+                    ["healthy", "Healthy & Khác"],
                   ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2">
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.categories[key]}
@@ -290,7 +285,7 @@ export default function AddRestaurantForm({ onClose, onSave }) {
                     ["chieu", "Chiều"],
                     ["toi", "Tối"],
                   ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2">
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.mealTypes[key]}
@@ -311,7 +306,7 @@ export default function AddRestaurantForm({ onClose, onSave }) {
                     ["choDoXe", "Chỗ đậu xe"],
                     ["wifi", "Wifi"],
                   ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2">
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.amenities[key]}

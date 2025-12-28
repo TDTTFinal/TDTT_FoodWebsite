@@ -464,7 +464,7 @@ exports.getAdminStats = async (req, res) => {
 // @access  Private/Admin
 exports.getAllReviews = async (req, res) => {
   try {
-    const { status, sort = "createdAt", order = "desc" } = req.query;
+    const { status, search, category, sort = "createdAt", order = "desc", page = 1, limit = 20 } = req.query;
 
     // Build filter
     const filter = {};
@@ -472,20 +472,52 @@ exports.getAllReviews = async (req, res) => {
       filter.status = status;
     }
 
+    // 1. If filtering by restaurant info (search or category), we must find matching restaurants first
+    if (search || (category && category !== "all")) {
+        const restaurantFilter = {};
+        
+        if (search) {
+            restaurantFilter.name = { $regex: search, $options: "i" };
+        }
+        
+        if (category && category !== "all") {
+            restaurantFilter.category = category;
+        }
+
+        const matchingRestaurants = await Restaurant.find(restaurantFilter).select("_id");
+        const restaurantIds = matchingRestaurants.map(r => r._id);
+        
+        // Add to review filter
+        filter.restaurant = { $in: restaurantIds };
+    }
+
     // Sort
     const sortOrder = order === "asc" ? 1 : -1;
     const sortOptions = { [sort]: sortOrder };
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
 
     const reviews = await Review.find(filter)
       .populate("user", "name email avatar")
       .populate("restaurant", "name address")
       .sort(sortOptions)
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
       .select("-__v");
+
+    const total = await Review.countDocuments(filter);
 
     res.status(200).json({
       success: true,
       count: reviews.length,
       data: reviews,
+      pagination: {
+        total,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        limit: limitNum
+      }
     });
   } catch (error) {
     console.error("Error in getAllReviews:", error);

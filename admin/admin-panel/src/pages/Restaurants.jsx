@@ -13,6 +13,9 @@ import {
   Star,
   Eye,
   MapPin,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle
 } from "lucide-react";
 
 const StatCard = ({ title, value, icon: Icon, gradient, iconBg }) => (
@@ -115,20 +118,45 @@ export default function Restaurants() {
   const [actionError, setActionError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRestaurants, setTotalRestaurants] = useState(0);
+
+  // Debounce search
+  useEffect(() => {
+     const timer = setTimeout(() => {
+         setPage(1);
+         fetchRestaurants();
+     }, 500);
+     return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchRestaurants();
-  }, []);
+  }, [page]);
 
   async function fetchRestaurants() {
     setError(null);
     setLoading(true);
     try {
+      const params = new URLSearchParams({
+          page: page,
+          limit: 20,
+          search: searchQuery
+      });
+
       const res = await fetch(
-        "http://localhost:5000/api/admin/restaurants?limit=2000"
+        `http://localhost:5000/api/admin/restaurants?${params.toString()}`
       );
       if (!res.ok) throw new Error("Lỗi khi tải danh sách nhà hàng");
       const json = await res.json();
       setRestaurants(json.data || []);
+      
+      if (json.total !== undefined) {
+          setTotalRestaurants(json.total);
+          setTotalPages(json.totalPages || Math.ceil(json.total / 20));
+      }
     } catch (err) {
       console.error("Failed to load restaurants", err);
       setError(err.message || "Failed to load");
@@ -152,7 +180,8 @@ export default function Restaurants() {
       if (res.ok) {
         const json = await res.json();
         console.log("✅ Restaurant created successfully:", json.data);
-        setRestaurants((s) => [json.data, ...s]);
+        // Refresh list instead of appending to keep pagination consistent
+        fetchRestaurants(); 
         setShowAdd(false);
         return json.data;
       } else {
@@ -241,6 +270,7 @@ export default function Restaurants() {
       );
       if (res.ok) {
         setRestaurants((prev) => prev.filter((r) => r._id !== item._id));
+        // Might want to fetchRestaurants() to refill page if needed, but removing locally is faster feedback
       } else {
         const json = await res.json();
         throw new Error(json.message || "Delete failed");
@@ -252,10 +282,6 @@ export default function Restaurants() {
       setActionLoading(false);
     }
   }
-
-  const filteredRestaurants = restaurants.filter((r) =>
-    r.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -273,7 +299,7 @@ export default function Restaurants() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchRestaurants}
+              onClick={() => { setPage(1); fetchRestaurants(); }}
               className="p-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all"
               title="Tải lại"
             >
@@ -294,21 +320,21 @@ export default function Restaurants() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Tổng nhà hàng"
-          value={restaurants.length}
+          value={totalRestaurants}
           icon={Store}
           gradient="from-indigo-600 to-purple-600"
           iconBg="bg-indigo-100 text-indigo-600"
         />
         <StatCard
           title="Tổng đánh giá"
-          value={restaurants.reduce((sum, r) => sum + (r.reviews?.length || 0), 0)}
+          value={"N/A"} // Should fetch from stats endpoint, simplified for now
           icon={Star}
           gradient="from-amber-500 to-orange-500"
           iconBg="bg-amber-100 text-amber-600"
         />
         <StatCard
           title="Hoạt động"
-          value={restaurants.filter((r) => r.visible !== false).length}
+          value={totalRestaurants} // Approximate since we don't have count of active vs hidden without aggregation
           icon={Eye}
           gradient="from-emerald-500 to-teal-500"
           iconBg="bg-emerald-100 text-emerald-600"
@@ -332,7 +358,6 @@ export default function Restaurants() {
               className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
             />
           </div>
-          {/* Filter Placeholder - could add dropdowns here */}
         </div>
 
         {/* Error Banners */}
@@ -368,7 +393,7 @@ export default function Restaurants() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredRestaurants.map((s) => (
+              {restaurants.map((s) => (
                 <Row
                   key={s._id}
                   item={s}
@@ -379,7 +404,7 @@ export default function Restaurants() {
                 />
               ))}
 
-              {!loading && filteredRestaurants.length === 0 && (
+              {!loading && restaurants.length === 0 && (
                 <tr>
                   <td
                     colSpan={5}
@@ -394,6 +419,30 @@ export default function Restaurants() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+           <span className="text-sm text-slate-500">
+             Trang {page} / {totalPages} (Tổng {totalRestaurants} nhà hàng)
+           </span>
+           
+           <div className="flex gap-2">
+             <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="p-2 border rounded hover:bg-white disabled:opacity-50"
+             >
+                <ChevronLeft size={20} />
+             </button>
+             <button
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="p-2 border rounded hover:bg-white disabled:opacity-50"
+             >
+                <ChevronRight size={20} />
+             </button>
+           </div>
         </div>
       </div>
 

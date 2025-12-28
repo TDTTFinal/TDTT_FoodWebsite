@@ -50,7 +50,7 @@ const Footer = () => {
             <h3 className="text-white font-bold text-lg mb-6">Công ty</h3>
             <ul className="space-y-4">
               <li><Link to="/about" className="hover:text-orange-500 transition-colors block py-1">Về chúng tôi</Link></li>
-              <li><Link to="/careers" className="hover:text-orange-500 transition-colors block py-1">Tuyển dụng</Link></li>
+              {/* <li><Link to="/careers" className="hover:text-orange-500 transition-colors block py-1">Tuyển dụng</Link></li> */}
               <li><Link to="/terms" className="hover:text-orange-500 transition-colors block py-1">Điều khoản sử dụng</Link></li>
               <li><Link to="/privacy" className="hover:text-orange-500 transition-colors block py-1">Chính sách bảo mật</Link></li>
               <li><Link to="/contact" className="hover:text-orange-500 transition-colors block py-1">Liên hệ</Link></li>

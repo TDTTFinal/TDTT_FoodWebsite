@@ -20,8 +20,3 @@ cd admin-panel
 npm install
 npm install lucide-react    
 npm run dev
-
-
-
-npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
-mkdir frontend\src\components\foodtour
