@@ -3,6 +3,8 @@ const express = require("express");
 const axios = require("axios");
 const mongoose = require("mongoose");
 
+const Restaurant = require("../models/Restaurant");
+
 const router = express.Router();
 
 const HF_SEARCH_URL =
@@ -28,9 +30,6 @@ router.get("/advanced", async (req, res) => {
     const minScore = parseFloat(min_score) || DEFAULT_MIN_SCORE;
     const queryLower = q.trim().toLowerCase();
 
-    const Restaurant = require("../models/Restaurant");
-    const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
-
     let results = [];
     let hfDataLength = 0;
     let usedFallback = false;
@@ -49,7 +48,7 @@ router.get("/advanced", async (req, res) => {
       const startTime = Date.now();
       const hfResponse = await axios.get(HF_SEARCH_URL, {
         params: hfParams,
-        timeout: 15000, // Increased to 15s for testing
+        timeout: 15000, 
       });
       const duration = Date.now() - startTime;
       console.log(`✅ HuggingFace API responded in ${duration}ms with ${hfResponse.data.length} results.`);
@@ -59,17 +58,19 @@ router.get("/advanced", async (req, res) => {
 
       // ENRICHMENT from MongoDB
       if (Array.isArray(results) && results.length > 0) {
+        // Create sets of IDs from HF results
         const ids = results
           .map((r) => r.restaurant_id || r._id || r.id)
-          .filter((id) => id);
+          .filter((id) => mongoose.isValidObjectId(id)); 
         
-        const dbRestaurants = await TestRestaurant.find({ _id: { $in: ids } }).lean();
+        const dbRestaurants = await Restaurant.find({ _id: { $in: ids } }).lean();
         const dbMap = new Map(dbRestaurants.map((r) => [r._id.toString(), r]));
 
         results = results
           .map((item) => {
             const id = item.restaurant_id || item._id || item.id;
-            const dbItem = dbMap.get(id);
+            const dbItem = dbMap.get(id.toString());
+            
             if (!dbItem) return null; 
 
             const semanticScore = item.semantic_score || 0;
@@ -107,7 +108,7 @@ router.get("/advanced", async (req, res) => {
       console.log("📍 Using MongoDB fallback search for:", q);
       usedFallback = true;
       
-      const fallbackResults = await TestRestaurant.find({
+      const fallbackResults = await Restaurant.find({
         $or: [
           { name: { $regex: q, $options: "i" } },
           { address: { $regex: q, $options: "i" } },

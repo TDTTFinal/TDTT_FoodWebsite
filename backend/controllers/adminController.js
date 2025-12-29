@@ -12,12 +12,8 @@ exports.getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find().sort({ order: 1, name: 1 });
 
-    // Use the 'test' collection for counting, as that's where the real data is
-    // Create model if not exists (similar to searchRoutes)
-    const TestRestaurant = mongoose.models.TestRestaurant || mongoose.model("TestRestaurant", Restaurant.schema, "test");
-
-    // Aggregate counts from test collection
-    const counts = await TestRestaurant.aggregate([
+    // Aggregate counts from restaurant collection (which points to 'test')
+    const counts = await Restaurant.aggregate([
       { $group: { _id: "$category", count: { $sum: 1 } } }
     ]);
 
